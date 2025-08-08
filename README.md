@@ -1,14 +1,14 @@
 # PocketBase Deploy Manager - Technical Breakdown
 
-A personal deployment tool for automating PocketBase application deployment with server setup, security hardening, and Cloudflare DNS integration.
+A **production-only** deployment tool for automating PocketBase application deployment with server setup, security hardening, and Cloudflare DNS integration. Each app is deployed with its own domain and served in production environments.
 
 ## 🏗️ Core Architecture
 
 ```
 Svelte 5 UI ── PocketBase API ── SSH Manager ── Remote Servers
 │ │ │ │
-File Storage SQLite DB Cloudflare API Security Layer
-(Versions) (Metadata) (DNS Only) (UFW/fail2ban)
+File Storage SQLite DB Security Layer
+(Versions) (Metadata) (UFW/fail2ban)
 ```
 
 ## 📋 Essential Features Only
@@ -29,26 +29,21 @@ File Storage SQLite DB Cloudflare API Security Layer
 - [ ] UFW firewall (22, 80, 443)
 - [ ] fail2ban SSH protection
 - [ ] SSH hardening (disable root, key-only auth)
-- [ ] Cloudflare fail2ban integration
 
 ### Phase 4: Deployment Engine
 - [ ] rsync file synchronization
 - [ ] systemd service generation and management
-- [ ] First deploy: upload → service → start
+- [ ] Superuser setup (first deploy only)
+- [ ] First deploy: upload → service → superuser setup → start
 - [ ] Update deploy: stop → upload → start
 - [ ] Rollback: stop → restore → start
 
-### Phase 5: Cloudflare DNS
-- [ ] Automatic A record creation
-- [ ] DNS API integration
-- [ ] Subdomain management (app.domain.com)
-
-### Phase 6: Version Control
+### Phase 5: Version Control
 - [ ] File storage in PocketBase
 - [ ] Version tracking and rollback
 - [ ] Deployment history
 
-### Phase 7: Svelte Frontend
+### Phase 6: Svelte Frontend
 - [ ] Server management interface
 - [ ] Deployment wizard with file upload
 - [ ] Real-time deployment progress
@@ -72,15 +67,14 @@ SecurityLocked bool `json:"security_locked"`
 }
 
 type App struct {
-ID string `json:"id"`
-Name string `json:"name"`
-ServerID string `json:"server_id"`
-RemotePath string `json:"remote_path"`
-ServiceName string `json:"service_name"`
-Subdomain string `json:"subdomain"`
-HealthURL string `json:"health_url"`
-CurrentVersion string `json:"current_version"`
-Status string `json:"status"` // online/offline via ping
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	ServerID       string `json:"server_id"`
+	RemotePath     string `json:"remote_path"`
+	ServiceName    string `json:"service_name"`
+	Domain         string `json:"domain"`         // Production domain (e.g., "myapp.example.com")
+	CurrentVersion string `json:"current_version"`
+	Status         string `json:"status"` // online/offline via /api/health ping
 }
 
 type Version struct {
@@ -102,12 +96,6 @@ StartedAt string `json:"started_at"`
 CompletedAt string `json:"completed_at"`
 }
 
-type CloudflareZone struct {
-ID string `json:"id"`
-ZoneName string `json:"zone_name"`
-ZoneID string `json:"zone_id"`
-APIToken string `json:"api_token"`
-}
 ```
 
 ## 🔧 Core Technical Components
@@ -141,16 +129,17 @@ func (sm *SSHManager) ApplySecurityLockdown(progressChan chan<- SetupStep) error
 func (sm *SSHManager) setupFirewall() error
 func (sm *SSHManager) setupFail2ban() error
 func (sm *SSHManager) hardenSSH() error
-func (sm *SSHManager) setupCloudflareFailban() error
+
 ```
 
 ### Deployment Functions
 ```go
-func (sm *SSHManager) DeployApp(appName, remotePath string, binaryData, staticFiles []byte) error
+func (sm *SSHManager) DeployApp(appName, remotePath, domain string, binaryData, staticFiles []byte) error
 func (sm *SSHManager) UpdateApp(appName, remotePath string, binaryData, staticFiles []byte) error
 func (sm *SSHManager) RollbackApp(appName, remotePath string, version *Version) error
-func (sm *SSHManager) createSystemdService(appName, remotePath string) error
+func (sm *SSHManager) createSystemdService(appName, remotePath, domain string) error
 func (sm *SSHManager) syncFiles(remotePath string, binaryData, staticFiles []byte) error
+func (sm *SSHManager) setupSuperuser(appName, email, password string) error
 ```
 
 ### Service Management
@@ -161,25 +150,16 @@ func (sm *SSHManager) RestartService(appName string) error
 func (sm *SSHManager) GetServiceStatus(appName string) (string, error)
 ```
 
-### Cloudflare Integration
-```go
-type CloudflareManager struct {
-APIToken string
-ZoneID string
-}
-
-func (cm *CloudflareManager) CreateDNSRecord(subdomain, serverIP string) error
-func (cm *CloudflareManager) DeleteDNSRecord(subdomain string) error
-func (cm *CloudflareManager) UpdateDNSRecord(subdomain, newIP string) error
-```
-
 ### Health Monitoring
 ```go
 type HealthChecker struct{}
 
-func (hc *HealthChecker) PingApp(healthURL string) (bool, error)
+func (hc *HealthChecker) PingApp(domain string) (bool, error) // Checks https://{domain}/api/health
 func (hc *HealthChecker) CheckAllApps(apps []App) map[string]bool
+func (hc *HealthChecker) GetHealthURL(domain string) string // Returns https://{domain}/api/health
 ```
+
+**Standard Health Endpoint**: All PocketBase applications expose a standardized health check at `/api/health` that returns JSON status information.
 
 ## 🚀 Deployment Workflows
 
@@ -190,8 +170,8 @@ func (ds *DeploymentService) FirstDeploy(req DeploymentRequest) error {
 // 2. SSH to server as pocketbase user
 // 3. rsync files to /opt/pocketbase/apps/[app-name]/
 // 4. Generate systemd service
-// 5. Start service
-// 6. Create DNS record
+// 5. Setup superuser (email/password from request)
+// 6. Start service
 // 7. Return success
 }
 ```
@@ -224,11 +204,10 @@ func (ds *DeploymentService) Rollback(appID, versionID string) error {
 3. Basic deployment (upload → service → start)
 4. Simple service management
 
-### Extended MVP (Phase 5-7)
-1. DNS automation
-2. Version control with rollback
-3. Basic UI with real-time updates
-4. Health ping monitoring
+### Extended MVP (Phase 5-6)
+1. Version control with rollback
+2. Basic UI with real-time updates
+3. Health monitoring via `/api/health` endpoint
 
 ## 📁 Project Structure (Simplified)
 
@@ -241,8 +220,7 @@ pb-deploy-manager/
 │ ├── models/ # Data models
 │ ├── ssh/ # SSH operations
 │ ├── services/ # Business logic
-│ ├── handlers/ # API endpoints
-│ └── cloudflare/ # DNS management
+│ └── handlers/ # API endpoints
 │
 ├── web/ # Svelte frontend
 │ ├── src/
@@ -256,7 +234,8 @@ pb-deploy-manager/
 │ └── systemd/
 │ └── pocketbase.service.tmpl
 │
-└── data/ # PocketBase data (gitignored)
+└── configs/ # Example systemd service
+  └── pocketbase.service.example
 ```
 
 ## 🔄 Key Flows
@@ -267,13 +246,53 @@ Connect as root → Create pocketbase user → Setup SSH keys →
 Create directories → Test connection → Apply security → Complete
 ```
 
-### Deployment Flow
+### First Deployment Flow
 ```
 Upload files → Store version → SSH to server →
-rsync files → Create/update service → Start → Create DNS → Done
+rsync files → Create service → Setup superuser → Start → Done
 ```
 
-### Update Flow
+### Update Deployment Flow
 ```
 Stop service → rsync new files → Start service → Ping health → Success
 ```
+
+## 🔧 Systemd Service Template
+
+```ini
+[Unit]
+Description = pocketbase-{APP_NAME}
+
+[Service]
+Type             = simple
+User             = pocketbase
+Group            = pocketbase
+LimitNOFILE      = 4096
+Restart          = always
+RestartSec       = 5s
+StandardOutput   = append:/opt/pocketbase/apps/{APP_NAME}/logs/std.log
+StandardError    = append:/opt/pocketbase/apps/{APP_NAME}/logs/std.log
+WorkingDirectory = /opt/pocketbase/apps/{APP_NAME}
+ExecStart        = /opt/pocketbase/apps/{APP_NAME}/pocketbase serve {DOMAIN}
+
+[Install]
+WantedBy = multi-user.target
+```
+
+## 🔐 Superuser Setup Process
+
+For first deployments, the system will:
+1. Deploy the PocketBase binary and files
+2. Create the systemd service (but don't start it yet)
+3. Run `./pocketbase superuser create EMAIL PASS` to setup the admin user
+4. Start the service
+5. The app will be accessible immediately with the created superuser
+
+**Note**: The superuser email and password must be provided during the first deployment request.
+
+## 🔍 Health Monitoring
+
+All deployed PocketBase applications expose a standardized health endpoint:
+
+**Endpoint**: `GET /api/health`
+**URL Format**: `https://{domain}/api/health`
