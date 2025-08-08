@@ -81,8 +81,7 @@ type Version struct {
 ID string `json:"id"`
 AppID string `json:"app_id"`
 VersionNum string `json:"version_number"`
-BinaryFile string `json:"binary_file"` // PB file field
-StaticFiles string `json:"static_files"` // PB file field
+DeploymentZip string `json:"deployment_zip"` // Single zip containing binary and pb_public folder
 Notes string `json:"notes"`
 }
 
@@ -134,11 +133,11 @@ func (sm *SSHManager) hardenSSH() error
 
 ### Deployment Functions
 ```go
-func (sm *SSHManager) DeployApp(appName, remotePath, domain string, binaryData, staticFiles []byte) error
-func (sm *SSHManager) UpdateApp(appName, remotePath string, binaryData, staticFiles []byte) error
+func (sm *SSHManager) DeployApp(appName, remotePath, domain string, deploymentZip []byte) error
+func (sm *SSHManager) UpdateApp(appName, remotePath string, deploymentZip []byte) error
 func (sm *SSHManager) RollbackApp(appName, remotePath string, version *Version) error
 func (sm *SSHManager) createSystemdService(appName, remotePath, domain string) error
-func (sm *SSHManager) syncFiles(remotePath string, binaryData, staticFiles []byte) error
+func (sm *SSHManager) transferAndExtractZip(remotePath string, deploymentZip []byte) error
 func (sm *SSHManager) setupSuperuser(appName, email, password string) error
 ```
 
@@ -166,13 +165,17 @@ func (hc *HealthChecker) GetHealthURL(domain string) string // Returns https://{
 ### First Deploy
 ```go
 func (ds *DeploymentService) FirstDeploy(req DeploymentRequest) error {
-// 1. Upload files to PocketBase storage
-// 2. SSH to server as pocketbase user
-// 3. rsync files to /opt/pocketbase/apps/[app-name]/
-// 4. Generate systemd service
-// 5. Setup superuser (email/password from request)
-// 6. Start service
-// 7. Return success
+// 1. Create deployment zip (binary + pb_public folder)
+// 2. Upload zip to PocketBase storage
+// 3. SSH to server as pocketbase user
+// 4. Download zip from local PocketBase storage
+// 5. Transfer zip to remote server via SCP/SSH
+// 6. Extract zip on remote server to /opt/pocketbase/apps/[app-name]/
+// 7. Set proper file permissions (executable for binary)
+// 8. Generate systemd service
+// 9. Setup superuser (email/password from request)
+// 10. Start service
+// 11. Return success
 }
 ```
 
@@ -180,9 +183,12 @@ func (ds *DeploymentService) FirstDeploy(req DeploymentRequest) error {
 ```go
 func (ds *DeploymentService) UpdateDeploy(appID string, req DeploymentRequest) error {
 // 1. Stop service
-// 2. rsync new files
-// 3. Start service
-// 4. Verify health
+// 2. Download new deployment zip from PocketBase storage
+// 3. Transfer zip to remote server via SCP/SSH
+// 4. Extract new files from deployment zip on remote server
+// 5. Set proper file permissions
+// 6. Start service
+// 7. Verify health
 }
 ```
 
@@ -190,9 +196,11 @@ func (ds *DeploymentService) UpdateDeploy(appID string, req DeploymentRequest) e
 ```go
 func (ds *DeploymentService) Rollback(appID, versionID string) error {
 // 1. Stop service
-// 2. Download files from version storage
-// 3. rsync files to server
-// 4. Start service
+// 2. Download previous deployment zip from PocketBase version storage
+// 3. Transfer zip to remote server via SCP/SSH
+// 4. Extract and restore files on remote server
+// 5. Set proper file permissions
+// 6. Start service
 }
 ```
 
@@ -248,14 +256,53 @@ Create directories → Test connection → Apply security → Complete
 
 ### First Deployment Flow
 ```
-Upload files → Store version → SSH to server →
-rsync files → Create service → Setup superuser → Start → Done
+Create deployment zip → Store version → SSH to server →
+Download zip → Transfer via SCP → Extract files → Create service → Setup superuser → Start → Done
 ```
 
 ### Update Deployment Flow
 ```
-Stop service → rsync new files → Start service → Ping health → Success
+Stop service → Download zip → Transfer via SCP → Extract new files → Start service → Ping health → Success
 ```
+
+## 📁 File Transfer Process
+
+The deployment system handles file transfer from local PocketBase storage to remote servers through SSH/SCP:
+
+### **Transfer Steps:**
+1. **Local Storage**: Deployment zip is stored in PocketBase file storage
+2. **Download**: Read zip file from PocketBase storage into memory
+3. **SCP Transfer**: Transfer zip bytes to remote server via SSH connection
+4. **Remote Extraction**: Unzip files directly on remote server
+5. **Permission Setup**: Set executable permissions on binary
+
+### **Transfer Functions:**
+```go
+func (sm *SSHManager) transferZipFile(localZipData []byte, remotePath string) error
+func (sm *SSHManager) extractZipOnRemote(zipPath, extractPath string) error
+func (sm *SSHManager) setFilePermissions(remotePath string) error
+func (sm *SSHManager) cleanupTempFiles(remotePath string) error
+```
+
+### **Remote File Structure:**
+```
+/opt/pocketbase/apps/[app-name]/
+├── pocketbase                 # Executable binary (chmod +x)
+├── pb_public/                 # Static files directory
+│   ├── index.html
+│   ├── assets/
+│   └── ...
+├── logs/                      # Service logs
+│   └── std.log
+└── temp/                      # Temporary zip extraction
+    └── deployment.zip.tmp     # Cleaned up after extraction
+```
+
+### **Transfer Security:**
+- Uses existing SSH connection (no separate SCP process)
+- Files transferred as `pocketbase` user (not root)
+- Temporary files cleaned up after extraction
+- Binary permissions set to executable only for owner
 
 ## 🔧 Systemd Service Template
 
