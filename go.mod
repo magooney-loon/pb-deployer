@@ -1,4 +1,4 @@
-module pbdeployer
+module pb-deployer
 
 go 1.24.2
 
