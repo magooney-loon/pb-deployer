@@ -3,7 +3,7 @@ module pb-deployer
 go 1.24.2
 
 require (
-	github.com/magooney-loon/pb-ext v0.0.0-20250512162858-c3be2f6c3c47
+	github.com/magooney-loon/pb-ext v0.0.0-20250808122604-f97449c1308f
 	github.com/pocketbase/pocketbase v0.29.1
 )
 
