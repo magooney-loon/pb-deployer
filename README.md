@@ -137,7 +137,10 @@ func (sm *SSHManager) DeployApp(appName, remotePath, domain string, deploymentZi
 func (sm *SSHManager) UpdateApp(appName, remotePath string, deploymentZip []byte) error
 func (sm *SSHManager) RollbackApp(appName, remotePath string, version *Version) error
 func (sm *SSHManager) createSystemdService(appName, remotePath, domain string) error
-func (sm *SSHManager) transferAndExtractZip(remotePath string, deploymentZip []byte) error
+func (sm *SSHManager) rsyncDeploymentFiles(localZipPath, remotePath string) error
+func (sm *SSHManager) backupCurrentVersion(remotePath string) error
+func (sm *SSHManager) restoreFromBackup(remotePath string) error
+func (sm *SSHManager) cleanupBackup(remotePath string) error
 func (sm *SSHManager) setupSuperuser(appName, email, password string) error
 ```
 
@@ -167,10 +170,10 @@ func (hc *HealthChecker) GetHealthURL(domain string) string // Returns https://{
 func (ds *DeploymentService) FirstDeploy(req DeploymentRequest) error {
 // 1. Create deployment zip (binary + pb_public folder)
 // 2. Upload zip to PocketBase storage
-// 3. SSH to server as pocketbase user
-// 4. Download zip from local PocketBase storage
-// 5. Transfer zip to remote server via SCP/SSH
-// 6. Extract zip on remote server to /opt/pocketbase/apps/[app-name]/
+// 3. Download zip from PocketBase storage to local temp directory
+// 4. Extract zip locally to prepare files for rsync
+// 5. SSH to server as pocketbase user
+// 6. Use rsync to sync files to /opt/pocketbase/apps/[app-name]/
 // 7. Set proper file permissions (executable for binary)
 // 8. Generate systemd service
 // 9. Setup superuser (email/password from request)
@@ -183,12 +186,14 @@ func (ds *DeploymentService) FirstDeploy(req DeploymentRequest) error {
 ```go
 func (ds *DeploymentService) UpdateDeploy(appID string, req DeploymentRequest) error {
 // 1. Stop service
-// 2. Download new deployment zip from PocketBase storage
-// 3. Transfer zip to remote server via SCP/SSH
-// 4. Extract new files from deployment zip on remote server
-// 5. Set proper file permissions
-// 6. Start service
-// 7. Verify health
+// 2. Backup current version to temp folder (for quick rollback)
+// 3. Download new deployment zip from PocketBase storage
+// 4. Extract zip locally to prepare files for rsync
+// 5. Use rsync to sync new files to remote server
+// 6. Set proper file permissions
+// 7. Start service
+// 8. Verify health check passes
+// 9. If successful: cleanup backup, if failed: restore from backup
 }
 ```
 
@@ -197,8 +202,8 @@ func (ds *DeploymentService) UpdateDeploy(appID string, req DeploymentRequest) e
 func (ds *DeploymentService) Rollback(appID, versionID string) error {
 // 1. Stop service
 // 2. Download previous deployment zip from PocketBase version storage
-// 3. Transfer zip to remote server via SCP/SSH
-// 4. Extract and restore files on remote server
+// 3. Extract zip locally to prepare files for rsync
+// 4. Use rsync to restore files to remote server
 // 5. Set proper file permissions
 // 6. Start service
 }
@@ -256,32 +261,35 @@ Create directories → Test connection → Apply security → Complete
 
 ### First Deployment Flow
 ```
-Create deployment zip → Store version → SSH to server →
-Download zip → Transfer via SCP → Extract files → Create service → Setup superuser → Start → Done
+Create deployment zip → Store version → Download zip → Extract locally →
+rsync to remote server → Create service → Setup superuser → Start → Done
 ```
 
 ### Update Deployment Flow
 ```
-Stop service → Download zip → Transfer via SCP → Extract new files → Start service → Ping health → Success
+Stop service → Backup current version → Download zip → Extract locally → rsync to remote server → Start service → Health check → Success/Rollback
 ```
 
 ## 📁 File Transfer Process
 
-The deployment system handles file transfer from local PocketBase storage to remote servers through SSH/SCP:
+The deployment system uses **rsync over SSH** to efficiently transfer files from local extraction to remote servers:
 
 ### **Transfer Steps:**
 1. **Local Storage**: Deployment zip is stored in PocketBase file storage
-2. **Download**: Read zip file from PocketBase storage into memory
-3. **SCP Transfer**: Transfer zip bytes to remote server via SSH connection
-4. **Remote Extraction**: Unzip files directly on remote server
-5. **Permission Setup**: Set executable permissions on binary
+2. **Download**: Download zip file from PocketBase storage to local temp directory
+3. **Local Extraction**: Unzip files locally to prepare for rsync
+4. **Rsync Transfer**: Use rsync to sync files to remote server via SSH
+5. **Permission Setup**: Set executable permissions on binary via SSH
+6. **Cleanup**: Remove local temp files
 
 ### **Transfer Functions:**
 ```go
-func (sm *SSHManager) transferZipFile(localZipData []byte, remotePath string) error
-func (sm *SSHManager) extractZipOnRemote(zipPath, extractPath string) error
-func (sm *SSHManager) setFilePermissions(remotePath string) error
-func (sm *SSHManager) cleanupTempFiles(remotePath string) error
+func (sm *SSHManager) downloadAndExtractZip(versionID string, tempDir string) error
+func (sm *SSHManager) rsyncToRemoteServer(localPath, remotePath string) error
+func (sm *SSHManager) setRemotePermissions(remotePath string) error
+func (sm *SSHManager) cleanupLocalTemp(tempDir string) error
+func (sm *SSHManager) createVersionBackup(remotePath string) error
+func (sm *SSHManager) restoreVersionBackup(remotePath string) error
 ```
 
 ### **Remote File Structure:**
@@ -294,15 +302,63 @@ func (sm *SSHManager) cleanupTempFiles(remotePath string) error
 │   └── ...
 ├── logs/                      # Service logs
 │   └── std.log
-└── temp/                      # Temporary zip extraction
-    └── deployment.zip.tmp     # Cleaned up after extraction
+└── .backup/                   # Backup directory (for rollback)
+    ├── pocketbase.backup      # Previous version backup
+    └── pb_public.backup/      # Previous static files backup
 ```
 
-### **Transfer Security:**
-- Uses existing SSH connection (no separate SCP process)
-- Files transferred as `pocketbase` user (not root)
-- Temporary files cleaned up after extraction
-- Binary permissions set to executable only for owner
+### **Rsync Advantages:**
+- **Incremental**: Only transfers changed files (faster updates)
+- **Atomic**: File permissions and timestamps preserved
+- **Efficient**: Built-in compression and delta transfer
+- **Reliable**: Resume interrupted transfers, verify checksums
+- **Standard**: Industry-standard deployment method
+
+## 🔄 Backup & Rollback Strategy
+
+For safe production deployments, the system implements automatic backup and rollback:
+
+### **Update Deployment Safety:**
+1. **Pre-deployment Backup**: Current version moved to `.backup/` folder
+2. **Deploy New Version**: Rsync new files to main directory
+3. **Health Check**: Verify new version works correctly
+4. **Success**: Remove backup files, deployment complete
+5. **Failure**: Restore from backup, restart service
+
+### **Backup Process:**
+```bash
+# Before deploying new version
+mv pocketbase .backup/pocketbase.backup
+mv pb_public .backup/pb_public.backup
+
+# Deploy new version with rsync
+rsync -avz /local/new-version/ /opt/pocketbase/apps/myapp/
+
+# If deployment fails, restore quickly
+mv .backup/pocketbase.backup pocketbase
+mv .backup/pb_public.backup pb_public
+```
+
+### **Backup Functions:**
+```go
+func (sm *SSHManager) SafeUpdateDeploy(appName, remotePath string, newVersion []byte) error {
+    // 1. Stop service
+    // 2. Create backup of current version
+    // 3. Deploy new version
+    // 4. Start service and health check
+    // 5. If success: cleanup backup, if fail: restore backup
+}
+
+func (sm *SSHManager) emergencyRestore(remotePath string) error {
+    // Quick restore from .backup/ folder for failed deployments
+}
+```
+
+### **Rollback Benefits:**
+- **Fast Recovery**: Seconds instead of minutes to restore service
+- **Zero Downtime**: Quick swap between versions
+- **Safe Deployments**: Always have working version available
+- **Production Ready**: Battle-tested deployment strategy
 
 ## 🔧 Systemd Service Template
 
