@@ -14,21 +14,21 @@ File Storage SQLite DB Security Layer
 ## 📋 Essential Features Only
 
 ### Phase 1: Core Backend
-- [ ] PocketBase initialization with file upload
-- [ ] SSH agent integration + manual key fallback
-- [ ] Basic server CRUD operations
-- [ ] WebSocket support for real-time updates
+- [x] PocketBase initialization with file upload
+- [x] SSH agent integration + manual key fallback
+- [x] Basic server CRUD operations
+- [x] WebSocket support for real-time updates
 
 ### Phase 2: Server Setup Wizard
-- [ ] Root SSH connection and validation
-- [ ] Create `pocketbase` user with SSH keys
-- [ ] Directory structure: `/opt/pocketbase/apps/`
-- [ ] Real-time setup progress via WebSocket
+- [x] Root SSH connection and validation
+- [x] Create `pocketbase` user with SSH keys
+- [x] Directory structure: `/opt/pocketbase/apps/`
+- [x] Real-time setup progress via WebSocket
 
 ### Phase 3: Security Lockdown
-- [ ] UFW firewall (22, 80, 443)
-- [ ] fail2ban SSH protection
-- [ ] SSH hardening (disable root, key-only auth)
+- [x] UFW firewall (22, 80, 443)
+- [x] fail2ban SSH protection
+- [x] SSH hardening (disable root, key-only auth)
 
 ### Phase 4: Deployment Engine
 - [ ] rsync file synchronization
@@ -42,12 +42,6 @@ File Storage SQLite DB Security Layer
 - [ ] File storage in PocketBase
 - [ ] Version tracking and rollback
 - [ ] Deployment history
-
-### Phase 6: Svelte Frontend
-- [ ] Server management interface
-- [ ] Deployment wizard with file upload
-- [ ] Real-time deployment progress
-- [ ] Simple health status (ping only)
 
 ## 🗄️ Database Schema
 
@@ -185,15 +179,16 @@ func (ds *DeploymentService) FirstDeploy(req DeploymentRequest) error {
 ### Update Deploy
 ```go
 func (ds *DeploymentService) UpdateDeploy(appID string, req DeploymentRequest) error {
-// 1. Stop service
-// 2. Backup current version to temp folder (for quick rollback)
-// 3. Download new deployment zip from PocketBase storage
-// 4. Extract zip locally to prepare files for rsync
-// 5. Use rsync to sync new files to remote server
-// 6. Set proper file permissions
-// 7. Start service
-// 8. Verify health check passes
-// 9. If successful: cleanup backup, if failed: restore from backup
+// 1. Download new deployment zip from PocketBase storage
+// 2. Extract zip locally to prepare files for rsync
+// 3. Use rsync to sync new files to staging directory on remote server
+// 4. Stop service (minimal downtime from here)
+// 5. Backup current version to temp folder (for quick rollback)
+// 6. Move staging files to production directory
+// 7. Set proper file permissions
+// 8. Start service
+// 9. Verify health check passes
+// 10. If successful: cleanup backup and staging, if failed: restore from backup
 }
 ```
 
@@ -207,48 +202,6 @@ func (ds *DeploymentService) Rollback(appID, versionID string) error {
 // 5. Set proper file permissions
 // 6. Start service
 }
-```
-
-## 🎯 Technical Priorities
-
-### MVP Core (Phase 1-4)
-1. SSH connection with agent auth
-2. Server setup wizard
-3. Basic deployment (upload → service → start)
-4. Simple service management
-
-### Extended MVP (Phase 5-6)
-1. Version control with rollback
-2. Basic UI with real-time updates
-3. Health monitoring via `/api/health` endpoint
-
-## 📁 Project Structure (Simplified)
-
-```
-pb-deploy-manager/
-├── main.go # PocketBase entry point
-├── go.mod
-├──
-├── internal/
-│ ├── models/ # Data models
-│ ├── ssh/ # SSH operations
-│ ├── services/ # Business logic
-│ └── handlers/ # API endpoints
-│
-├── web/ # Svelte frontend
-│ ├── src/
-│ │ ├── routes/ # Pages
-│ │ ├── lib/components/ # UI components
-│ │ ├── lib/stores/ # State management
-│ │ └── lib/api/ # API client
-│ └── static/
-│
-├── templates/ # Config templates
-│ └── systemd/
-│ └── pocketbase.service.tmpl
-│
-└── configs/ # Example systemd service
-  └── pocketbase.service.example
 ```
 
 ## 🔄 Key Flows
@@ -267,7 +220,7 @@ rsync to remote server → Create service → Setup superuser → Start → Done
 
 ### Update Deployment Flow
 ```
-Stop service → Backup current version → Download zip → Extract locally → rsync to remote server → Start service → Health check → Success/Rollback
+Download zip → Extract locally → rsync to staging → Stop service → Backup current → Move staging to production → Start service → Health check → Success/Rollback
 ```
 
 ## 📁 File Transfer Process
@@ -286,6 +239,7 @@ The deployment system uses **rsync over SSH** to efficiently transfer files from
 ```go
 func (sm *SSHManager) downloadAndExtractZip(versionID string, tempDir string) error
 func (sm *SSHManager) rsyncToRemoteServer(localPath, remotePath string) error
+func (sm *SSHManager) rsyncToStagingDirectory(localPath, stagingPath string) error
 func (sm *SSHManager) setRemotePermissions(remotePath string) error
 func (sm *SSHManager) cleanupLocalTemp(tempDir string) error
 func (sm *SSHManager) createVersionBackup(remotePath string) error
@@ -302,6 +256,9 @@ func (sm *SSHManager) restoreVersionBackup(remotePath string) error
 │   └── ...
 ├── logs/                      # Service logs
 │   └── std.log
+├── .staging/                  # Staging directory (for zero-downtime deploys)
+│   ├── pocketbase
+│   └── pb_public/
 └── .backup/                   # Backup directory (for rollback)
     ├── pocketbase.backup      # Previous version backup
     └── pb_public.backup/      # Previous static files backup
@@ -319,20 +276,22 @@ func (sm *SSHManager) restoreVersionBackup(remotePath string) error
 For safe production deployments, the system implements automatic backup and rollback:
 
 ### **Update Deployment Safety:**
-1. **Pre-deployment Backup**: Current version moved to `.backup/` folder
-2. **Deploy New Version**: Rsync new files to main directory
-3. **Health Check**: Verify new version works correctly
-4. **Success**: Remove backup files, deployment complete
+1. **Stage New Version**: Rsync new files to `.staging/` folder while service runs
+2. **Quick Swap**: Stop service, backup current version, move staging to production
+3. **Health Check**: Start service and verify new version works correctly
+4. **Success**: Remove backup and staging files, deployment complete
 5. **Failure**: Restore from backup, restart service
 
 ### **Backup Process:**
 ```bash
-# Before deploying new version
+# Stage new version while service runs (zero impact)
+rsync -avz /local/new-version/ /opt/pocketbase/apps/myapp/.staging/
+
+# Quick swap during brief service stop
 mv pocketbase .backup/pocketbase.backup
 mv pb_public .backup/pb_public.backup
-
-# Deploy new version with rsync
-rsync -avz /local/new-version/ /opt/pocketbase/apps/myapp/
+mv .staging/pocketbase pocketbase
+mv .staging/pb_public pb_public
 
 # If deployment fails, restore quickly
 mv .backup/pocketbase.backup pocketbase
@@ -342,11 +301,12 @@ mv .backup/pb_public.backup pb_public
 ### **Backup Functions:**
 ```go
 func (sm *SSHManager) SafeUpdateDeploy(appName, remotePath string, newVersion []byte) error {
-    // 1. Stop service
-    // 2. Create backup of current version
-    // 3. Deploy new version
-    // 4. Start service and health check
-    // 5. If success: cleanup backup, if fail: restore backup
+    // 1. Stage new version to .staging/ directory while service runs
+    // 2. Stop service (minimal downtime starts here)
+    // 3. Create backup of current version
+    // 4. Move staged files to production directory
+    // 5. Start service and health check
+    // 6. If success: cleanup backup and staging, if fail: restore backup
 }
 
 func (sm *SSHManager) emergencyRestore(remotePath string) error {
@@ -355,8 +315,9 @@ func (sm *SSHManager) emergencyRestore(remotePath string) error {
 ```
 
 ### **Rollback Benefits:**
+- **Minimal Downtime**: Upload happens while service runs, only brief stop for file swap
 - **Fast Recovery**: Seconds instead of minutes to restore service
-- **Zero Downtime**: Quick swap between versions
+- **Zero Impact Staging**: New version prepared without affecting running service
 - **Safe Deployments**: Always have working version available
 - **Production Ready**: Battle-tested deployment strategy
 
