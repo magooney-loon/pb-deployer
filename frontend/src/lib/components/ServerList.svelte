@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api, type Server, formatTimestamp } from '../api.js';
-	import ConnectionTestModal from './ConnectionTestModal.svelte';
+	import ConnectionTestModal from '$lib/components/modals/ConnectionTestModal.svelte';
 
 	let servers = $state<Server[]>([]);
 	let loading = $state(true);

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Modal from './Modal.svelte';
+	import Modal from '$lib/components/Modal.svelte';
 
 	interface ConnectionTestResult {
 		success: boolean;
