@@ -1,0 +1,537 @@
+import PocketBase from 'pocketbase';
+
+export interface Server {
+	id: string;
+	created: string;
+	updated: string;
+	name: string;
+	host: string;
+	port: number;
+	root_username: string;
+	app_username: string;
+	use_ssh_agent: boolean;
+	manual_key_path: string;
+	setup_complete: boolean;
+	security_locked: boolean;
+}
+
+export interface App {
+	id: string;
+	created: string;
+	updated: string;
+	name: string;
+	server_id: string;
+	remote_path: string;
+	service_name: string;
+	domain: string;
+	current_version: string;
+	status: string;
+}
+
+export interface Version {
+	id: string;
+	created: string;
+	updated: string;
+	app_id: string;
+	version_number: string;
+	deployment_zip: string;
+	notes: string;
+}
+
+export interface Deployment {
+	id: string;
+	created: string;
+	updated: string;
+	app_id: string;
+	version_id: string;
+	status: string;
+	logs: string;
+	started_at?: string;
+	completed_at?: string;
+}
+
+export interface ServerRequest {
+	name: string;
+	host: string;
+	port: number;
+	root_username: string;
+	app_username: string;
+	use_ssh_agent: boolean;
+	manual_key_path: string;
+}
+
+export interface AppRequest {
+	name: string;
+	server_id: string;
+	remote_path: string;
+	service_name: string;
+	domain: string;
+}
+
+export interface ServerResponse extends Server {
+	apps?: App[];
+}
+
+export interface AppResponse extends App {
+	server?: Server;
+	versions?: Version[];
+	deployments?: Deployment[];
+}
+
+export interface HealthCheckResponse {
+	app_id: string;
+	domain: string;
+	status: string;
+	url: string;
+	timestamp: string;
+	error?: string;
+	details?: string;
+}
+
+export interface SetupStep {
+	step: string;
+	status: string;
+	message: string;
+	details?: string;
+	timestamp: string;
+	progress_pct: number;
+}
+
+export interface ConnectionInfo {
+	connected: boolean;
+	server_host?: string;
+	server_port?: number;
+	username?: string;
+	is_root?: boolean;
+	server_name?: string;
+	remote_addr?: string;
+	local_addr?: string;
+}
+
+export interface ServerStatus {
+	server_id: string;
+	setup_complete: boolean;
+	security_locked: boolean;
+	connection: string;
+	timestamp: string;
+	connection_error?: string;
+	setup_status?: Record<string, boolean>;
+	security_status?: Record<string, boolean>;
+}
+
+class ApiClient {
+	private pb: PocketBase;
+
+	constructor(baseUrl: string = 'http://localhost:8090') {
+		this.pb = new PocketBase(baseUrl);
+		console.log('PocketBase client initialized with URL:', baseUrl);
+	}
+
+	// Health & Info endpoints
+	async getHealth() {
+		console.log('API Request: GET /api/health');
+		try {
+			const response = await fetch(`${this.pb.baseUrl}/api/health`);
+			const data = await response.json();
+			console.log('Health check response:', data);
+			return data;
+		} catch (error) {
+			console.error('Health check failed:', error);
+			throw error;
+		}
+	}
+
+	async getApiInfo() {
+		console.log('API Request: GET /api/info');
+		try {
+			const response = await fetch(`${this.pb.baseUrl}/api/info`);
+			const data = await response.json();
+			console.log('API info response:', data);
+			return data;
+		} catch (error) {
+			console.error('API info failed:', error);
+			throw error;
+		}
+	}
+
+	// Server endpoints using PocketBase SDK
+	async getServers() {
+		console.log('Getting servers via PocketBase...');
+		try {
+			const records = await this.pb.collection('servers').getFullList<Server>({
+				sort: '-created'
+			});
+			console.log('PocketBase servers response:', records);
+
+			// Transform to match expected format
+			const result = { servers: records || [] };
+			console.log('getServers result:', result);
+			return result;
+		} catch (error) {
+			console.error('Failed to get servers:', error);
+			throw error;
+		}
+	}
+
+	async getServer(id: string) {
+		console.log('Getting server:', id);
+		try {
+			const server = await this.pb.collection('servers').getOne<Server>(id);
+			console.log('PocketBase server response:', server);
+
+			const response: ServerResponse = { ...server };
+
+			// Optionally include associated apps
+			try {
+				const apps = await this.pb.collection('apps').getFullList<App>({
+					filter: `server_id = "${id}"`
+				});
+				response.apps = apps;
+			} catch (appsError) {
+				console.warn('Failed to load apps for server:', appsError);
+			}
+
+			return response;
+		} catch (error) {
+			console.error('Failed to get server:', error);
+			throw error;
+		}
+	}
+
+	async createServer(data: ServerRequest) {
+		console.log('Creating server:', data);
+		try {
+			const server = await this.pb.collection('servers').create<Server>(data);
+			console.log('Server created:', server);
+			return server;
+		} catch (error) {
+			console.error('Failed to create server:', error);
+			throw error;
+		}
+	}
+
+	async updateServer(id: string, data: Partial<ServerRequest>) {
+		console.log('Updating server:', id, data);
+		try {
+			const server = await this.pb.collection('servers').update<Server>(id, data);
+			console.log('Server updated:', server);
+			return server;
+		} catch (error) {
+			console.error('Failed to update server:', error);
+			throw error;
+		}
+	}
+
+	async deleteServer(id: string) {
+		console.log('Deleting server:', id);
+		try {
+			await this.pb.collection('servers').delete(id);
+			console.log('Server deleted:', id);
+			return { message: 'Server deleted successfully' };
+		} catch (error) {
+			console.error('Failed to delete server:', error);
+			throw error;
+		}
+	}
+
+	// Custom server operations (these will use your Go backend endpoints)
+	async testServerConnection(id: string) {
+		console.log('Testing server connection:', id);
+		try {
+			const response = await fetch(`${this.pb.baseUrl}/api/servers/${id}/test`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+			const data = await response.json();
+			console.log('Connection test response:', data);
+			return data;
+		} catch (error) {
+			console.error('Connection test failed:', error);
+			throw error;
+		}
+	}
+
+	async runServerSetup(id: string) {
+		console.log('Running server setup:', id);
+		try {
+			const response = await fetch(`${this.pb.baseUrl}/api/servers/${id}/setup`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+			const data = await response.json();
+			console.log('Server setup response:', data);
+			return data;
+		} catch (error) {
+			console.error('Server setup failed:', error);
+			throw error;
+		}
+	}
+
+	async applySecurityLockdown(id: string) {
+		console.log('Applying security lockdown:', id);
+		try {
+			const response = await fetch(`${this.pb.baseUrl}/api/servers/${id}/security`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+			const data = await response.json();
+			console.log('Security lockdown response:', data);
+			return data;
+		} catch (error) {
+			console.error('Security lockdown failed:', error);
+			throw error;
+		}
+	}
+
+	async getServerStatus(id: string) {
+		console.log('Getting server status:', id);
+		try {
+			const response = await fetch(`${this.pb.baseUrl}/api/servers/${id}/status`);
+			const data = await response.json();
+			console.log('Server status response:', data);
+			return data;
+		} catch (error) {
+			console.error('Get server status failed:', error);
+			throw error;
+		}
+	}
+
+	// App endpoints using PocketBase SDK
+	async getApps() {
+		console.log('Getting apps via PocketBase...');
+		try {
+			const records = await this.pb.collection('apps').getFullList<App>({
+				sort: '-created'
+			});
+			console.log('PocketBase apps response:', records);
+
+			// Transform to match expected format
+			const result = { apps: records || [] };
+			console.log('getApps result:', result);
+			return result;
+		} catch (error) {
+			console.error('Failed to get apps:', error);
+			throw error;
+		}
+	}
+
+	async getApp(id: string) {
+		console.log('Getting app:', id);
+		try {
+			const app = await this.pb.collection('apps').getOne<App>(id);
+			console.log('PocketBase app response:', app);
+
+			const response: AppResponse = { ...app };
+
+			// Optionally include server, versions, and deployments
+			try {
+				const server = await this.pb.collection('servers').getOne<Server>(app.server_id);
+				response.server = server;
+			} catch (serverError) {
+				console.warn('Failed to load server for app:', serverError);
+			}
+
+			return response;
+		} catch (error) {
+			console.error('Failed to get app:', error);
+			throw error;
+		}
+	}
+
+	async createApp(data: AppRequest) {
+		console.log('Creating app:', data);
+		try {
+			const app = await this.pb.collection('apps').create<App>(data);
+			console.log('App created:', app);
+			return app;
+		} catch (error) {
+			console.error('Failed to create app:', error);
+			throw error;
+		}
+	}
+
+	async updateApp(id: string, data: Partial<AppRequest>) {
+		console.log('Updating app:', id, data);
+		try {
+			const app = await this.pb.collection('apps').update<App>(id, data);
+			console.log('App updated:', app);
+			return app;
+		} catch (error) {
+			console.error('Failed to update app:', error);
+			throw error;
+		}
+	}
+
+	async deleteApp(id: string) {
+		console.log('Deleting app:', id);
+		try {
+			await this.pb.collection('apps').delete(id);
+			console.log('App deleted:', id);
+			return { message: 'App deleted successfully' };
+		} catch (error) {
+			console.error('Failed to delete app:', error);
+			throw error;
+		}
+	}
+
+	async getAppsByServer(serverId: string) {
+		console.log('Getting apps by server:', serverId);
+		try {
+			const apps = await this.pb.collection('apps').getFullList<App>({
+				filter: `server_id = "${serverId}"`,
+				sort: '-created'
+			});
+			console.log('Apps by server response:', apps);
+			return {
+				server_id: serverId,
+				apps: apps || []
+			};
+		} catch (error) {
+			console.error('Failed to get apps by server:', error);
+			throw error;
+		}
+	}
+
+	// Custom app operations (these will use your Go backend endpoints)
+	async checkAppHealth(id: string) {
+		console.log('Checking app health:', id);
+		try {
+			const response = await fetch(`${this.pb.baseUrl}/api/apps/${id}/health`);
+			const data = await response.json();
+			console.log('App health response:', data);
+			return data;
+		} catch (error) {
+			console.error('App health check failed:', error);
+			throw error;
+		}
+	}
+
+	async runAppHealthCheck(id: string) {
+		console.log('Running app health check:', id);
+		try {
+			const response = await fetch(`${this.pb.baseUrl}/api/apps/${id}/health-check`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+			const data = await response.json();
+			console.log('App health check response:', data);
+			return data;
+		} catch (error) {
+			console.error('App health check failed:', error);
+			throw error;
+		}
+	}
+
+	async getAppVersions(id: string) {
+		console.log('Getting app versions:', id);
+		try {
+			const versions = await this.pb.collection('versions').getFullList<Version>({
+				filter: `app_id = "${id}"`,
+				sort: '-created'
+			});
+			console.log('App versions response:', versions);
+			return {
+				app_id: id,
+				versions: versions || []
+			};
+		} catch (error) {
+			console.error('Failed to get app versions:', error);
+			throw error;
+		}
+	}
+
+	async getAppDeployments(id: string) {
+		console.log('Getting app deployments:', id);
+		try {
+			const deployments = await this.pb.collection('deployments').getFullList<Deployment>({
+				filter: `app_id = "${id}"`,
+				sort: '-created'
+			});
+			console.log('App deployments response:', deployments);
+			return {
+				app_id: id,
+				deployments: deployments || []
+			};
+		} catch (error) {
+			console.error('Failed to get app deployments:', error);
+			throw error;
+		}
+	}
+
+	// WebSocket connections for real-time updates
+	createSetupWebSocket(serverId: string): WebSocket {
+		const wsUrl = this.pb.baseUrl.replace('http://', 'ws://').replace('https://', 'wss://');
+		return new WebSocket(`${wsUrl}/api/servers/${serverId}/setup-ws`);
+	}
+
+	createSecurityWebSocket(serverId: string): WebSocket {
+		const wsUrl = this.pb.baseUrl.replace('http://', 'ws://').replace('https://', 'wss://');
+		return new WebSocket(`${wsUrl}/api/servers/${serverId}/security-ws`);
+	}
+
+	// Get the PocketBase instance for advanced usage
+	getPocketBase(): PocketBase {
+		return this.pb;
+	}
+}
+
+// Export singleton instance
+export const api = new ApiClient();
+
+// Export class for custom instances
+export { ApiClient };
+
+// Utility functions
+export function getStatusColor(status: string): string {
+	switch (status.toLowerCase()) {
+		case 'online':
+		case 'success':
+		case 'completed':
+			return 'green';
+		case 'offline':
+		case 'failed':
+		case 'error':
+			return 'red';
+		case 'running':
+		case 'pending':
+		case 'starting':
+			return 'yellow';
+		default:
+			return 'gray';
+	}
+}
+
+export function getStatusIcon(status: string): string {
+	switch (status.toLowerCase()) {
+		case 'online':
+		case 'success':
+		case 'completed':
+			return '✅';
+		case 'offline':
+		case 'failed':
+		case 'error':
+			return '❌';
+		case 'running':
+		case 'pending':
+		case 'starting':
+			return '🔄';
+		default:
+			return '⚪';
+	}
+}
+
+export function formatTimestamp(timestamp: string): string {
+	try {
+		return new Date(timestamp).toLocaleString();
+	} catch {
+		return timestamp;
+	}
+}

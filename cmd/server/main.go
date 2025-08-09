@@ -2,9 +2,6 @@ package main
 
 import (
 	"log"
-	"net/http"
-	"strconv"
-	"time"
 
 	app "github.com/magooney-loon/pb-ext/core"
 	"github.com/pocketbase/pocketbase/core"
@@ -28,8 +25,6 @@ func initApp() {
 		return e.Next()
 	})
 
-	registerRoutes(srv.App())
-
 	if err := srv.Start(); err != nil {
 		srv.App().Logger().Error("Fatal application error",
 			"error", err,
@@ -47,24 +42,6 @@ func registerCollections(app core.App) {
 		if err := models.InitializeDatabase(e.App); err != nil {
 			app.Logger().Error("Failed to initialize database collections", "error", err)
 		}
-		return e.Next()
-	})
-}
-
-func registerRoutes(app core.App) {
-	app.OnServe().BindFunc(func(e *core.ServeEvent) error {
-		e.Router.GET("/api/time", func(c *core.RequestEvent) error {
-			now := time.Now()
-			return c.JSON(http.StatusOK, map[string]any{
-				"time": map[string]string{
-					"iso":       now.Format(time.RFC3339),
-					"unix":      strconv.FormatInt(now.Unix(), 10),
-					"unix_nano": strconv.FormatInt(now.UnixNano(), 10),
-					"utc":       now.UTC().Format(time.RFC3339),
-				},
-			})
-		})
-
 		return e.Next()
 	})
 }
