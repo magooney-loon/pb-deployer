@@ -1,6 +1,6 @@
 # PocketBase Deploy Manager - Technical Breakdown
 
-A **production-only** deployment tool for automating PocketBase application deployment with server setup, security hardening, and Cloudflare DNS integration. Each app is deployed with its own domain and served in production environments.
+A **production-only** deployment tool for automating PocketBase application deployment with server setup and security hardening.
 
 ## 🏗️ Core Architecture
 
