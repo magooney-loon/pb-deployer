@@ -34,6 +34,27 @@ type SetupStep struct {
 	ProgressPct int    `json:"progress_pct"`
 }
 
+// sendProgressUpdate is a helper to send progress updates with logging
+func (sm *SSHManager) sendProgressUpdate(progressChan chan<- SetupStep, step, status, message string, progressPct int, details ...string) {
+	if progressChan == nil {
+		return
+	}
+
+	detailsStr := ""
+	if len(details) > 0 {
+		detailsStr = details[0]
+	}
+
+	progressChan <- SetupStep{
+		Step:        step,
+		Status:      status,
+		Message:     message,
+		Details:     detailsStr,
+		Timestamp:   time.Now().Format(time.RFC3339),
+		ProgressPct: progressPct,
+	}
+}
+
 // NewSSHManager creates a new SSH manager instance and establishes connection
 func NewSSHManager(server *models.Server, asRoot bool) (*SSHManager, error) {
 	if server == nil {
