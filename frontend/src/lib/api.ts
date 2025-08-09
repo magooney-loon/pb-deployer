@@ -131,7 +131,7 @@ class ApiClient {
 	async getHealth() {
 		console.log('API Request: GET /api/health');
 		try {
-			const response = await fetch(`${this.pb.baseUrl}/api/health`);
+			const response = await fetch(`${this.pb.baseURL}/api/health`);
 			const data = await response.json();
 			console.log('Health check response:', data);
 			return data;
@@ -144,7 +144,7 @@ class ApiClient {
 	async getApiInfo() {
 		console.log('API Request: GET /api/info');
 		try {
-			const response = await fetch(`${this.pb.baseUrl}/api/info`);
+			const response = await fetch(`${this.pb.baseURL}/api/info`);
 			const data = await response.json();
 			console.log('API info response:', data);
 			return data;
@@ -238,7 +238,7 @@ class ApiClient {
 	async testServerConnection(id: string) {
 		console.log('Testing server connection:', id);
 		try {
-			const response = await fetch(`${this.pb.baseUrl}/api/servers/${id}/test`, {
+			const response = await fetch(`${this.pb.baseURL}/api/servers/${id}/test`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -256,7 +256,7 @@ class ApiClient {
 	async runServerSetup(id: string) {
 		console.log('Running server setup:', id);
 		try {
-			const response = await fetch(`${this.pb.baseUrl}/api/servers/${id}/setup`, {
+			const response = await fetch(`${this.pb.baseURL}/api/servers/${id}/setup`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -274,7 +274,7 @@ class ApiClient {
 	async applySecurityLockdown(id: string) {
 		console.log('Applying security lockdown:', id);
 		try {
-			const response = await fetch(`${this.pb.baseUrl}/api/servers/${id}/security`, {
+			const response = await fetch(`${this.pb.baseURL}/api/servers/${id}/security`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -292,7 +292,7 @@ class ApiClient {
 	async getServerStatus(id: string) {
 		console.log('Getting server status:', id);
 		try {
-			const response = await fetch(`${this.pb.baseUrl}/api/servers/${id}/status`);
+			const response = await fetch(`${this.pb.baseURL}/api/servers/${id}/status`);
 			const data = await response.json();
 			console.log('Server status response:', data);
 			return data;
@@ -402,7 +402,7 @@ class ApiClient {
 	async checkAppHealth(id: string) {
 		console.log('Checking app health:', id);
 		try {
-			const response = await fetch(`${this.pb.baseUrl}/api/apps/${id}/health`);
+			const response = await fetch(`${this.pb.baseURL}/api/apps/${id}/health`);
 			const data = await response.json();
 			console.log('App health response:', data);
 			return data;
@@ -415,7 +415,7 @@ class ApiClient {
 	async runAppHealthCheck(id: string) {
 		console.log('Running app health check:', id);
 		try {
-			const response = await fetch(`${this.pb.baseUrl}/api/apps/${id}/health-check`, {
+			const response = await fetch(`${this.pb.baseURL}/api/apps/${id}/health-check`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -468,12 +468,12 @@ class ApiClient {
 
 	// WebSocket connections for real-time updates
 	createSetupWebSocket(serverId: string): WebSocket {
-		const wsUrl = this.pb.baseUrl.replace('http://', 'ws://').replace('https://', 'wss://');
+		const wsUrl = this.pb.baseURL.replace('http://', 'ws://').replace('https://', 'wss://');
 		return new WebSocket(`${wsUrl}/api/servers/${serverId}/setup-ws`);
 	}
 
 	createSecurityWebSocket(serverId: string): WebSocket {
-		const wsUrl = this.pb.baseUrl.replace('http://', 'ws://').replace('https://', 'wss://');
+		const wsUrl = this.pb.baseURL.replace('http://', 'ws://').replace('https://', 'wss://');
 		return new WebSocket(`${wsUrl}/api/servers/${serverId}/security-ws`);
 	}
 
