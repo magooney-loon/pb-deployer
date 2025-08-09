@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { api, type Server, formatTimestamp } from '../api.js';
+	import { api, type Server, type App, formatTimestamp } from '../api.js';
 	import ConnectionTestModal from '$lib/components/modals/ConnectionTestModal.svelte';
+	import DeleteServerModal from '$lib/components/modals/DeleteServerModal.svelte';
 
 	let servers = $state<Server[]>([]);
+	let apps = $state<App[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let showCreateForm = $state(false);
@@ -27,6 +29,11 @@
 	let connectionTestResult = $state<ConnectionTestResult | null>(null);
 	let testedServerName = $state('');
 
+	// Delete modal state
+	let showDeleteModal = $state(false);
+	let serverToDelete = $state<Server | null>(null);
+	let deleting = $state(false);
+
 	// Form data for creating new server
 	let newServer = $state({
 		name: '',
@@ -47,15 +54,17 @@
 			console.log('ServerList: Starting to load servers...');
 			loading = true;
 			error = null;
-			const response = await api.getServers();
-			console.log('ServerList: API response received:', response);
-			servers = response.servers || [];
+			const [serversResponse, appsResponse] = await Promise.all([api.getServers(), api.getApps()]);
+			console.log('ServerList: API response received:', serversResponse);
+			servers = serversResponse.servers || [];
+			apps = appsResponse.apps || [];
 			console.log('ServerList: Servers set to:', servers);
 			console.log('ServerList: Servers length:', servers.length);
 		} catch (err) {
 			console.error('ServerList: Error loading servers:', err);
 			error = err instanceof Error ? err.message : 'Failed to load servers';
 			servers = [];
+			apps = [];
 		} finally {
 			loading = false;
 			console.log('ServerList: Loading finished. Final servers count:', servers.length);
@@ -73,14 +82,25 @@
 		}
 	}
 
-	async function deleteServer(id: string) {
-		if (!confirm('Are you sure you want to delete this server?')) return;
+	function deleteServer(id: string) {
+		const server = servers.find((s) => s.id === id);
+		if (server) {
+			serverToDelete = server;
+			showDeleteModal = true;
+		}
+	}
 
+	async function confirmDeleteServer(id: string) {
 		try {
+			deleting = true;
 			await api.deleteServer(id);
 			servers = servers.filter((s) => s.id !== id);
+			showDeleteModal = false;
+			serverToDelete = null;
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to delete server';
+		} finally {
+			deleting = false;
 		}
 	}
 
@@ -464,6 +484,21 @@
 	serverName={testedServerName}
 	loading={connectionTestLoading}
 	onclose={() => (showConnectionModal = false)}
+/>
+
+<!-- Delete Server Modal -->
+<DeleteServerModal
+	open={showDeleteModal}
+	server={serverToDelete}
+	{apps}
+	loading={deleting}
+	onclose={() => {
+		if (!deleting) {
+			showDeleteModal = false;
+			serverToDelete = null;
+		}
+	}}
+	onconfirm={confirmDeleteServer}
 />
 
 <style>
