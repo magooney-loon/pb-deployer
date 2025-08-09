@@ -339,18 +339,20 @@
 							</h4>
 							<div class="space-y-1">
 								<div class="flex justify-between text-sm">
-									<span>Ready for deployment:</span>
-									<span class="font-medium text-green-600">{readyServers.length}</span>
+									<span class="text-gray-700 dark:text-gray-300">Ready for deployment:</span>
+									<span class="font-medium text-green-600 dark:text-green-400"
+										>{readyServers.length}</span
+									>
 								</div>
 								<div class="flex justify-between text-sm">
-									<span>Setup required:</span>
-									<span class="font-medium text-yellow-600"
+									<span class="text-gray-700 dark:text-gray-300">Setup required:</span>
+									<span class="font-medium text-yellow-600 dark:text-yellow-400"
 										>{servers?.filter((s) => !s.setup_complete).length || 0}</span
 									>
 								</div>
 								<div class="flex justify-between text-sm">
-									<span>Security pending:</span>
-									<span class="font-medium text-orange-600"
+									<span class="text-gray-700 dark:text-gray-300">Security pending:</span>
+									<span class="font-medium text-orange-600 dark:text-orange-400"
 										>{servers?.filter((s) => s.setup_complete && !s.security_locked).length ||
 											0}</span
 									>
@@ -363,18 +365,20 @@
 							</h4>
 							<div class="space-y-1">
 								<div class="flex justify-between text-sm">
-									<span>Online:</span>
-									<span class="font-medium text-green-600">{onlineApps.length}</span>
+									<span class="text-gray-700 dark:text-gray-300">Online:</span>
+									<span class="font-medium text-green-600 dark:text-green-400"
+										>{onlineApps.length}</span
+									>
 								</div>
 								<div class="flex justify-between text-sm">
-									<span>Offline:</span>
-									<span class="font-medium text-red-600"
+									<span class="text-gray-700 dark:text-gray-300">Offline:</span>
+									<span class="font-medium text-red-600 dark:text-red-400"
 										>{apps?.filter((a) => a.status === 'offline').length || 0}</span
 									>
 								</div>
 								<div class="flex justify-between text-sm">
-									<span>Unknown:</span>
-									<span class="font-medium text-gray-600"
+									<span class="text-gray-700 dark:text-gray-300">Unknown:</span>
+									<span class="font-medium text-gray-600 dark:text-gray-400"
 										>{apps?.filter((a) => a.status !== 'online' && a.status !== 'offline').length ||
 											0}</span
 									>
@@ -387,20 +391,20 @@
 							</h4>
 							<div class="space-y-1">
 								<div class="flex justify-between text-sm">
-									<span>Apps deployed:</span>
-									<span class="font-medium"
+									<span class="text-gray-700 dark:text-gray-300">Apps deployed:</span>
+									<span class="font-medium text-gray-900 dark:text-gray-100"
 										>{apps?.filter((a) => a.current_version).length || 0}</span
 									>
 								</div>
 								<div class="flex justify-between text-sm">
-									<span>Pending deployment:</span>
-									<span class="font-medium"
+									<span class="text-gray-700 dark:text-gray-300">Pending deployment:</span>
+									<span class="font-medium text-gray-900 dark:text-gray-100"
 										>{apps?.filter((a) => !a.current_version).length || 0}</span
 									>
 								</div>
 								<div class="flex justify-between text-sm">
-									<span>Avg. uptime:</span>
-									<span class="font-medium text-green-600">
+									<span class="text-gray-700 dark:text-gray-300">Avg. uptime:</span>
+									<span class="font-medium text-green-600 dark:text-green-400">
 										{onlineApps.length > 0 && (apps?.length || 0) > 0
 											? Math.round((onlineApps.length / (apps?.length || 1)) * 100)
 											: 0}%
