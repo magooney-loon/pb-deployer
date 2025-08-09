@@ -138,7 +138,7 @@
 
 <div class="p-6">
 	<div class="mb-6 flex items-center justify-between">
-		<h1 class="text-3xl font-bold text-gray-900">Servers</h1>
+		<h1 class="text-3xl font-bold text-gray-900 dark:text-white">Servers</h1>
 		<button
 			onclick={() => (showCreateForm = !showCreateForm)}
 			class="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700"
@@ -148,20 +148,22 @@
 	</div>
 
 	{#if error}
-		<div class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
+		<div
+			class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900"
+		>
 			<div class="flex">
 				<div class="flex-shrink-0">
 					<span class="text-red-400">❌</span>
 				</div>
 				<div class="ml-3">
-					<h3 class="text-sm font-medium text-red-800">Error</h3>
-					<div class="mt-2 text-sm text-red-700">
+					<h3 class="text-sm font-medium text-red-800 dark:text-red-200">Error</h3>
+					<div class="mt-2 text-sm text-red-700 dark:text-red-300">
 						<p>{error}</p>
 					</div>
 					<div class="mt-4">
 						<button
 							onclick={() => (error = null)}
-							class="rounded bg-red-100 px-3 py-1 text-sm text-red-800 hover:bg-red-200"
+							class="rounded bg-red-100 px-3 py-1 text-sm text-red-800 hover:bg-red-200 dark:bg-red-800 dark:text-red-200 dark:hover:bg-red-700"
 						>
 							Dismiss
 						</button>
@@ -172,8 +174,8 @@
 	{/if}
 
 	{#if showCreateForm}
-		<div class="mb-6 rounded-lg bg-white p-6 shadow">
-			<h2 class="mb-4 text-xl font-semibold">Add New Server</h2>
+		<div class="mb-6 rounded-lg bg-white p-6 shadow dark:bg-gray-800 dark:shadow-gray-700">
+			<h2 class="mb-4 text-xl font-semibold dark:text-white">Add New Server</h2>
 			<form
 				onsubmit={(e) => {
 					e.preventDefault();
@@ -183,58 +185,67 @@
 			>
 				<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 					<div>
-						<label for="name" class="block text-sm font-medium text-gray-700">Name</label>
+						<label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>Name</label
+						>
 						<input
 							id="name"
 							bind:value={newServer.name}
 							type="text"
 							required
-							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 							placeholder="Production Server"
 						/>
 					</div>
 					<div>
-						<label for="host" class="block text-sm font-medium text-gray-700">Host</label>
+						<label for="host" class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>VPS IP</label
+						>
 						<input
 							id="host"
 							bind:value={newServer.host}
 							type="text"
 							required
-							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-							placeholder="192.168.1.100 or example.com"
+							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							placeholder="192.168.1.100"
 						/>
 					</div>
 					<div>
-						<label for="port" class="block text-sm font-medium text-gray-700">SSH Port</label>
+						<label for="port" class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>SSH Port</label
+						>
 						<input
 							id="port"
 							bind:value={newServer.port}
 							type="number"
 							min="1"
 							max="65535"
-							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 						/>
 					</div>
 					<div>
-						<label for="root_username" class="block text-sm font-medium text-gray-700"
+						<label
+							for="root_username"
+							class="block text-sm font-medium text-gray-700 dark:text-gray-300"
 							>Root Username</label
 						>
 						<input
 							id="root_username"
 							bind:value={newServer.root_username}
 							type="text"
-							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 						/>
 					</div>
 					<div>
-						<label for="app_username" class="block text-sm font-medium text-gray-700"
-							>App Username</label
+						<label
+							for="app_username"
+							class="block text-sm font-medium text-gray-700 dark:text-gray-300">App Username</label
 						>
 						<input
 							id="app_username"
 							bind:value={newServer.app_username}
 							type="text"
-							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 						/>
 					</div>
 					<div class="flex items-center">
@@ -242,23 +253,25 @@
 							id="use_ssh_agent"
 							bind:checked={newServer.use_ssh_agent}
 							type="checkbox"
-							class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+							class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
 						/>
-						<label for="use_ssh_agent" class="ml-2 block text-sm text-gray-900">
+						<label for="use_ssh_agent" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">
 							Use SSH Agent
 						</label>
 					</div>
 				</div>
 				{#if !newServer.use_ssh_agent}
 					<div>
-						<label for="manual_key_path" class="block text-sm font-medium text-gray-700"
+						<label
+							for="manual_key_path"
+							class="block text-sm font-medium text-gray-700 dark:text-gray-300"
 							>Private Key Path</label
 						>
 						<input
 							id="manual_key_path"
 							bind:value={newServer.manual_key_path}
 							type="text"
-							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 							placeholder="/home/user/.ssh/id_rsa"
 						/>
 					</div>
@@ -276,7 +289,7 @@
 							showCreateForm = false;
 							resetForm();
 						}}
-						class="rounded-lg bg-gray-600 px-4 py-2 font-medium text-white hover:bg-gray-700"
+						class="rounded-lg bg-gray-600 px-4 py-2 font-medium text-white hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600"
 					>
 						Cancel
 					</button>
@@ -288,11 +301,11 @@
 	{#if loading}
 		<div class="flex items-center justify-center py-12">
 			<div class="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
-			<span class="ml-2 text-gray-600">Loading servers...</span>
+			<span class="ml-2 text-gray-600 dark:text-gray-400">Loading servers...</span>
 		</div>
 	{:else if servers.length === 0}
 		<div class="py-12 text-center">
-			<p class="mb-4 text-lg text-gray-500">No servers configured yet</p>
+			<p class="mb-4 text-lg text-gray-500 dark:text-gray-400">No servers configured yet</p>
 			<button
 				onclick={() => (showCreateForm = true)}
 				class="rounded-lg bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
@@ -301,42 +314,48 @@
 			</button>
 		</div>
 	{:else}
-		<div class="overflow-hidden bg-white shadow sm:rounded-lg">
+		<div
+			class="overflow-hidden bg-white shadow sm:rounded-lg dark:bg-gray-800 dark:shadow-gray-700"
+		>
 			<div class="overflow-x-auto">
-				<table class="min-w-full divide-y divide-gray-200">
-					<thead class="bg-gray-50">
+				<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+					<thead class="bg-gray-50 dark:bg-gray-700">
 						<tr>
 							<th
-								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
 								>Server</th
 							>
 							<th
-								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
 								>Status</th
 							>
 							<th
-								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
 								>Connection</th
 							>
 							<th
-								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
 								>Created</th
 							>
 							<th
-								class="px-6 py-3 text-right text-xs font-medium tracking-wider text-gray-500 uppercase"
+								class="px-6 py-3 text-right text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
 								>Actions</th
 							>
 						</tr>
 					</thead>
-					<tbody class="divide-y divide-gray-200 bg-white">
+					<tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
 						{#each servers as server (server.id)}
 							{@const statusBadge = getServerStatusBadge(server)}
-							<tr class="hover:bg-gray-50">
+							<tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
 								<td class="px-6 py-4 whitespace-nowrap">
 									<div class="flex items-center">
 										<div>
-											<div class="text-sm font-medium text-gray-900">{server.name}</div>
-											<div class="text-sm text-gray-500">{server.host}:{server.port}</div>
+											<div class="text-sm font-medium text-gray-900 dark:text-white">
+												{server.name}
+											</div>
+											<div class="text-sm text-gray-500 dark:text-gray-400">
+												{server.host}:{server.port}
+											</div>
 										</div>
 									</div>
 								</td>
@@ -347,23 +366,23 @@
 										{statusBadge.text}
 									</span>
 								</td>
-								<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500">
+								<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
 									<div>Root: {server.root_username}</div>
 									<div>App: {server.app_username}</div>
 									{#if server.use_ssh_agent}
-										<div class="text-xs text-blue-600">SSH Agent</div>
+										<div class="text-xs text-blue-600 dark:text-blue-400">SSH Agent</div>
 									{:else}
-										<div class="text-xs text-gray-400">Manual Key</div>
+										<div class="text-xs text-gray-400 dark:text-gray-500">Manual Key</div>
 									{/if}
 								</td>
-								<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500">
+								<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
 									{formatTimestamp(server.created)}
 								</td>
 								<td class="space-x-2 px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
 									<button
 										onclick={() => testConnection(server.id)}
 										disabled={testingConnection.has(server.id)}
-										class="text-blue-600 hover:text-blue-900 disabled:opacity-50"
+										class="text-blue-600 hover:text-blue-900 disabled:opacity-50 dark:text-blue-400 dark:hover:text-blue-300"
 									>
 										{testingConnection.has(server.id) ? '🔄' : '🔗'} Test
 									</button>
@@ -372,7 +391,7 @@
 										<button
 											onclick={() => runSetup(server.id)}
 											disabled={runningSetup.has(server.id)}
-											class="text-green-600 hover:text-green-900 disabled:opacity-50"
+											class="text-green-600 hover:text-green-900 disabled:opacity-50 dark:text-green-400 dark:hover:text-green-300"
 										>
 											{runningSetup.has(server.id) ? '🔄' : '⚙️'} Setup
 										</button>
@@ -380,7 +399,7 @@
 										<button
 											onclick={() => applySecurity(server.id)}
 											disabled={applyingSecurity.has(server.id)}
-											class="text-orange-600 hover:text-orange-900 disabled:opacity-50"
+											class="text-orange-600 hover:text-orange-900 disabled:opacity-50 dark:text-orange-400 dark:hover:text-orange-300"
 										>
 											{applyingSecurity.has(server.id) ? '🔄' : '🔒'} Secure
 										</button>
@@ -388,7 +407,7 @@
 
 									<button
 										onclick={() => deleteServer(server.id)}
-										class="text-red-600 hover:text-red-900"
+										class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
 									>
 										🗑️ Delete
 									</button>
@@ -401,12 +420,12 @@
 		</div>
 
 		<div class="mt-4 flex items-center justify-between">
-			<p class="text-sm text-gray-700">
+			<p class="text-sm text-gray-700 dark:text-gray-300">
 				Showing {servers.length} server{servers.length !== 1 ? 's' : ''}
 			</p>
 			<button
 				onclick={loadServers}
-				class="rounded bg-gray-100 px-3 py-1 text-sm text-gray-700 hover:bg-gray-200"
+				class="rounded bg-gray-100 px-3 py-1 text-sm text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
 			>
 				🔄 Refresh
 			</button>
@@ -427,6 +446,18 @@
 	input[type='number']:focus {
 		outline: none;
 		box-shadow: 0 0 0 2px #3b82f6;
+		border-color: #3b82f6;
+	}
+
+	:global([data-theme='dark']) input[type='text'],
+	:global([data-theme='dark']) input[type='number'] {
+		border-color: #4b5563;
+		background-color: #374151;
+		color: white;
+	}
+
+	:global([data-theme='dark']) input[type='text']:focus,
+	:global([data-theme='dark']) input[type='number']:focus {
 		border-color: #3b82f6;
 	}
 </style>

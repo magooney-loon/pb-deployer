@@ -1,38 +1,55 @@
 <!doctype html>
-<html lang="en">
+<html lang="en"></html>
 	<head>
 		<meta charset="utf-8" />
 		<link rel="icon" href="./favicon.png" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<script>
+			// Initialize theme before page renders to prevent flash of unstyled content
+			(function() {
+				const stored = localStorage.getItem('theme');
+				let theme = 'dark'; // Default theme
+
+				if (stored && (stored === 'light' || stored === 'dark')) {
+					theme = stored;
+				} else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+					theme = 'dark';
+				} else {
+					theme = 'light';
+				}
+
+				document.documentElement.setAttribute('data-theme', theme);
+			})();
+		</script>
 		
-		<link href="./_app/immutable/assets/0.BbDLHmXj.css" rel="stylesheet">
-		<link rel="modulepreload" href="./_app/immutable/entry/start.CM7YIXUr.js">
-		<link rel="modulepreload" href="./_app/immutable/chunks/DIUaDf00.js">
-		<link rel="modulepreload" href="./_app/immutable/chunks/DW9pvu0G.js">
-		<link rel="modulepreload" href="./_app/immutable/chunks/BLzGcSvC.js">
-		<link rel="modulepreload" href="./_app/immutable/entry/app.DlNRQlBO.js">
+		<link href="./_app/immutable/assets/0.CCjvFuVt.css" rel="stylesheet">
+		<link rel="modulepreload" href="./_app/immutable/entry/start.DX7xRAFw.js">
+		<link rel="modulepreload" href="./_app/immutable/chunks/BQacgWmU.js">
+		<link rel="modulepreload" href="./_app/immutable/chunks/B1fHS-Rv.js">
+		<link rel="modulepreload" href="./_app/immutable/chunks/BrsJ0QCF.js">
+		<link rel="modulepreload" href="./_app/immutable/entry/app.ByUEn2dC.js">
 		<link rel="modulepreload" href="./_app/immutable/chunks/Bzak7iHL.js">
-		<link rel="modulepreload" href="./_app/immutable/chunks/BFTXC8D0.js">
-		<link rel="modulepreload" href="./_app/immutable/chunks/DAE7TblA.js">
-		<link rel="modulepreload" href="./_app/immutable/nodes/0.B5YHLPF-.js">
-		<link rel="modulepreload" href="./_app/immutable/chunks/kUCz-sEj.js">
-		<link rel="modulepreload" href="./_app/immutable/nodes/2.D89178jM.js">
-		<link rel="modulepreload" href="./_app/immutable/chunks/xMW752xb.js"><!--[--><meta name="description" content="PocketBase deployment dashboard"/><!--]--><title>Dashboard - PB Deployer</title>
+		<link rel="modulepreload" href="./_app/immutable/chunks/0s-qgtct.js">
+		<link rel="modulepreload" href="./_app/immutable/chunks/CDh6UFdX.js">
+		<link rel="modulepreload" href="./_app/immutable/nodes/0.98Q1gFvy.js">
+		<link rel="modulepreload" href="./_app/immutable/chunks/BVgR97Om.js">
+		<link rel="modulepreload" href="./_app/immutable/nodes/2.BLrL0IC1.js">
+		<link rel="modulepreload" href="./_app/immutable/chunks/BwFEcVI7.js"><!--[--><meta name="description" content="PocketBase deployment dashboard"/><!--]--><title>Dashboard - PB Deployer</title>
 	</head>
 	<body data-sveltekit-preload-data="hover">
-		<div style="display: contents"><!--[--><!--[--><!----><div class="min-h-screen bg-gray-50"><nav class="bg-white shadow"><div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><div class="flex h-16 justify-between"><div class="flex"><div class="flex flex-shrink-0 items-center"><h1 class="text-xl font-bold text-gray-900">PB Deployer</h1></div> <div class="hidden sm:ml-6 sm:flex sm:space-x-8"><a href="/" class="border-b-2 border-transparent px-1 py-2 text-sm font-medium whitespace-nowrap text-gray-500 transition-colors hover:border-gray-300 hover:text-gray-700 border-blue-500 text-blue-600">Dashboard</a> <a href="/servers" class="border-b-2 border-transparent px-1 py-2 text-sm font-medium whitespace-nowrap text-gray-500 transition-colors hover:border-gray-300 hover:text-gray-700 ">Servers</a> <a href="/apps" class="border-b-2 border-transparent px-1 py-2 text-sm font-medium whitespace-nowrap text-gray-500 transition-colors hover:border-gray-300 hover:text-gray-700 ">Applications</a></div></div> <div class="hidden sm:ml-6 sm:flex sm:items-center"><div class="text-sm text-gray-500"><span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">🟢 API Online</span></div></div></div></div> <div class="sm:hidden"><div class="space-y-1 pt-2 pb-3"><a href="/" class="block border-l-4 border-blue-500 bg-blue-50 py-2 pr-4 pl-3 text-base font-medium text-blue-700 border-blue-500 bg-blue-50 text-blue-700">Dashboard</a> <a href="/servers" class="block border-l-4 border-transparent py-2 pr-4 pl-3 text-base font-medium text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700 ">Servers</a> <a href="/apps" class="block border-l-4 border-transparent py-2 pr-4 pl-3 text-base font-medium text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700 ">Applications</a></div></div></nav> <main class="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8"><!----><div class="px-4 sm:px-0"><div class="mb-8"><h1 class="text-3xl font-bold text-gray-900">Dashboard</h1> <p class="mt-2 text-sm text-gray-600">Overview of your PocketBase deployment infrastructure</p></div> <!--[!--><!--]--> <!--[--><div class="flex items-center justify-center py-12"><div class="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div> <span class="ml-2 text-gray-600">Loading dashboard...</span></div><!--]--></div><!----><!----></main></div><!----><!--]--> <!--[!--><!--]--><!--]-->
+		<div style="display: contents"><!--[--><!--[--><!----><div class="min-h-screen bg-gray-50 dark:bg-gray-900"><nav class="bg-white shadow dark:bg-gray-800 dark:shadow-gray-700"><div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><div class="flex h-16 justify-between"><div class="flex"><div class="flex flex-shrink-0 items-center"><h1 class="text-xl font-bold text-gray-900 dark:text-white">PB Deployer</h1></div> <div class="hidden sm:ml-6 sm:flex sm:space-x-8"><a href="/" class="border-b-2 border-transparent px-1 py-2 text-sm font-medium whitespace-nowrap text-gray-500 transition-colors hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:text-gray-200 border-blue-500 text-blue-600 dark:text-blue-400">Dashboard</a> <a href="/servers" class="border-b-2 border-transparent px-1 py-2 text-sm font-medium whitespace-nowrap text-gray-500 transition-colors hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:text-gray-200 ">Servers</a> <a href="/apps" class="border-b-2 border-transparent px-1 py-2 text-sm font-medium whitespace-nowrap text-gray-500 transition-colors hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:text-gray-200 ">Applications</a></div></div> <div class="hidden space-x-4 sm:ml-6 sm:flex sm:items-center"><button class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700" title="Toggle theme">☀️</button> <div class="text-sm text-gray-500 dark:text-gray-400"><span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">🟢 API Online</span></div></div></div></div> <div class="sm:hidden"><div class="space-y-1 pt-2 pb-3"><div class="flex items-center justify-between px-4 pb-2"><button class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700" title="Toggle theme">☀️</button> <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">🟢 API Online</span></div> <a href="/" class="block border-l-4 py-2 pr-4 pl-3 text-base font-medium border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-200">Dashboard</a> <a href="/servers" class="block border-l-4 py-2 pr-4 pl-3 text-base font-medium border-transparent text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-200">Servers</a> <a href="/apps" class="block border-l-4 py-2 pr-4 pl-3 text-base font-medium border-transparent text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-200">Applications</a></div></div></nav> <main class="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8"><!----><div class="px-4 sm:px-0"><div class="mb-8"><h1 class="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1> <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Overview of your PocketBase deployment infrastructure</p></div> <!--[!--><!--]--> <!--[--><div class="flex items-center justify-center py-12"><div class="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div> <span class="ml-2 text-gray-600 dark:text-gray-400">Loading dashboard...</span></div><!--]--></div><!----><!----></main></div><!----><!--]--> <!--[!--><!--]--><!--]-->
 			
 			<script>
 				{
-					__sveltekit_14ycdb = {
+					__sveltekit_q21ldq = {
 						base: new URL(".", location).pathname.slice(0, -1)
 					};
 
 					const element = document.currentScript.parentElement;
 
 					Promise.all([
-						import("./_app/immutable/entry/start.CM7YIXUr.js"),
-						import("./_app/immutable/entry/app.DlNRQlBO.js")
+						import("./_app/immutable/entry/start.DX7xRAFw.js"),
+						import("./_app/immutable/entry/app.ByUEn2dC.js")
 					]).then(([kit, app]) => {
 						kit.start(app, element, {
 							node_ids: [0, 2],
