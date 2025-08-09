@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api, type Server, formatTimestamp } from '../api.js';
+	import ConnectionTestModal from './ConnectionTestModal.svelte';
 
 	let servers = $state<Server[]>([]);
 	let loading = $state(true);
@@ -9,6 +10,22 @@
 	let testingConnection = $state<Set<string>>(new Set());
 	let runningSetup = $state<Set<string>>(new Set());
 	let applyingSecurity = $state<Set<string>>(new Set());
+
+	// Modal state
+	let showConnectionModal = $state(false);
+	let connectionTestLoading = $state(false);
+	interface ConnectionTestResult {
+		success: boolean;
+		connection_info?: {
+			server_host: string;
+			username: string;
+		};
+		app_user_connection?: string;
+		error?: string;
+	}
+
+	let connectionTestResult = $state<ConnectionTestResult | null>(null);
+	let testedServerName = $state('');
 
 	// Form data for creating new server
 	let newServer = $state({
@@ -68,20 +85,27 @@
 	}
 
 	async function testConnection(id: string) {
+		const server = servers.find((s) => s.id === id);
+		if (!server) return;
+
+		// Open modal immediately with loading state
+		connectionTestResult = null;
+		testedServerName = server.name;
+		connectionTestLoading = true;
+		showConnectionModal = true;
+
 		try {
 			testingConnection.add(id);
 			const result = await api.testServerConnection(id);
-			if (result.success) {
-				alert(
-					`Connection successful!\n\nServer: ${result.connection_info.server_host}\nUser: ${result.connection_info.username}\n${result.app_user_connection ? `App user: ${result.app_user_connection}` : ''}`
-				);
-			} else {
-				alert(`Connection failed: ${result.error}`);
-			}
+			connectionTestResult = result;
 		} catch (err) {
-			alert(`Connection test failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+			connectionTestResult = {
+				success: false,
+				error: err instanceof Error ? err.message : 'Unknown error'
+			};
 		} finally {
 			testingConnection.delete(id);
+			connectionTestLoading = false;
 		}
 	}
 
@@ -432,6 +456,15 @@
 		</div>
 	{/if}
 </div>
+
+<!-- Connection Test Modal -->
+<ConnectionTestModal
+	open={showConnectionModal}
+	result={connectionTestResult}
+	serverName={testedServerName}
+	loading={connectionTestLoading}
+	onclose={() => (showConnectionModal = false)}
+/>
 
 <style>
 	input[type='text'],

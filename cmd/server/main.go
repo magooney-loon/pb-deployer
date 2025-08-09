@@ -6,6 +6,7 @@ import (
 	app "github.com/magooney-loon/pb-ext/core"
 	"github.com/pocketbase/pocketbase/core"
 
+	"pb-deployer/internal/handlers"
 	"pb-deployer/internal/models"
 )
 
@@ -19,6 +20,7 @@ func initApp() {
 	app.SetupLogging(srv)
 
 	registerCollections(srv.App())
+	registerHandlers(srv.App())
 
 	srv.App().OnServe().BindFunc(func(e *core.ServeEvent) error {
 		app.SetupRecovery(srv.App(), e)
@@ -44,4 +46,8 @@ func registerCollections(app core.App) {
 		}
 		return e.Next()
 	})
+}
+
+func registerHandlers(app core.App) {
+	handlers.RegisterHandlers(app)
 }
