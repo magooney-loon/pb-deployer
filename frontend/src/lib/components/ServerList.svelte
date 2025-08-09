@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { api, type Server, type App, formatTimestamp } from '../api.js';
+	import { onMount, onDestroy } from 'svelte';
+	import { api, type Server, type App, type SetupStep, formatTimestamp } from '../api.js';
 	import ConnectionTestModal from '$lib/components/modals/ConnectionTestModal.svelte';
 	import DeleteServerModal from '$lib/components/modals/DeleteServerModal.svelte';
+	import ProgressModal from '$lib/components/modals/ProgressModal.svelte';
 
 	let servers = $state<Server[]>([]);
 	let apps = $state<App[]>([]);
@@ -12,6 +13,12 @@
 	let testingConnection = $state<Set<string>>(new Set());
 	let runningSetup = $state<Set<string>>(new Set());
 	let applyingSecurity = $state<Set<string>>(new Set());
+
+	// Progress tracking state (using objects for Svelte reactivity)
+	let setupProgress = $state<Record<string, SetupStep[]>>({});
+	let securityProgress = $state<Record<string, SetupStep[]>>({});
+	let setupUnsubscribers = $state<Record<string, () => void>>({});
+	let securityUnsubscribers = $state<Record<string, () => void>>({});
 
 	// Modal state
 	let showConnectionModal = $state(false);
@@ -34,6 +41,12 @@
 	let serverToDelete = $state<Server | null>(null);
 	let deleting = $state(false);
 
+	// Progress modal state
+	let showSetupProgressModal = $state(false);
+	let showSecurityProgressModal = $state(false);
+	let currentProgressServerId = $state<string | null>(null);
+	let currentProgressServerName = $state('');
+
 	// Form data for creating new server
 	let newServer = $state({
 		name: '',
@@ -47,6 +60,17 @@
 
 	onMount(async () => {
 		await loadServers();
+	});
+
+	onDestroy(async () => {
+		// Clean up all subscriptions
+		for (const unsubscribe of Object.values(setupUnsubscribers)) {
+			unsubscribe();
+		}
+		for (const unsubscribe of Object.values(securityUnsubscribers)) {
+			unsubscribe();
+		}
+		await api.unsubscribeFromAll();
 	});
 
 	async function loadServers() {
@@ -131,14 +155,53 @@
 
 	async function runSetup(id: string) {
 		try {
+			const server = servers.find((s) => s.id === id);
+			if (!server) return;
+
 			runningSetup.add(id);
+			setupProgress[id] = [];
+			setupProgress = { ...setupProgress };
+
+			// Show progress modal
+			currentProgressServerId = id;
+			currentProgressServerName = server.name;
+			showSetupProgressModal = true;
+			console.log('Setup progress modal opened for server:', server.name);
+
+			// Subscribe to setup progress
+			const unsubscribe = await api.subscribeToSetupProgress(id, (step: SetupStep) => {
+				console.log('Setup progress received for server', id, ':', step);
+				const currentProgress = setupProgress[id] || [];
+				const updatedProgress = [...currentProgress, step];
+				setupProgress[id] = updatedProgress;
+				setupProgress = { ...setupProgress };
+				console.log('Setup progress updated:', updatedProgress.length, 'steps');
+
+				// If setup is complete, clean up after delay
+				if (step.step === 'complete') {
+					setTimeout(() => {
+						runningSetup.delete(id);
+						if (setupUnsubscribers[id]) {
+							setupUnsubscribers[id]();
+							delete setupUnsubscribers[id];
+							setupUnsubscribers = { ...setupUnsubscribers };
+						}
+						loadServers(); // Refresh the list
+					}, 3000); // Keep visible for 3 seconds after completion
+				}
+			});
+
+			setupUnsubscribers[id] = unsubscribe;
+			setupUnsubscribers = { ...setupUnsubscribers };
+
+			// Start the setup process
 			await api.runServerSetup(id);
-			alert('Server setup started. Check the server status for progress.');
-			await loadServers(); // Refresh the list
 		} catch (err) {
 			alert(`Setup failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-		} finally {
 			runningSetup.delete(id);
+			delete setupProgress[id];
+			setupProgress = { ...setupProgress };
+			showSetupProgressModal = false;
 		}
 	}
 
@@ -146,14 +209,53 @@
 		if (!confirm('This will apply security lockdown to the server. Continue?')) return;
 
 		try {
+			const server = servers.find((s) => s.id === id);
+			if (!server) return;
+
 			applyingSecurity.add(id);
+			securityProgress[id] = [];
+			securityProgress = { ...securityProgress };
+
+			// Show progress modal
+			currentProgressServerId = id;
+			currentProgressServerName = server.name;
+			showSecurityProgressModal = true;
+			console.log('Security progress modal opened for server:', server.name);
+
+			// Subscribe to security progress
+			const unsubscribe = await api.subscribeToSecurityProgress(id, (step: SetupStep) => {
+				console.log('Security progress received for server', id, ':', step);
+				const currentProgress = securityProgress[id] || [];
+				const updatedProgress = [...currentProgress, step];
+				securityProgress[id] = updatedProgress;
+				securityProgress = { ...securityProgress };
+				console.log('Security progress updated:', updatedProgress.length, 'steps');
+
+				// If security is complete, clean up after delay
+				if (step.step === 'complete') {
+					setTimeout(() => {
+						applyingSecurity.delete(id);
+						if (securityUnsubscribers[id]) {
+							securityUnsubscribers[id]();
+							delete securityUnsubscribers[id];
+							securityUnsubscribers = { ...securityUnsubscribers };
+						}
+						loadServers(); // Refresh the list
+					}, 3000); // Keep visible for 3 seconds after completion
+				}
+			});
+
+			securityUnsubscribers[id] = unsubscribe;
+			securityUnsubscribers = { ...securityUnsubscribers };
+
+			// Start the security lockdown process
 			await api.applySecurityLockdown(id);
-			alert('Security lockdown started. Check the server status for progress.');
-			await loadServers(); // Refresh the list
 		} catch (err) {
 			alert(`Security lockdown failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-		} finally {
 			applyingSecurity.delete(id);
+			delete securityProgress[id];
+			securityProgress = { ...securityProgress };
+			showSecurityProgressModal = false;
 		}
 	}
 
@@ -170,6 +272,30 @@
 	}
 
 	function getServerStatusBadge(server: Server) {
+		// Check if setup is in progress
+		if (runningSetup.has(server.id)) {
+			const currentProgress = setupProgress[server.id] || [];
+			if (currentProgress.length > 0) {
+				const latestStep = currentProgress[currentProgress.length - 1];
+				if (latestStep.status === 'failed') {
+					return { text: 'Setup Failed', color: 'bg-red-100 text-red-800' };
+				}
+			}
+			return { text: 'Setting Up...', color: 'bg-blue-100 text-blue-800' };
+		}
+
+		// Check if security is in progress
+		if (applyingSecurity.has(server.id)) {
+			const currentProgress = securityProgress[server.id] || [];
+			if (currentProgress.length > 0) {
+				const latestStep = currentProgress[currentProgress.length - 1];
+				if (latestStep.status === 'failed') {
+					return { text: 'Security Failed', color: 'bg-red-100 text-red-800' };
+				}
+			}
+			return { text: 'Securing...', color: 'bg-purple-100 text-purple-800' };
+		}
+
 		if (!server.setup_complete) {
 			return { text: 'Not Setup', color: 'bg-red-100 text-red-800' };
 		} else if (!server.security_locked) {
@@ -177,6 +303,101 @@
 		} else {
 			return { text: 'Ready', color: 'bg-green-100 text-green-800' };
 		}
+	}
+
+	function getProgressStepIcon(status: string): string {
+		switch (status) {
+			case 'running':
+				return '🔄';
+			case 'success':
+				return '✅';
+			case 'failed':
+				return '❌';
+			default:
+				return '⏳';
+		}
+	}
+
+	function isFailed(): boolean {
+		if (!currentProgressServerId) return false;
+
+		// Check setup progress
+		if (runningSetup.has(currentProgressServerId)) {
+			const currentProgress = setupProgress[currentProgressServerId] || [];
+			if (currentProgress.length > 0) {
+				const latestStep = currentProgress[currentProgress.length - 1];
+				return latestStep.status === 'failed';
+			}
+		}
+
+		// Check security progress
+		if (applyingSecurity.has(currentProgressServerId)) {
+			const currentProgress = securityProgress[currentProgressServerId] || [];
+			if (currentProgress.length > 0) {
+				const latestStep = currentProgress[currentProgress.length - 1];
+				return latestStep.status === 'failed';
+			}
+		}
+
+		return false;
+	}
+
+	function closeSetupProgressModal() {
+		// Check if operation is still running (not failed or complete)
+		if (currentProgressServerId && runningSetup.has(currentProgressServerId)) {
+			const currentProgress = setupProgress[currentProgressServerId] || [];
+			if (currentProgress.length > 0) {
+				const latestStep = currentProgress[currentProgress.length - 1];
+				// Only prevent closing if operation is still running (not failed or complete)
+				if (latestStep.status === 'running' && latestStep.step !== 'complete') {
+					return; // Don't close
+				}
+			} else if (!isFailed()) {
+				return; // Don't close if no progress yet and not failed
+			}
+		}
+
+		// Clean up state when closing
+		if (currentProgressServerId) {
+			runningSetup.delete(currentProgressServerId);
+			if (setupUnsubscribers[currentProgressServerId]) {
+				setupUnsubscribers[currentProgressServerId]();
+				delete setupUnsubscribers[currentProgressServerId];
+				setupUnsubscribers = { ...setupUnsubscribers };
+			}
+		}
+
+		showSetupProgressModal = false;
+		currentProgressServerId = null;
+	}
+
+	function closeSecurityProgressModal() {
+		// Check if operation is still running (not failed or complete)
+		if (currentProgressServerId && applyingSecurity.has(currentProgressServerId)) {
+			const currentProgress = securityProgress[currentProgressServerId] || [];
+			if (currentProgress.length > 0) {
+				const latestStep = currentProgress[currentProgress.length - 1];
+				// Only prevent closing if operation is still running (not failed or complete)
+				if (latestStep.status === 'running' && latestStep.step !== 'complete') {
+					return; // Don't close
+				}
+			} else if (!isFailed()) {
+				return; // Don't close if no progress yet and not failed
+			}
+		}
+
+		// Clean up state when closing
+		if (currentProgressServerId) {
+			applyingSecurity.delete(currentProgressServerId);
+			if (securityUnsubscribers[currentProgressServerId]) {
+				securityUnsubscribers[currentProgressServerId]();
+				delete securityUnsubscribers[currentProgressServerId];
+				securityUnsubscribers = { ...securityUnsubscribers };
+			}
+		}
+
+		showSecurityProgressModal = false;
+		currentProgressServerId = null;
 	}
 </script>
 
@@ -404,11 +625,41 @@
 									</div>
 								</td>
 								<td class="px-6 py-4 whitespace-nowrap">
-									<span
-										class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {statusBadge.color}"
-									>
-										{statusBadge.text}
-									</span>
+									<div class="space-y-1">
+										<span
+											class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {statusBadge.color}"
+										>
+											{statusBadge.text}
+										</span>
+
+										<!-- Setup Progress -->
+										{#if server.id in setupProgress}
+											{@const steps = setupProgress[server.id] || []}
+											<div class="space-y-1 text-xs">
+												{#each steps.slice(-3) as step, index (step.timestamp + index)}
+													<div class="flex items-center space-x-1 text-blue-600 dark:text-blue-400">
+														<span>{getProgressStepIcon(step.status)}</span>
+														<span class="max-w-32 truncate">{step.message}</span>
+													</div>
+												{/each}
+											</div>
+										{/if}
+
+										<!-- Security Progress -->
+										{#if server.id in securityProgress}
+											{@const steps = securityProgress[server.id] || []}
+											<div class="space-y-1 text-xs">
+												{#each steps.slice(-3) as step, index (step.timestamp + index)}
+													<div
+														class="flex items-center space-x-1 text-purple-600 dark:text-purple-400"
+													>
+														<span>{getProgressStepIcon(step.status)}</span>
+														<span class="max-w-32 truncate">{step.message}</span>
+													</div>
+												{/each}
+											</div>
+										{/if}
+									</div>
 								</td>
 								<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
 									<div>Root: {server.root_username}</div>
@@ -428,7 +679,7 @@
 										disabled={testingConnection.has(server.id)}
 										class="text-blue-600 hover:text-blue-900 disabled:opacity-50 dark:text-blue-400 dark:hover:text-blue-300"
 									>
-										{testingConnection.has(server.id) ? '🔄' : '🔗'} Test
+										{testingConnection.has(server.id) ? 'Testing...' : 'Test Connection'}
 									</button>
 
 									{#if !server.setup_complete}
@@ -437,23 +688,24 @@
 											disabled={runningSetup.has(server.id)}
 											class="text-green-600 hover:text-green-900 disabled:opacity-50 dark:text-green-400 dark:hover:text-green-300"
 										>
-											{runningSetup.has(server.id) ? '🔄' : '⚙️'} Setup
+											{runningSetup.has(server.id) ? 'Setting Up...' : 'Run Setup'}
 										</button>
 									{:else if !server.security_locked}
 										<button
 											onclick={() => applySecurity(server.id)}
 											disabled={applyingSecurity.has(server.id)}
-											class="text-orange-600 hover:text-orange-900 disabled:opacity-50 dark:text-orange-400 dark:hover:text-orange-300"
+											class="text-purple-600 hover:text-purple-900 disabled:opacity-50 dark:text-purple-400 dark:hover:text-purple-300"
 										>
-											{applyingSecurity.has(server.id) ? '🔄' : '🔒'} Secure
+											{applyingSecurity.has(server.id) ? 'Securing...' : 'Apply Security'}
 										</button>
 									{/if}
 
 									<button
 										onclick={() => deleteServer(server.id)}
-										class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+										disabled={runningSetup.has(server.id) || applyingSecurity.has(server.id)}
+										class="text-red-600 hover:text-red-900 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
 									>
-										🗑️ Delete
+										Delete
 									</button>
 								</td>
 							</tr>
@@ -499,6 +751,28 @@
 		}
 	}}
 	onconfirm={confirmDeleteServer}
+/>
+
+<!-- Setup Progress Modal -->
+<ProgressModal
+	show={showSetupProgressModal}
+	title="Server Setup Progress - {currentProgressServerName}"
+	progress={currentProgressServerId ? setupProgress[currentProgressServerId] || [] : []}
+	onClose={closeSetupProgressModal}
+	loading={runningSetup.has(currentProgressServerId || '')}
+	operationInProgress={currentProgressServerId ? runningSetup.has(currentProgressServerId) : false}
+/>
+
+<!-- Security Progress Modal -->
+<ProgressModal
+	show={showSecurityProgressModal}
+	title="Security Lockdown Progress - {currentProgressServerName}"
+	progress={currentProgressServerId ? securityProgress[currentProgressServerId] || [] : []}
+	onClose={closeSecurityProgressModal}
+	loading={applyingSecurity.has(currentProgressServerId || '')}
+	operationInProgress={currentProgressServerId
+		? applyingSecurity.has(currentProgressServerId)
+		: false}
 />
 
 <style>
