@@ -75,27 +75,59 @@ func testServerConnection(app core.App, e *core.RequestEvent) error {
 	app.Logger().Info("Starting comprehensive connection test",
 		"server_id", serverID,
 		"host", server.Host,
-		"port", server.Port)
+		"port", server.Port,
+		"security_locked", server.SecurityLocked)
 
 	// Test TCP connectivity first
 	tcpResult := testTCPConnectionEnhanced(server.Host, server.Port)
 
-	// Test SSH connections
-	rootSSHResult := testSSHConnection(server, true, app) // as root
-	appSSHResult := testSSHConnection(server, false, app) // as app user
+	// Test SSH connections based on security status
+	var rootSSHResult SSHTestResult
+	var appSSHResult SSHTestResult
 
-	// Determine overall success
-	overallSuccess := tcpResult.Success && rootSSHResult.Success && appSSHResult.Success
-	overallStatus := "healthy"
+	if server.SecurityLocked {
+		// For security-locked servers, root SSH should be disabled
+		rootSSHResult = SSHTestResult{
+			Success:  false,
+			Username: server.RootUsername,
+			Error:    "Root SSH access disabled after security lockdown",
+		}
+		// Focus on app user connection for security-locked servers
+		appSSHResult = testSSHConnectionEnhanced(server, false, app)
+	} else {
+		// For non-security-locked servers, test both connections
+		rootSSHResult = testSSHConnection(server, true, app) // as root
+		appSSHResult = testSSHConnection(server, false, app) // as app user
+	}
 
-	if !tcpResult.Success {
-		overallStatus = "unreachable"
-	} else if !rootSSHResult.Success && !appSSHResult.Success {
-		overallStatus = "ssh_failed"
-	} else if !rootSSHResult.Success {
-		overallStatus = "root_ssh_failed"
-	} else if !appSSHResult.Success {
-		overallStatus = "app_ssh_failed"
+	// Determine overall success based on security status
+	var overallSuccess bool
+	var overallStatus string
+
+	if server.SecurityLocked {
+		// For security-locked servers, only app user connection matters
+		overallSuccess = tcpResult.Success && appSSHResult.Success
+		if !tcpResult.Success {
+			overallStatus = "unreachable"
+		} else if !appSSHResult.Success {
+			overallStatus = "app_ssh_failed"
+		} else {
+			overallStatus = "healthy_secured"
+		}
+	} else {
+		// For non-security-locked servers, both connections should work
+		overallSuccess = tcpResult.Success && rootSSHResult.Success && appSSHResult.Success
+		if !tcpResult.Success {
+			overallStatus = "unreachable"
+		} else if !rootSSHResult.Success && !appSSHResult.Success {
+			overallStatus = "ssh_failed"
+		} else if !rootSSHResult.Success {
+			overallStatus = "root_ssh_failed"
+		} else if !appSSHResult.Success {
+			overallStatus = "app_ssh_failed"
+		} else {
+			overallStatus = "healthy"
+		}
 	}
 
 	response := ConnectionTestResponse{
@@ -107,11 +139,16 @@ func testServerConnection(app core.App, e *core.RequestEvent) error {
 	}
 
 	if !overallSuccess {
-		response.Error = fmt.Sprintf("Connection issues detected: %s", overallStatus)
+		if server.SecurityLocked {
+			response.Error = fmt.Sprintf("Connection issues detected: %s (Note: Root SSH is expected to be disabled on security-locked servers)", overallStatus)
+		} else {
+			response.Error = fmt.Sprintf("Connection issues detected: %s", overallStatus)
+		}
 	}
 
 	app.Logger().Info("Connection test completed",
 		"server_id", serverID,
+		"security_locked", server.SecurityLocked,
 		"tcp_success", tcpResult.Success,
 		"root_ssh_success", rootSSHResult.Success,
 		"app_ssh_success", appSSHResult.Success,
@@ -143,7 +180,101 @@ func testTCPConnectionEnhanced(host string, port int) TCPTestResult {
 	}
 }
 
-// testSSHConnection tests SSH connectivity for a specific user
+// testSSHConnectionEnhanced tests SSH connectivity for a specific user with enhanced error handling
+func testSSHConnectionEnhanced(server *models.Server, asRoot bool, app core.App) SSHTestResult {
+	username := server.AppUsername
+	if asRoot {
+		username = server.RootUsername
+	}
+
+	result := SSHTestResult{
+		Username: username,
+	}
+
+	// For security-locked servers attempting root connection, return expected failure
+	if server.SecurityLocked && asRoot {
+		result.Error = "Root SSH access disabled by security lockdown"
+		app.Logger().Debug("Skipping root SSH test on security-locked server",
+			"username", username,
+			"host", server.Host)
+		return result
+	}
+
+	// Pre-accept host key to avoid host key verification issues
+	if err := ssh.AcceptHostKey(server); err != nil {
+		app.Logger().Debug("Failed to pre-accept host key (continuing anyway)",
+			"host", server.Host,
+			"error", err)
+	}
+
+	// Attempt SSH connection with retry logic
+	var sshManager *ssh.SSHManager
+	var err error
+
+	// Try multiple times for app user on security-locked servers
+	maxRetries := 1
+	if server.SecurityLocked && !asRoot {
+		maxRetries = 3
+	}
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		sshManager, err = ssh.NewSSHManager(server, asRoot)
+		if err == nil {
+			break
+		}
+
+		if attempt < maxRetries {
+			app.Logger().Debug("SSH connection attempt failed, retrying",
+				"username", username,
+				"host", server.Host,
+				"attempt", attempt,
+				"error", err)
+			time.Sleep(time.Duration(attempt) * time.Second)
+		}
+	}
+
+	if err != nil {
+		result.Error = fmt.Sprintf("SSH connection failed after %d attempts: %v", maxRetries, err)
+		app.Logger().Debug("SSH connection failed",
+			"username", username,
+			"host", server.Host,
+			"attempts", maxRetries,
+			"error", err)
+		return result
+	}
+	defer sshManager.Close()
+
+	// Test a simple command to verify the connection works
+	err = sshManager.RunCommand("echo 'connection_test'")
+	if err != nil {
+		result.Error = fmt.Sprintf("SSH command test failed: %v", err)
+		app.Logger().Debug("SSH command test failed",
+			"username", username,
+			"host", server.Host,
+			"error", err)
+		return result
+	}
+
+	result.Success = true
+
+	// Determine auth method used
+	if server.UseSSHAgent {
+		result.AuthMethod = "ssh_agent"
+	} else if server.ManualKeyPath != "" {
+		result.AuthMethod = "private_key"
+	} else {
+		result.AuthMethod = "default_keys"
+	}
+
+	app.Logger().Debug("SSH connection successful",
+		"username", username,
+		"host", server.Host,
+		"auth_method", result.AuthMethod)
+
+	return result
+}
+
+// testSSHConnection tests SSH connectivity for a specific user (legacy function)
 func testSSHConnection(server *models.Server, asRoot bool, app core.App) SSHTestResult {
 	username := server.AppUsername
 	if asRoot {

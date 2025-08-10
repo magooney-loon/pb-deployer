@@ -480,3 +480,290 @@ func GetConnectionSummary(server *models.Server, asRoot bool) (string, error) {
 
 	return summary.String(), nil
 }
+
+// DiagnoseAppUserPostSecurity performs specialized diagnostics for app user SSH after security lockdown
+func DiagnoseAppUserPostSecurity(server *models.Server) ([]ConnectionDiagnostic, error) {
+	var diagnostics []ConnectionDiagnostic
+
+	// Test app user SSH connection specifically
+	diagnostics = append(diagnostics, diagnoseAppUserConnection(server))
+
+	// Check sudo configuration
+	diagnostics = append(diagnostics, checkAppUserSudoAccess(server))
+
+	// Check SSH key setup for app user
+	diagnostics = append(diagnostics, checkAppUserSSHKeys(server))
+
+	// Verify security lockdown didn't break app user access
+	diagnostics = append(diagnostics, verifyPostSecurityAccess(server))
+
+	// Check SSH daemon configuration for app user restrictions
+	diagnostics = append(diagnostics, checkSSHDaemonConfig(server))
+
+	return diagnostics, nil
+}
+
+// diagnoseAppUserConnection tests app user SSH connection with detailed diagnostics
+func diagnoseAppUserConnection(server *models.Server) ConnectionDiagnostic {
+	// Try to connect as app user
+	manager, err := NewSSHManager(server, false)
+	if err != nil {
+		return ConnectionDiagnostic{
+			Step:       "app_user_connection",
+			Status:     "error",
+			Message:    fmt.Sprintf("Failed to connect as %s", server.AppUsername),
+			Details:    err.Error(),
+			Suggestion: "Check SSH key configuration and network connectivity. Try running: ssh-test -host " + server.Host + " -diagnose",
+		}
+	}
+	defer manager.Close()
+
+	// Test basic command execution
+	if err := manager.TestConnection(); err != nil {
+		return ConnectionDiagnostic{
+			Step:       "app_user_connection",
+			Status:     "error",
+			Message:    fmt.Sprintf("App user %s can connect but command execution fails", server.AppUsername),
+			Details:    err.Error(),
+			Suggestion: "Check shell configuration and command permissions for the app user.",
+		}
+	}
+
+	return ConnectionDiagnostic{
+		Step:    "app_user_connection",
+		Status:  "success",
+		Message: fmt.Sprintf("App user %s connection is working", server.AppUsername),
+	}
+}
+
+// checkAppUserSudoAccess verifies sudo configuration for app user
+func checkAppUserSudoAccess(server *models.Server) ConnectionDiagnostic {
+	manager, err := NewSSHManager(server, false)
+	if err != nil {
+		return ConnectionDiagnostic{
+			Step:       "sudo_access",
+			Status:     "error",
+			Message:    "Cannot test sudo access - SSH connection failed",
+			Details:    err.Error(),
+			Suggestion: "Fix SSH connection first before testing sudo access.",
+		}
+	}
+	defer manager.Close()
+
+	// Test sudo access for common deployment commands
+	testCommands := []string{
+		"sudo -n systemctl --version",
+		"sudo -n mkdir -p /tmp/sudo_test && sudo -n rmdir /tmp/sudo_test",
+	}
+
+	for _, cmd := range testCommands {
+		if _, err := manager.ExecuteCommand(cmd); err != nil {
+			return ConnectionDiagnostic{
+				Step:       "sudo_access",
+				Status:     "error",
+				Message:    fmt.Sprintf("Sudo access test failed for %s", server.AppUsername),
+				Details:    fmt.Sprintf("Command '%s' failed: %v", cmd, err),
+				Suggestion: fmt.Sprintf("Configure passwordless sudo for %s. Check /etc/sudoers.d/%s file.", server.AppUsername, server.AppUsername),
+			}
+		}
+	}
+
+	return ConnectionDiagnostic{
+		Step:    "sudo_access",
+		Status:  "success",
+		Message: fmt.Sprintf("Sudo access is properly configured for %s", server.AppUsername),
+	}
+}
+
+// checkAppUserSSHKeys verifies SSH key configuration for app user
+func checkAppUserSSHKeys(server *models.Server) ConnectionDiagnostic {
+	manager, err := NewSSHManager(server, false)
+	if err != nil {
+		return ConnectionDiagnostic{
+			Step:       "ssh_keys",
+			Status:     "error",
+			Message:    "Cannot check SSH keys - connection failed",
+			Details:    err.Error(),
+			Suggestion: "SSH key configuration may be incorrect. Check authorized_keys file.",
+		}
+	}
+	defer manager.Close()
+
+	// Check if authorized_keys file exists and has content
+	authKeysPath := fmt.Sprintf("/home/%s/.ssh/authorized_keys", server.AppUsername)
+	checkCmd := fmt.Sprintf("test -f %s && test -s %s", authKeysPath, authKeysPath)
+	if _, err := manager.ExecuteCommand(checkCmd); err != nil {
+		return ConnectionDiagnostic{
+			Step:       "ssh_keys",
+			Status:     "error",
+			Message:    fmt.Sprintf("SSH authorized_keys file missing or empty for %s", server.AppUsername),
+			Details:    fmt.Sprintf("File %s does not exist or is empty", authKeysPath),
+			Suggestion: fmt.Sprintf("Ensure %s exists and contains valid SSH public keys", authKeysPath),
+		}
+	}
+
+	// Check file permissions
+	permCmd := fmt.Sprintf("stat -c '%%a' %s", authKeysPath)
+	if output, err := manager.ExecuteCommand(permCmd); err == nil {
+		perms := strings.TrimSpace(output)
+		if perms != "600" {
+			return ConnectionDiagnostic{
+				Step:       "ssh_keys",
+				Status:     "warning",
+				Message:    "SSH authorized_keys has incorrect permissions",
+				Details:    fmt.Sprintf("Current permissions: %s, Expected: 600", perms),
+				Suggestion: fmt.Sprintf("Run: chmod 600 %s", authKeysPath),
+			}
+		}
+	}
+
+	return ConnectionDiagnostic{
+		Step:    "ssh_keys",
+		Status:  "success",
+		Message: fmt.Sprintf("SSH keys are properly configured for %s", server.AppUsername),
+	}
+}
+
+// verifyPostSecurityAccess checks if app user can perform post-security operations
+func verifyPostSecurityAccess(server *models.Server) ConnectionDiagnostic {
+	manager, err := NewSSHManager(server, false)
+	if err != nil {
+		return ConnectionDiagnostic{
+			Step:       "post_security_access",
+			Status:     "error",
+			Message:    "Cannot verify post-security access - SSH connection failed",
+			Details:    err.Error(),
+			Suggestion: "Fix SSH connection issues first.",
+		}
+	}
+	defer manager.Close()
+
+	// Test deployment-related operations
+	testOperations := []struct {
+		name string
+		cmd  string
+	}{
+		{"directory_access", "ls -la /opt/pocketbase"},
+		{"service_management", "sudo -n systemctl status ssh"},
+		{"file_operations", "sudo -n touch /tmp/deploy_test && sudo -n rm /tmp/deploy_test"},
+	}
+
+	for _, op := range testOperations {
+		if _, err := manager.ExecuteCommand(op.cmd); err != nil {
+			return ConnectionDiagnostic{
+				Step:       "post_security_access",
+				Status:     "error",
+				Message:    fmt.Sprintf("Post-security access test failed: %s", op.name),
+				Details:    fmt.Sprintf("Command '%s' failed: %v", op.cmd, err),
+				Suggestion: "App user lacks necessary permissions for deployment operations. Check sudo configuration and file permissions.",
+			}
+		}
+	}
+
+	return ConnectionDiagnostic{
+		Step:    "post_security_access",
+		Status:  "success",
+		Message: "App user has necessary access for post-security operations",
+	}
+}
+
+// checkSSHDaemonConfig checks SSH daemon configuration that might affect app user
+func checkSSHDaemonConfig(server *models.Server) ConnectionDiagnostic {
+	manager, err := NewSSHManager(server, false)
+	if err != nil {
+		return ConnectionDiagnostic{
+			Step:       "sshd_config",
+			Status:     "error",
+			Message:    "Cannot check SSH daemon config - SSH connection failed",
+			Details:    err.Error(),
+			Suggestion: "Fix SSH connection issues first.",
+		}
+	}
+	defer manager.Close()
+
+	// Check key SSH settings that might affect app user access
+	criticalSettings := []struct {
+		setting string
+		check   string
+	}{
+		{"PubkeyAuthentication", "grep -q '^PubkeyAuthentication yes' /etc/ssh/sshd_config"},
+		{"PasswordAuthentication", "grep -q '^PasswordAuthentication no' /etc/ssh/sshd_config"},
+		{"PermitRootLogin", "grep -q '^PermitRootLogin no' /etc/ssh/sshd_config"},
+	}
+
+	var warnings []string
+	for _, setting := range criticalSettings {
+		if _, err := manager.ExecuteCommand(fmt.Sprintf("sudo %s", setting.check)); err != nil {
+			warnings = append(warnings, fmt.Sprintf("%s setting may be incorrect", setting.setting))
+		}
+	}
+
+	if len(warnings) > 0 {
+		return ConnectionDiagnostic{
+			Step:       "sshd_config",
+			Status:     "warning",
+			Message:    "SSH daemon configuration has potential issues",
+			Details:    strings.Join(warnings, "; "),
+			Suggestion: "Review /etc/ssh/sshd_config for security hardening settings that might affect access.",
+		}
+	}
+
+	return ConnectionDiagnostic{
+		Step:    "sshd_config",
+		Status:  "success",
+		Message: "SSH daemon configuration appears correct",
+	}
+}
+
+// GetPostSecurityTroubleshootingSummary provides a summary for post-security issues
+func GetPostSecurityTroubleshootingSummary(server *models.Server) (string, error) {
+	diagnostics, err := DiagnoseAppUserPostSecurity(server)
+	if err != nil {
+		return "", err
+	}
+
+	var summary strings.Builder
+	summary.WriteString(fmt.Sprintf("Post-Security SSH Diagnostics for %s:%d\n", server.Host, server.Port))
+	summary.WriteString(strings.Repeat("=", 60) + "\n\n")
+
+	errorCount := 0
+	warningCount := 0
+	successCount := 0
+
+	for _, diag := range diagnostics {
+		status := "✓"
+		switch diag.Status {
+		case "error":
+			status = "✗"
+			errorCount++
+		case "warning":
+			status = "⚠"
+			warningCount++
+		case "success":
+			successCount++
+		}
+
+		summary.WriteString(fmt.Sprintf("%s %s: %s\n", status, diag.Step, diag.Message))
+		if diag.Details != "" {
+			summary.WriteString(fmt.Sprintf("   Details: %s\n", diag.Details))
+		}
+		if diag.Suggestion != "" {
+			summary.WriteString(fmt.Sprintf("   Suggestion: %s\n", diag.Suggestion))
+		}
+		summary.WriteString("\n")
+	}
+
+	summary.WriteString(fmt.Sprintf("Summary: %d successful, %d warnings, %d errors\n", successCount, warningCount, errorCount))
+
+	if errorCount > 0 {
+		summary.WriteString("\n⚠️  Critical issues found that prevent proper app user access.\n")
+		summary.WriteString("🔧 Run the following to attempt automatic fixes:\n")
+		summary.WriteString("   pb-deployer fix-ssh-access --server-id <id>\n")
+	} else if warningCount > 0 {
+		summary.WriteString("\n✓ App user access is working, but consider addressing warnings.\n")
+	} else {
+		summary.WriteString("\n✅ All post-security checks passed! App user access is fully functional.\n")
+	}
+
+	return summary.String(), nil
+}

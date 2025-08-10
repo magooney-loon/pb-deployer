@@ -34,7 +34,7 @@
 	onclose={() => logic.handleClose()}
 >
 	{#if state.result !== null}
-		{#if state.result?.success === true}
+		{#if state.result?.success === true || state.result?.overall_status === 'healthy_secured'}
 			<!-- Success State -->
 			<div class="text-center">
 				<div
@@ -55,7 +55,12 @@
 						All Connections Successful!
 					</h3>
 					<div class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-						TCP, Root SSH, and App SSH connections to {state.serverName || 'the server'} are working
+						{#if state.result?.overall_status === 'healthy_secured'}
+							TCP and App SSH connections to {state.serverName || 'the server'} are working (Security
+							Locked)
+						{:else}
+							TCP, Root SSH, and App SSH connections to {state.serverName || 'the server'} are working
+						{/if}
 					</div>
 				</div>
 			</div>
@@ -91,7 +96,13 @@
 					class="rounded-lg bg-gray-50 p-4 ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-800"
 				>
 					<h4 class="mb-3 flex items-center font-semibold text-gray-900 dark:text-gray-100">
-						<span class="mr-2 text-emerald-500">✓</span>
+						<span
+							class="mr-2 {state.result?.overall_status === 'healthy_secured'
+								? 'text-orange-500'
+								: 'text-emerald-500'}"
+						>
+							{state.result?.overall_status === 'healthy_secured' ? '🔒' : '✓'}
+						</span>
 						Root SSH Connection
 					</h4>
 					<div class="space-y-2 text-sm">
@@ -101,12 +112,34 @@
 								>{state.result?.root_ssh_connection?.username}</span
 							>
 						</div>
-						{#if state.result?.root_ssh_connection?.auth_method}
+						<div class="flex justify-between">
+							<span class="text-gray-600 dark:text-gray-400">Status:</span>
+							<span
+								class="font-medium {state.result?.overall_status === 'healthy_secured'
+									? 'text-orange-600 dark:text-orange-400'
+									: 'text-emerald-600 dark:text-emerald-400'}"
+							>
+								{state.result?.overall_status === 'healthy_secured'
+									? 'Disabled (Security Locked)'
+									: 'Connected'}
+							</span>
+						</div>
+						{#if state.result?.root_ssh_connection?.auth_method && state.result?.overall_status !== 'healthy_secured'}
 							<div class="flex justify-between">
 								<span class="text-gray-600 dark:text-gray-400">Auth Method:</span>
 								<span class="font-mono text-gray-900 dark:text-gray-100"
 									>{state.result.root_ssh_connection.auth_method}</span
 								>
+							</div>
+						{/if}
+						{#if state.result?.overall_status === 'healthy_secured'}
+							<div class="mt-2">
+								<p
+									class="rounded bg-orange-100 p-2 text-xs text-orange-700 ring-1 ring-orange-200 dark:bg-orange-900 dark:text-orange-300 dark:ring-orange-700"
+								>
+									Root SSH access has been disabled as part of security hardening. This is expected
+									behavior.
+								</p>
 							</div>
 						{/if}
 					</div>
@@ -323,11 +356,18 @@
 				>
 					<h4 class="mb-2 font-semibold text-blue-900 dark:text-blue-100">Troubleshooting Tips</h4>
 					<ul class="space-y-1 text-sm text-blue-800 dark:text-blue-200">
-						<li>• Check that the server IP address and port are correct</li>
-						<li>• Verify SSH keys are properly configured and accessible</li>
-						<li>• Check firewall settings on both client and server</li>
-						<li>• Ensure the specified usernames exist on the server</li>
-						<li>• Check SSH service is running on the server</li>
+						{#if state.result?.overall_status === 'healthy_secured' || state.result?.overall_status === 'app_ssh_failed'}
+							<li>• For security-locked servers, only app user SSH access is available</li>
+							<li>• Verify app user SSH keys are properly configured</li>
+							<li>• Check that the app user has sudo privileges for deployment operations</li>
+							<li>• Root SSH access is intentionally disabled after security hardening</li>
+						{:else}
+							<li>• Check that the server IP address and port are correct</li>
+							<li>• Verify SSH keys are properly configured and accessible</li>
+							<li>• Check firewall settings on both client and server</li>
+							<li>• Ensure the specified usernames exist on the server</li>
+							<li>• Check SSH service is running on the server</li>
+						{/if}
 					</ul>
 				</div>
 			</div>
