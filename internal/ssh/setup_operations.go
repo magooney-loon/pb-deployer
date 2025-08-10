@@ -126,11 +126,19 @@ func (sm *SSHManager) setupSSHKeysWithProgress(progressChan chan<- SetupStep) er
 		sm.SendProgressUpdate(progressChan, "setup_ssh_keys", "running", "Copying SSH keys from root user", 40)
 	}
 
-	// Copy root's authorized_keys to the new user (assuming root has the keys we need)
-	copyKeysCmd := fmt.Sprintf("cp /root/.ssh/authorized_keys /home/%s/.ssh/authorized_keys", username)
-	if _, err := sm.ExecuteCommand(copyKeysCmd); err != nil {
-		// If root doesn't have authorized_keys, try to get the current session's public key
-		return fmt.Errorf("failed to copy SSH keys: %w", err)
+	// First, try to copy root's authorized_keys to the new user
+	copyKeysCmd := fmt.Sprintf("cp /root/.ssh/authorized_keys /home/%s/.ssh/authorized_keys 2>/dev/null", username)
+	_, copyErr := sm.ExecuteCommand(copyKeysCmd)
+
+	if copyErr != nil {
+		// If root doesn't have authorized_keys, extract the current session's public key
+		if progressChan != nil {
+			sm.SendProgressUpdate(progressChan, "setup_ssh_keys", "running", "Root keys not found, extracting current session key", 50)
+		}
+
+		if err := sm.extractCurrentSessionKey(username); err != nil {
+			return fmt.Errorf("failed to setup SSH keys (copy failed: %v, extract failed: %w)", copyErr, err)
+		}
 	}
 
 	if progressChan != nil {
@@ -311,4 +319,90 @@ func (sm *SSHManager) GetSetupStatus() (map[string]bool, error) {
 	}
 
 	return status, nil
+}
+
+// extractCurrentSessionKey extracts the public key from the current SSH session
+func (sm *SSHManager) extractCurrentSessionKey(username string) error {
+	// Method 1: Try to get the key from SSH_CLIENT environment variable and authorized_keys
+	clientInfoCmd := "echo $SSH_CLIENT"
+	clientInfo, err := sm.ExecuteCommand(clientInfoCmd)
+	if err == nil && strings.TrimSpace(clientInfo) != "" {
+		// SSH_CLIENT contains: "client_ip client_port server_port"
+		parts := strings.Fields(strings.TrimSpace(clientInfo))
+		if len(parts) >= 1 {
+			clientIP := parts[0]
+
+			// Try to find matching key in root's authorized_keys by connection source
+			if err := sm.findKeyByConnection(username, clientIP); err == nil {
+				return nil
+			}
+		}
+	}
+
+	// Method 2: Try to extract from SSH connection metadata (if available)
+	if err := sm.extractKeyFromConnection(username); err == nil {
+		return nil
+	}
+
+	// Method 3: Fallback - copy ALL keys from root if any exist
+	if err := sm.copyAllRootKeys(username); err == nil {
+		return nil
+	}
+
+	return fmt.Errorf("could not extract or find suitable SSH key for user setup")
+}
+
+// findKeyByConnection attempts to find the key used for the current connection
+func (sm *SSHManager) findKeyByConnection(username, clientIP string) error {
+	// Check if root has any authorized_keys
+	checkCmd := "test -f /root/.ssh/authorized_keys"
+	if _, err := sm.ExecuteCommand(checkCmd); err != nil {
+		return fmt.Errorf("root has no authorized_keys file")
+	}
+
+	// For now, just copy the first key from root's authorized_keys
+	// In a more sophisticated implementation, we could analyze SSH logs or connection metadata
+	copyFirstKeyCmd := fmt.Sprintf(`head -1 /root/.ssh/authorized_keys > /home/%s/.ssh/authorized_keys`, username)
+	if _, err := sm.ExecuteCommand(copyFirstKeyCmd); err != nil {
+		return fmt.Errorf("failed to copy first key from root: %w", err)
+	}
+
+	return nil
+}
+
+// extractKeyFromConnection tries to extract key information from the current SSH connection
+func (sm *SSHManager) extractKeyFromConnection(username string) error {
+	// This is a simplified approach - in practice, extracting the exact key used
+	// for the current connection is complex and depends on SSH daemon configuration
+
+	// Try to get the last successful authentication from auth.log
+	authLogCmd := `grep "Accepted publickey" /var/log/auth.log | tail -1 | grep -o "rsa-sha2-[0-9]\\+\\|ssh-rsa\\|ssh-ed25519\\|ecdsa-sha2-nistp[0-9]\\+"`
+	if output, err := sm.ExecuteCommand(authLogCmd); err == nil && strings.TrimSpace(output) != "" {
+		keyType := strings.TrimSpace(output)
+
+		// Try to find a key of this type in root's authorized_keys
+		findKeyCmd := fmt.Sprintf(`grep "%s" /root/.ssh/authorized_keys | head -1 > /home/%s/.ssh/authorized_keys`, keyType, username)
+		if _, err := sm.ExecuteCommand(findKeyCmd); err == nil {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("could not extract key from connection metadata")
+}
+
+// copyAllRootKeys copies all keys from root as a fallback
+func (sm *SSHManager) copyAllRootKeys(username string) error {
+	// Check if root has any SSH keys at all
+	checkCmd := "test -f /root/.ssh/authorized_keys && test -s /root/.ssh/authorized_keys"
+	if _, err := sm.ExecuteCommand(checkCmd); err != nil {
+		return fmt.Errorf("root has no SSH keys to copy")
+	}
+
+	// Copy all keys from root
+	copyAllCmd := fmt.Sprintf("cp /root/.ssh/authorized_keys /home/%s/.ssh/authorized_keys", username)
+	if _, err := sm.ExecuteCommand(copyAllCmd); err != nil {
+		return fmt.Errorf("failed to copy all keys from root: %w", err)
+	}
+
+	return nil
 }
