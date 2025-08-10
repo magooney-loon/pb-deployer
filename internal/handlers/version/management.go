@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/filesystem"
 )
 
 // VersionCreateRequest represents the request for creating a new version
@@ -435,34 +436,24 @@ func uploadVersionZip(app core.App, e *core.RequestEvent) error {
 		})
 	}
 
-	// Create a multipart file header for the deployment ZIP
+	// Create a filesystem.File object from the ZIP bytes
 	deploymentFilename := fmt.Sprintf("deployment_%s_%d.zip", record.GetString("version_number"), time.Now().Unix())
+	deploymentFile, err := filesystem.NewFileFromBytes(zipBuffer.Bytes(), deploymentFilename)
+	if err != nil {
+		app.Logger().Error("Failed to create file from ZIP bytes", "version_id", versionID, "error", err)
+		return e.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to create deployment package file: " + err.Error(),
+		})
+	}
 
-	record.Set("deployment_zip", deploymentFilename)
+	// Set the file object to the record field (PocketBase will handle the upload automatically)
+	record.Set("deployment_zip", deploymentFile)
 
+	// Save the record (this will automatically upload the file)
 	if err := app.Save(record); err != nil {
 		app.Logger().Error("Failed to save version record", "version_id", versionID, "error", err)
 		return e.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Failed to save deployment package",
-		})
-	}
-
-	// Save the actual file content using PocketBase filesystem
-	filesystem, err := app.NewFilesystem()
-	if err != nil {
-		app.Logger().Error("Failed to get filesystem", "error", err)
-		return e.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Failed to save deployment package",
-		})
-	}
-	defer filesystem.Close()
-
-	// Save ZIP content to filesystem
-	fileKey := record.BaseFilesPath() + "/" + deploymentFilename
-	if err := filesystem.Upload(zipBuffer.Bytes(), fileKey); err != nil {
-		app.Logger().Error("Failed to save deployment zip to filesystem", "version_id", versionID, "error", err)
-		return e.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Failed to save deployment package",
+			"error": "Failed to save version record to database: " + err.Error(),
 		})
 	}
 
