@@ -1,6 +1,14 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { AppListLogic, type AppListState } from './logic/AppList.js';
+	import {
+		Button,
+		ErrorAlert,
+		FormField,
+		EmptyState,
+		LoadingSpinner,
+		Card
+	} from '$lib/components/partials';
 
 	// Create logic instance
 	const logic = new AppListLogic();
@@ -11,6 +19,11 @@
 		state = newState;
 	});
 
+	// Make available servers reactive to state changes
+	let availableServers = $derived(
+		state.servers.filter((s) => s.setup_complete && s.security_locked)
+	);
+
 	onMount(async () => {
 		await logic.initialize();
 	});
@@ -19,65 +32,26 @@
 <div class="p-6">
 	<div class="mb-6 flex items-center justify-between">
 		<h1 class="text-3xl font-bold text-gray-900 dark:text-white">Applications</h1>
-		<button
-			onclick={() => logic.toggleCreateForm()}
-			class="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700"
-			disabled={logic.getAvailableServers().length === 0}
-		>
+		<Button onclick={() => logic.toggleCreateForm()} disabled={availableServers.length === 0}>
 			{state.showCreateForm ? 'Cancel' : 'Add App'}
-		</button>
+		</Button>
 	</div>
 
-	{#if logic.getAvailableServers().length === 0 && !state.showCreateForm}
-		<div
-			class="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-900"
-		>
-			<div class="flex">
-				<div class="flex-shrink-0">
-					<span class="text-yellow-400">⚠️</span>
-				</div>
-				<div class="ml-3">
-					<h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-200">No Ready Servers</h3>
-					<div class="mt-2 text-sm text-yellow-700 dark:text-yellow-300">
-						<p>
-							You need at least one server with setup and security lockdown completed before you can
-							create apps.
-						</p>
-					</div>
-				</div>
-			</div>
-		</div>
+	{#if availableServers.length === 0 && !state.showCreateForm}
+		<ErrorAlert
+			type="warning"
+			title="No Ready Servers"
+			message="You need at least one server with setup and security lockdown completed before you can create apps."
+			dismissible={false}
+		/>
 	{/if}
 
 	{#if state.error}
-		<div
-			class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900"
-		>
-			<div class="flex">
-				<div class="flex-shrink-0">
-					<span class="text-red-400">❌</span>
-				</div>
-				<div class="ml-3">
-					<h3 class="text-sm font-medium text-red-800 dark:text-red-200">Error</h3>
-					<div class="mt-2 text-sm text-red-700 dark:text-red-300">
-						<p>{state.error}</p>
-					</div>
-					<div class="mt-4">
-						<button
-							onclick={() => logic.dismissError()}
-							class="rounded bg-red-100 px-3 py-1 text-sm text-red-800 hover:bg-red-200 dark:bg-red-800 dark:text-red-200 dark:hover:bg-red-700"
-						>
-							Dismiss
-						</button>
-					</div>
-				</div>
-			</div>
-		</div>
+		<ErrorAlert message={state.error} type="error" onDismiss={() => logic.dismissError()} />
 	{/if}
 
 	{#if state.showCreateForm}
-		<div class="mb-6 rounded-lg bg-white p-6 shadow dark:bg-gray-800 dark:shadow-gray-700">
-			<h2 class="mb-4 text-xl font-semibold dark:text-white">Add New Application</h2>
+		<Card title="Add New Application" class="mb-6">
 			<form
 				onsubmit={(e) => {
 					e.preventDefault();
@@ -86,127 +60,79 @@
 				class="space-y-4"
 			>
 				<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-					<div>
-						<label for="app-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-							>App Name</label
-						>
-						<input
-							id="app-name"
-							bind:value={state.newApp.name}
-							type="text"
-							required
-							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-							placeholder="my-app"
-						/>
-						<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-							Used for directory and service naming
-						</p>
-					</div>
-					<div>
-						<label
-							for="server-select"
-							class="block text-sm font-medium text-gray-700 dark:text-gray-300">Server</label
-						>
-						<select
-							id="server-select"
-							bind:value={state.newApp.server_id}
-							required
-							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-						>
-							<option value="">Select a server</option>
-							{#each logic.getAvailableServers() as server (server.id)}
-								<option value={server.id}>{server.name} ({server.host})</option>
-							{/each}
-						</select>
-					</div>
-					<div class="md:col-span-2">
-						<label for="domain" class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-							>Domain</label
-						>
-						<input
-							id="domain"
-							bind:value={state.newApp.domain}
-							type="text"
-							required
-							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-							placeholder="myapp.example.com"
-						/>
-						<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-							The domain where your app will be accessible
-						</p>
-					</div>
-					<div>
-						<label
-							for="remote-path"
-							class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-							>Remote Path (Optional)</label
-						>
-						<input
-							id="remote-path"
-							bind:value={state.newApp.remote_path}
-							type="text"
-							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-							placeholder="/opt/pocketbase/apps/{state.newApp.name || 'app-name'}"
-						/>
-					</div>
-					<div>
-						<label
-							for="service-name"
-							class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-							>Service Name (Optional)</label
-						>
-						<input
-							id="service-name"
-							bind:value={state.newApp.service_name}
-							type="text"
-							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-							placeholder="pocketbase-{state.newApp.name || 'app-name'}"
-						/>
-					</div>
+					<FormField
+						id="app-name"
+						label="App Name"
+						bind:value={state.newApp.name}
+						placeholder="my-app"
+						helperText="Used for directory and service naming"
+						required
+					/>
+
+					<FormField
+						id="server-select"
+						label="Server"
+						type="select"
+						bind:value={state.newApp.server_id}
+						placeholder="Select a server"
+						options={availableServers.map((server) => ({
+							value: server.id,
+							label: `${server.name} (${server.host})`
+						}))}
+						required
+					/>
+
+					<FormField
+						id="domain"
+						label="Domain"
+						bind:value={state.newApp.domain}
+						placeholder="myapp.example.com"
+						helperText="The domain where your app will be accessible"
+						class="md:col-span-2"
+						required
+					/>
+
+					<FormField
+						id="remote-path"
+						label="Remote Path (Optional)"
+						bind:value={state.newApp.remote_path}
+						placeholder="/opt/pocketbase/apps/{state.newApp.name || 'app-name'}"
+					/>
+
+					<FormField
+						id="service-name"
+						label="Service Name (Optional)"
+						bind:value={state.newApp.service_name}
+						placeholder="pocketbase-{state.newApp.name || 'app-name'}"
+					/>
 				</div>
 				<div class="flex space-x-3">
-					<button
-						type="submit"
-						class="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700"
-					>
-						Create App
-					</button>
-					<button
-						type="button"
+					<Button type="submit">Create App</Button>
+					<Button
+						variant="secondary"
+						color="gray"
 						onclick={() => {
 							logic.toggleCreateForm();
 							logic.resetForm();
 						}}
-						class="rounded-lg bg-gray-600 px-4 py-2 font-medium text-white hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600"
 					>
 						Cancel
-					</button>
+					</Button>
 				</div>
 			</form>
-		</div>
+		</Card>
 	{/if}
 
 	{#if state.loading}
-		<div class="flex items-center justify-center py-12">
-			<div class="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
-			<span class="ml-2 text-gray-600 dark:text-gray-400">Loading applications...</span>
-		</div>
+		<LoadingSpinner text="Loading applications..." />
 	{:else if state.apps.length === 0}
-		<div class="py-12 text-center">
-			<p class="mb-4 text-lg text-gray-500 dark:text-gray-400">No applications created yet</p>
-			{#if logic.getAvailableServers().length > 0}
-				<button
-					onclick={() => logic.toggleCreateForm()}
-					class="rounded-lg bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
-				>
-					Create Your First App
-				</button>
-			{:else}
-				<p class="text-sm text-gray-400 dark:text-gray-500">
-					Set up a server first before creating apps
-				</p>
-			{/if}
-		</div>
+		<EmptyState
+			icon="📱"
+			title="No applications created yet"
+			description={availableServers.length > 0
+				? 'Create your first application to start deploying'
+				: 'Set up a server first before creating apps'}
+		/>
 	{:else}
 		<div
 			class="overflow-hidden bg-white shadow sm:rounded-lg dark:bg-gray-800 dark:shadow-gray-700"
@@ -285,30 +211,35 @@
 									{logic.formatTimestamp(app.created)}
 								</td>
 								<td class="space-x-2 px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
-									<button
+									<Button
+										variant="link"
+										color="green"
+										size="sm"
 										onclick={() => logic.checkHealth(app.id)}
 										disabled={state.checkingHealth.has(app.id)}
-										class="text-green-600 hover:text-green-900 disabled:opacity-50 dark:text-green-400 dark:hover:text-green-300"
-										title="Check health"
+										icon={state.checkingHealth.has(app.id) ? '🔄' : '💚'}
 									>
-										{state.checkingHealth.has(app.id) ? '🔄' : '💚'} Health
-									</button>
+										Health
+									</Button>
 
-									<button
+									<Button
+										variant="link"
+										size="sm"
 										onclick={() => logic.openApp(app.domain)}
-										class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-										title="Open app"
+										icon="🔗"
 									>
-										🔗 Open
-									</button>
+										Open
+									</Button>
 
-									<button
+									<Button
+										variant="link"
+										color="red"
+										size="sm"
 										onclick={() => logic.deleteApp(app.id)}
-										class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-										title="Delete app"
+										icon="🗑️"
 									>
-										🗑️ Delete
-									</button>
+										Delete
+									</Button>
 								</td>
 							</tr>
 						{/each}
@@ -321,45 +252,9 @@
 			<p class="text-sm text-gray-700 dark:text-gray-300">
 				Showing {state.apps.length} application{state.apps.length !== 1 ? 's' : ''}
 			</p>
-			<button
-				onclick={() => logic.loadApps()}
-				class="rounded bg-gray-100 px-3 py-1 text-sm text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-			>
-				🔄 Refresh
-			</button>
+			<Button variant="secondary" size="sm" icon="🔄" onclick={() => logic.loadApps()}>
+				Refresh
+			</Button>
 		</div>
 	{/if}
 </div>
-
-<style>
-	input[type='text'],
-	select {
-		border: 1px solid #d1d5db;
-		border-radius: 0.375rem;
-		padding: 0.5rem 0.75rem;
-		font-size: 0.875rem;
-	}
-
-	input[type='text']:focus,
-	select:focus {
-		outline: none;
-		box-shadow: 0 0 0 2px #3b82f6;
-		border-color: #3b82f6;
-	}
-
-	select {
-		background-color: white;
-	}
-
-	:global([data-theme='dark']) input[type='text'],
-	:global([data-theme='dark']) select {
-		border-color: #4b5563;
-		background-color: #374151;
-		color: white;
-	}
-
-	:global([data-theme='dark']) input[type='text']:focus,
-	:global([data-theme='dark']) select:focus {
-		border-color: #3b82f6;
-	}
-</style>

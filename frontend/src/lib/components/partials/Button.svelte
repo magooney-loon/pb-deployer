@@ -16,7 +16,7 @@
 		children
 	}: {
 		variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'link';
-		color?: 'blue' | 'green' | 'red' | 'yellow' | 'gray' | 'white';
+		color?: 'blue' | 'green' | 'red' | 'yellow' | 'gray' | 'white' | 'purple';
 		size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 		disabled?: boolean;
 		loading?: boolean;
@@ -55,7 +55,9 @@
 				'bg-yellow-600 text-white hover:bg-yellow-700 focus:ring-yellow-500 disabled:hover:bg-yellow-600',
 			gray: 'bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500 disabled:hover:bg-gray-600',
 			white:
-				'bg-white text-gray-900 hover:bg-gray-50 focus:ring-gray-500 border border-gray-300 disabled:hover:bg-white'
+				'bg-white text-gray-900 hover:bg-gray-50 focus:ring-gray-500 border border-gray-300 disabled:hover:bg-white',
+			purple:
+				'bg-purple-600 text-white hover:bg-purple-700 focus:ring-purple-500 disabled:hover:bg-purple-600'
 		},
 		secondary: {
 			blue: 'bg-blue-100 text-blue-700 hover:bg-blue-200 focus:ring-blue-500 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-800',
@@ -66,7 +68,9 @@
 				'bg-yellow-100 text-yellow-700 hover:bg-yellow-200 focus:ring-yellow-500 dark:bg-yellow-900 dark:text-yellow-200 dark:hover:bg-yellow-800',
 			gray: 'bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-500 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600',
 			white:
-				'bg-white text-gray-700 hover:bg-gray-50 focus:ring-gray-500 border border-gray-300 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:border-gray-600'
+				'bg-white text-gray-700 hover:bg-gray-50 focus:ring-gray-500 border border-gray-300 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:border-gray-600',
+			purple:
+				'bg-purple-100 text-purple-700 hover:bg-purple-200 focus:ring-purple-500 dark:bg-purple-900 dark:text-purple-200 dark:hover:bg-purple-800'
 		},
 		outline: {
 			blue: 'border border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-500 dark:text-blue-400 dark:border-blue-400 dark:hover:bg-blue-900',
@@ -77,7 +81,9 @@
 				'border border-yellow-600 text-yellow-600 hover:bg-yellow-50 focus:ring-yellow-500 dark:text-yellow-400 dark:border-yellow-400 dark:hover:bg-yellow-900',
 			gray: 'border border-gray-600 text-gray-600 hover:bg-gray-50 focus:ring-gray-500 dark:text-gray-400 dark:border-gray-400 dark:hover:bg-gray-700',
 			white:
-				'border border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-500 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700'
+				'border border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-500 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700',
+			purple:
+				'border border-purple-600 text-purple-600 hover:bg-purple-50 focus:ring-purple-500 dark:text-purple-400 dark:border-purple-400 dark:hover:bg-purple-900'
 		},
 		ghost: {
 			blue: 'text-blue-600 hover:bg-blue-50 focus:ring-blue-500 dark:text-blue-400 dark:hover:bg-blue-900',
@@ -88,7 +94,9 @@
 				'text-yellow-600 hover:bg-yellow-50 focus:ring-yellow-500 dark:text-yellow-400 dark:hover:bg-yellow-900',
 			gray: 'text-gray-600 hover:bg-gray-50 focus:ring-gray-500 dark:text-gray-400 dark:hover:bg-gray-700',
 			white:
-				'text-gray-700 hover:bg-gray-50 focus:ring-gray-500 dark:text-gray-200 dark:hover:bg-gray-700'
+				'text-gray-700 hover:bg-gray-50 focus:ring-gray-500 dark:text-gray-200 dark:hover:bg-gray-700',
+			purple:
+				'text-purple-600 hover:bg-purple-50 focus:ring-purple-500 dark:text-purple-400 dark:hover:bg-purple-900'
 		},
 		link: {
 			blue: 'text-blue-600 hover:text-blue-800 focus:ring-blue-500 dark:text-blue-400 dark:hover:text-blue-300',
@@ -99,7 +107,9 @@
 				'text-yellow-600 hover:text-yellow-800 focus:ring-yellow-500 dark:text-yellow-400 dark:hover:text-yellow-300',
 			gray: 'text-gray-600 hover:text-gray-800 focus:ring-gray-500 dark:text-gray-400 dark:hover:text-gray-200',
 			white:
-				'text-gray-700 hover:text-gray-900 focus:ring-gray-500 dark:text-gray-200 dark:hover:text-white'
+				'text-gray-700 hover:text-gray-900 focus:ring-gray-500 dark:text-gray-200 dark:hover:text-white',
+			purple:
+				'text-purple-600 hover:text-purple-800 focus:ring-purple-500 dark:text-purple-400 dark:hover:text-purple-300'
 		}
 	};
 

@@ -4,6 +4,221 @@ This directory contains reusable UI components that can be used throughout the P
 
 ## Components
 
+### FormField
+
+A flexible form input component that handles various input types with consistent styling and validation.
+
+```svelte
+<script>
+  import { FormField } from '$lib/components/partials';
+  
+  let name = '';
+  let email = '';
+  let age = 0;
+  let server = '';
+  let agreedToTerms = false;
+</script>
+
+<FormField 
+  id="name"
+  label="Full Name"
+  bind:value={name}
+  placeholder="Enter your name"
+  required
+/>
+
+<FormField
+  id="email"
+  label="Email Address"
+  type="email"
+  bind:value={email}
+  helperText="We'll never share your email"
+  required
+/>
+
+<FormField
+  id="age"
+  label="Age"
+  type="number"
+  bind:value={age}
+  min={18}
+  max={120}
+/>
+
+<FormField
+  id="server"
+  label="Select Server"
+  type="select"
+  bind:value={server}
+  placeholder="Choose a server"
+  options={[
+    { value: 'prod', label: 'Production' },
+    { value: 'staging', label: 'Staging' },
+    { value: 'dev', label: 'Development' }
+  ]}
+/>
+
+<FormField
+  id="terms"
+  label="I agree to the terms and conditions"
+  type="checkbox"
+  bind:checked={agreedToTerms}
+/>
+```
+
+**Props:**
+- `id: string` - Input ID (required)
+- `label: string` - Field label (required)
+- `type?: 'text' | 'email' | 'password' | 'number' | 'tel' | 'url' | 'search' | 'select' | 'checkbox'` - Input type (default: "text")
+- `placeholder?: string` - Placeholder text
+- `required?: boolean` - Required field (default: false)
+- `disabled?: boolean` - Disabled state (default: false)
+- `readonly?: boolean` - Readonly state (default: false)
+- `helperText?: string` - Helper text below input
+- `errorText?: string` - Error message (shows in red)
+- `value?: string | number` - Input value (bindable)
+- `checked?: boolean` - Checkbox state (bindable)
+- `options?: Array<{value: string | number, label: string, disabled?: boolean}>` - Options for select type
+- `min?: number` - Minimum value for number inputs
+- `max?: number` - Maximum value for number inputs
+- `step?: number | string` - Step value for number inputs
+- `class?: string` - Additional CSS classes
+- `inputClass?: string` - CSS classes for input element
+- `labelClass?: string` - CSS classes for label element
+
+### EmptyState
+
+A component for displaying empty states with optional icons and call-to-action buttons.
+
+```svelte
+<script>
+  import { EmptyState } from '$lib/components/partials';
+</script>
+
+<EmptyState
+  icon="📁"
+  title="No files found"
+  description="Upload your first file to get started"
+  primaryAction={{
+    text: 'Upload File',
+    onclick: () => console.log('upload clicked')
+  }}
+  secondaryText="Supported formats: PDF, DOC, TXT"
+/>
+
+<!-- Different sizes -->
+<EmptyState
+  title="No data"
+  size="sm"
+/>
+
+<EmptyState
+  icon="🚀"
+  title="Ready to deploy?"
+  size="lg"
+  primaryAction={{
+    text: 'Start Deployment',
+    href: '/deploy',
+    variant: 'primary',
+    color: 'green'
+  }}
+/>
+```
+
+**Props:**
+- `title: string` - Main title (required)
+- `icon?: string` - Icon to display
+- `description?: string` - Description text
+- `primaryAction?: object` - Primary action button configuration
+  - `text: string` - Button text
+  - `onclick?: () => void` - Click handler
+  - `href?: string` - Link URL
+  - `variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'link'` - Button variant
+  - `color?: 'blue' | 'green' | 'red' | 'yellow' | 'gray' | 'white' | 'purple'` - Button color
+- `secondaryText?: string` - Additional helper text
+- `size?: 'sm' | 'md' | 'lg'` - Component size (default: "md")
+- `class?: string` - Additional CSS classes
+
+### DataTable
+
+A comprehensive table component for displaying structured data with sorting, actions, and empty states.
+
+```svelte
+<script>
+  import { DataTable } from '$lib/components/partials';
+  
+  const users = [
+    { id: 1, name: 'John Doe', email: 'john@example.com', role: 'Admin' },
+    { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'User' }
+  ];
+  
+  const columns = [
+    { key: 'name', label: 'Name', sortable: true },
+    { key: 'email', label: 'Email' },
+    { key: 'role', label: 'Role', align: 'center' }
+  ];
+</script>
+
+<DataTable
+  data={users}
+  {columns}
+  striped
+  hoverable
+  emptyState={{
+    icon: '👥',
+    title: 'No users found',
+    description: 'Add your first user to get started',
+    primaryAction: {
+      text: 'Add User',
+      onclick: () => console.log('add user')
+    }
+  }}
+>
+  {#snippet children(user, index)}
+    <td class="px-6 py-4">{user.name}</td>
+    <td class="px-6 py-4">{user.email}</td>
+    <td class="px-6 py-4 text-center">{user.role}</td>
+  {/snippet}
+  {#snippet actions(user, index)}
+    <button onclick={() => editUser(user.id)}>Edit</button>
+    <button onclick={() => deleteUser(user.id)}>Delete</button>
+  {/snippet}
+</DataTable>
+```
+
+**Props:**
+- `data?: T[]` - Array of data objects (default: [])
+- `columns: Column[]` - Column definitions (required)
+- `loading?: boolean` - Loading state (default: false)
+- `emptyState?: object` - Empty state configuration
+  - `icon?: string` - Empty state icon
+  - `title: string` - Empty state title
+  - `description?: string` - Empty state description
+  - `primaryAction?: object` - Primary action for empty state
+- `striped?: boolean` - Alternating row colors (default: false)
+- `hoverable?: boolean` - Hover effects (default: true)
+- `compact?: boolean` - Reduced padding (default: false)
+- `class?: string` - Additional CSS classes
+- `tableClass?: string` - Table CSS classes
+- `headerClass?: string` - Header CSS classes
+- `bodyClass?: string` - Body CSS classes
+- `rowClass?: string` - Row CSS classes
+- `cellClass?: string` - Cell CSS classes
+- `children?: Snippet<[T, number]>` - Custom row renderer
+- `actions?: Snippet<[T, number]>` - Actions column renderer
+
+**Column interface:**
+```typescript
+interface Column {
+  key: string;           // Data property key
+  label: string;         // Column header
+  sortable?: boolean;    // Enable sorting
+  width?: string;        // Column width
+  align?: 'left' | 'center' | 'right';  // Text alignment
+  class?: string;        // Additional CSS classes
+}
+```
+
 ### ErrorAlert
 
 A flexible alert component for displaying error, warning, info, or success messages.
@@ -247,7 +462,7 @@ interface EmptyState {
 
 1. **Import from index**: Always import from the index file for consistency:
    ```svelte
-   import { Button, Card, ErrorAlert } from '$lib/components/partials';
+   import { Button, Card, ErrorAlert, FormField, EmptyState, DataTable } from '$lib/components/partials';
    ```
 
 2. **TypeScript support**: All components are fully typed with proper TypeScript interfaces.
@@ -259,6 +474,12 @@ interface EmptyState {
 5. **Accessibility**: Components include proper ARIA attributes and keyboard navigation support.
 
 6. **Snippets over slots**: Components use Svelte 5's snippet syntax for maximum flexibility.
+
+7. **Form validation**: Use FormField's `errorText` prop for validation messages and `helperText` for guidance.
+
+8. **Consistent empty states**: Use EmptyState component for all "no data" scenarios to maintain consistency.
+
+9. **Table customization**: DataTable supports both automatic rendering and custom snippets for full control over row display.
 
 ## Styling
 

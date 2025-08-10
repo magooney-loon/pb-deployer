@@ -5,6 +5,14 @@
 	import ConnectionTestModal from '$lib/components/modals/ConnectionTestModal.svelte';
 	import DeleteServerModal from '$lib/components/modals/DeleteServerModal.svelte';
 	import ProgressModal from '$lib/components/modals/ProgressModal.svelte';
+	import {
+		Button,
+		ErrorAlert,
+		FormField,
+		EmptyState,
+		LoadingSpinner,
+		Card
+	} from '$lib/components/partials';
 
 	// Create logic instance
 	const logic = new ServerListLogic();
@@ -27,43 +35,17 @@
 <div class="p-6">
 	<div class="mb-6 flex items-center justify-between">
 		<h1 class="text-3xl font-bold text-gray-900 dark:text-white">Servers</h1>
-		<button
-			onclick={() => logic.toggleCreateForm()}
-			class="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700"
-		>
+		<Button onclick={() => logic.toggleCreateForm()}>
 			{state.showCreateForm ? 'Cancel' : 'Add Server'}
-		</button>
+		</Button>
 	</div>
 
 	{#if state.error}
-		<div
-			class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900"
-		>
-			<div class="flex">
-				<div class="flex-shrink-0">
-					<span class="text-red-400">❌</span>
-				</div>
-				<div class="ml-3">
-					<h3 class="text-sm font-medium text-red-800 dark:text-red-200">Error</h3>
-					<div class="mt-2 text-sm text-red-700 dark:text-red-300">
-						<p>{state.error}</p>
-					</div>
-					<div class="mt-4">
-						<button
-							onclick={() => logic.dismissError()}
-							class="rounded bg-red-100 px-3 py-1 text-sm text-red-800 hover:bg-red-200 dark:bg-red-800 dark:text-red-200 dark:hover:bg-red-700"
-						>
-							Dismiss
-						</button>
-					</div>
-				</div>
-			</div>
-		</div>
+		<ErrorAlert message={state.error} type="error" onDismiss={() => logic.dismissError()} />
 	{/if}
 
 	{#if state.showCreateForm}
-		<div class="mb-6 rounded-lg bg-white p-6 shadow dark:bg-gray-800 dark:shadow-gray-700">
-			<h2 class="mb-4 text-xl font-semibold dark:text-white">Add New Server</h2>
+		<Card title="Add New Server" class="mb-6">
 			<form
 				onsubmit={(e) => {
 					e.preventDefault();
@@ -72,135 +54,85 @@
 				class="space-y-4"
 			>
 				<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-					<div>
-						<label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-							>Name</label
-						>
-						<input
-							id="name"
-							bind:value={state.newServer.name}
-							type="text"
-							required
-							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-							placeholder="Production Server"
-						/>
-					</div>
-					<div>
-						<label for="host" class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-							>VPS IP</label
-						>
-						<input
-							id="host"
-							bind:value={state.newServer.host}
-							type="text"
-							required
-							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-							placeholder="192.168.1.100"
-						/>
-					</div>
-					<div>
-						<label for="port" class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-							>SSH Port</label
-						>
-						<input
-							id="port"
-							bind:value={state.newServer.port}
-							type="number"
-							min="1"
-							max="65535"
-							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-						/>
-					</div>
-					<div>
-						<label
-							for="root_username"
-							class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-							>Root Username</label
-						>
-						<input
-							id="root_username"
-							bind:value={state.newServer.root_username}
-							type="text"
-							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-						/>
-					</div>
-					<div>
-						<label
-							for="app_username"
-							class="block text-sm font-medium text-gray-700 dark:text-gray-300">App Username</label
-						>
-						<input
-							id="app_username"
-							bind:value={state.newServer.app_username}
-							type="text"
-							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-						/>
-					</div>
-					<div class="flex items-center">
-						<input
-							id="use_ssh_agent"
-							bind:checked={state.newServer.use_ssh_agent}
-							type="checkbox"
-							class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
-						/>
-						<label for="use_ssh_agent" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">
-							Use SSH Agent
-						</label>
-					</div>
+					<FormField
+						id="name"
+						label="Name"
+						bind:value={state.newServer.name}
+						placeholder="Production Server"
+						required
+					/>
+
+					<FormField
+						id="host"
+						label="VPS IP"
+						bind:value={state.newServer.host}
+						placeholder="192.168.1.100"
+						required
+					/>
+
+					<FormField
+						id="port"
+						label="SSH Port"
+						type="number"
+						bind:value={state.newServer.port}
+						min={1}
+						max={65535}
+					/>
+
+					<FormField
+						id="root_username"
+						label="Root Username"
+						bind:value={state.newServer.root_username}
+					/>
+
+					<FormField
+						id="app_username"
+						label="App Username"
+						bind:value={state.newServer.app_username}
+					/>
+
+					<FormField
+						id="use_ssh_agent"
+						label="Use SSH Agent"
+						type="checkbox"
+						bind:checked={state.newServer.use_ssh_agent}
+					/>
 				</div>
+
 				{#if !state.newServer.use_ssh_agent}
-					<div>
-						<label
-							for="manual_key_path"
-							class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-							>Private Key Path</label
-						>
-						<input
-							id="manual_key_path"
-							bind:value={state.newServer.manual_key_path}
-							type="text"
-							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-							placeholder="/home/user/.ssh/id_rsa"
-						/>
-					</div>
+					<FormField
+						id="manual_key_path"
+						label="Private Key Path"
+						bind:value={state.newServer.manual_key_path}
+						placeholder="/home/user/.ssh/id_rsa"
+					/>
 				{/if}
+
 				<div class="flex space-x-3">
-					<button
-						type="submit"
-						class="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700"
-					>
-						Create Server
-					</button>
-					<button
-						type="button"
+					<Button type="submit">Create Server</Button>
+					<Button
+						variant="secondary"
+						color="gray"
 						onclick={() => {
 							logic.toggleCreateForm();
 							logic.resetForm();
 						}}
-						class="rounded-lg bg-gray-600 px-4 py-2 font-medium text-white hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600"
 					>
 						Cancel
-					</button>
+					</Button>
 				</div>
 			</form>
-		</div>
+		</Card>
 	{/if}
 
 	{#if state.loading}
-		<div class="flex items-center justify-center py-12">
-			<div class="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
-			<span class="ml-2 text-gray-600 dark:text-gray-400">Loading servers...</span>
-		</div>
+		<LoadingSpinner text="Loading servers..." />
 	{:else if state.servers.length === 0}
-		<div class="py-12 text-center">
-			<p class="mb-4 text-lg text-gray-500 dark:text-gray-400">No servers configured yet</p>
-			<button
-				onclick={() => logic.toggleCreateForm()}
-				class="rounded-lg bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
-			>
-				Add Your First Server
-			</button>
-		</div>
+		<EmptyState
+			icon="🖥️"
+			title="No servers configured yet"
+			description="Add your first server to start deploying applications"
+		/>
 	{:else}
 		<div
 			class="overflow-hidden bg-white shadow sm:rounded-lg dark:bg-gray-800 dark:shadow-gray-700"
@@ -297,40 +229,47 @@
 									{formatTimestamp(server.created)}
 								</td>
 								<td class="space-x-2 px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
-									<button
+									<Button
+										variant="link"
+										size="sm"
 										onclick={() => logic.testConnection(server.id)}
 										disabled={state.testingConnection.has(server.id)}
-										class="text-blue-600 hover:text-blue-900 disabled:opacity-50 dark:text-blue-400 dark:hover:text-blue-300"
 									>
 										{state.testingConnection.has(server.id) ? 'Testing...' : 'Test Connection'}
-									</button>
+									</Button>
 
 									{#if !server.setup_complete}
-										<button
+										<Button
+											variant="link"
+											color="green"
+											size="sm"
 											onclick={() => logic.runSetup(server.id)}
 											disabled={state.runningSetup.has(server.id)}
-											class="text-green-600 hover:text-green-900 disabled:opacity-50 dark:text-green-400 dark:hover:text-green-300"
 										>
 											{state.runningSetup.has(server.id) ? 'Setting Up...' : 'Run Setup'}
-										</button>
+										</Button>
 									{:else if !server.security_locked}
-										<button
+										<Button
+											variant="link"
+											color="purple"
+											size="sm"
 											onclick={() => logic.applySecurity(server.id)}
 											disabled={state.applyingSecurity.has(server.id)}
-											class="text-purple-600 hover:text-purple-900 disabled:opacity-50 dark:text-purple-400 dark:hover:text-purple-300"
 										>
 											{state.applyingSecurity.has(server.id) ? 'Securing...' : 'Apply Security'}
-										</button>
+										</Button>
 									{/if}
 
-									<button
+									<Button
+										variant="link"
+										color="red"
+										size="sm"
 										onclick={() => logic.deleteServer(server.id)}
 										disabled={state.runningSetup.has(server.id) ||
 											state.applyingSecurity.has(server.id)}
-										class="text-red-600 hover:text-red-900 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
 									>
 										Delete
-									</button>
+									</Button>
 								</td>
 							</tr>
 						{/each}
@@ -343,12 +282,9 @@
 			<p class="text-sm text-gray-700 dark:text-gray-300">
 				Showing {state.servers.length} server{state.servers.length !== 1 ? 's' : ''}
 			</p>
-			<button
-				onclick={() => logic.loadServers()}
-				class="rounded bg-gray-100 px-3 py-1 text-sm text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-			>
-				🔄 Refresh
-			</button>
+			<Button variant="secondary" size="sm" icon="🔄" onclick={() => logic.loadServers()}>
+				Refresh
+			</Button>
 		</div>
 	{/if}
 </div>
@@ -399,32 +335,3 @@
 		? state.applyingSecurity.has(state.currentProgressServerId)
 		: false}
 />
-
-<style>
-	input[type='text'],
-	input[type='number'] {
-		border: 1px solid #d1d5db;
-		border-radius: 0.375rem;
-		padding: 0.5rem 0.75rem;
-		font-size: 0.875rem;
-	}
-
-	input[type='text']:focus,
-	input[type='number']:focus {
-		outline: none;
-		box-shadow: 0 0 0 2px #3b82f6;
-		border-color: #3b82f6;
-	}
-
-	:global([data-theme='dark']) input[type='text'],
-	:global([data-theme='dark']) input[type='number'] {
-		border-color: #4b5563;
-		background-color: #374151;
-		color: white;
-	}
-
-	:global([data-theme='dark']) input[type='text']:focus,
-	:global([data-theme='dark']) input[type='number']:focus {
-		border-color: #3b82f6;
-	}
-</style>
