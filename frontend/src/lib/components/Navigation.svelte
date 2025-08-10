@@ -64,10 +64,26 @@
 				<!-- API Status -->
 				<div class="hidden items-center sm:flex">
 					<span
-						class="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:ring-emerald-800"
+						class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1
+						{state.apiStatus === 'online'
+							? 'bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:ring-emerald-800'
+							: state.apiStatus === 'offline'
+								? 'bg-red-50 text-red-700 ring-red-200 dark:bg-red-950 dark:text-red-300 dark:ring-red-800'
+								: 'bg-yellow-50 text-yellow-700 ring-yellow-200 dark:bg-yellow-950 dark:text-yellow-300 dark:ring-yellow-800'}"
 					>
-						<div class="mr-1.5 h-2 w-2 animate-pulse rounded-full bg-emerald-500"></div>
-						API Online
+						<div
+							class="mr-1.5 h-2 w-2 rounded-full
+							{state.apiStatus === 'online'
+								? 'animate-pulse bg-emerald-500'
+								: state.apiStatus === 'offline'
+									? 'bg-red-500'
+									: 'animate-pulse bg-yellow-500'}"
+						></div>
+						{state.apiStatus === 'online'
+							? 'API Online'
+							: state.apiStatus === 'offline'
+								? 'API Offline'
+								: 'Checking API...'}
 					</span>
 				</div>
 
@@ -109,10 +125,26 @@
 					class="mb-3 flex items-center justify-between border-b border-gray-200 pb-3 dark:border-gray-700"
 				>
 					<span
-						class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:ring-emerald-800"
+						class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1
+						{state.apiStatus === 'online'
+							? 'bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:ring-emerald-800'
+							: state.apiStatus === 'offline'
+								? 'bg-red-50 text-red-700 ring-red-200 dark:bg-red-950 dark:text-red-300 dark:ring-red-800'
+								: 'bg-yellow-50 text-yellow-700 ring-yellow-200 dark:bg-yellow-950 dark:text-yellow-300 dark:ring-yellow-800'}"
 					>
-						<div class="mr-1.5 h-2 w-2 animate-pulse rounded-full bg-emerald-500"></div>
-						API Online
+						<div
+							class="mr-1.5 h-2 w-2 rounded-full
+							{state.apiStatus === 'online'
+								? 'animate-pulse bg-emerald-500'
+								: state.apiStatus === 'offline'
+									? 'bg-red-500'
+									: 'animate-pulse bg-yellow-500'}"
+						></div>
+						{state.apiStatus === 'online'
+							? 'API Online'
+							: state.apiStatus === 'offline'
+								? 'API Offline'
+								: 'Checking API...'}
 					</span>
 				</div>
 
