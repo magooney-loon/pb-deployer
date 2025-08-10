@@ -4,6 +4,7 @@ import (
 	"log"
 
 	app "github.com/magooney-loon/pb-ext/core"
+	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 
 	"pb-deployer/internal/handlers"
@@ -23,6 +24,9 @@ func initApp() {
 	registerHandlers(srv.App())
 
 	srv.App().OnServe().BindFunc(func(e *core.ServeEvent) error {
+		// Add global body size limit middleware (200MB)
+		e.Router.Bind(apis.BodyLimit(209715200))
+
 		app.SetupRecovery(srv.App(), e)
 		return e.Next()
 	})
