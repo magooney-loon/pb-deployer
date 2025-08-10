@@ -18,6 +18,8 @@
 		class: className = '',
 		inputClass = '',
 		labelClass = '',
+		oninput,
+		onchange,
 		...restProps
 	}: {
 		id: string;
@@ -47,6 +49,8 @@
 		class?: string;
 		inputClass?: string;
 		labelClass?: string;
+		oninput?: (event: Event) => void;
+		onchange?: (event: Event) => void;
 	} = $props();
 
 	// Base input styles - Vercel-inspired clean design
@@ -81,10 +85,11 @@
 			<input
 				{id}
 				type="checkbox"
-				bind:checked
+				{checked}
 				{disabled}
 				{readonly}
 				class={inputClasses}
+				{onchange}
 				{...restProps}
 			/>
 			<label for={id} class="ml-2 {labelClasses}">
@@ -103,7 +108,15 @@
 		</label>
 
 		{#if type === 'select'}
-			<select {id} bind:value {required} {disabled} class="mt-1 {inputClasses}" {...restProps}>
+			<select
+				{id}
+				{value}
+				{required}
+				{disabled}
+				class="mt-1 {inputClasses}"
+				{onchange}
+				{...restProps}
+			>
 				{#if placeholder}
 					<option value="" disabled selected>{placeholder}</option>
 				{/if}
@@ -117,7 +130,7 @@
 			<input
 				{id}
 				{type}
-				bind:value
+				{value}
 				{placeholder}
 				{required}
 				{disabled}
@@ -126,6 +139,8 @@
 				{max}
 				{step}
 				class="mt-1 {inputClasses}"
+				{oninput}
+				{onchange}
 				{...restProps}
 			/>
 		{/if}

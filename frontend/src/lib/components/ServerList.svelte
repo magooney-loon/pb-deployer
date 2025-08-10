@@ -62,45 +62,55 @@
 					<FormField
 						id="name"
 						label="Name"
-						bind:value={state.newServer.name}
+						value={state.newServer.name}
 						placeholder="Production Server"
 						required
+						oninput={(e) => logic.updateNewServer('name', (e.target as HTMLInputElement).value)}
 					/>
 
 					<FormField
 						id="host"
 						label="VPS IP"
-						bind:value={state.newServer.host}
+						value={state.newServer.host}
 						placeholder="192.168.1.100"
 						required
+						oninput={(e) => logic.updateNewServer('host', (e.target as HTMLInputElement).value)}
 					/>
 
 					<FormField
 						id="port"
 						label="SSH Port"
 						type="number"
-						bind:value={state.newServer.port}
+						value={state.newServer.port}
 						min={1}
 						max={65535}
+						oninput={(e) =>
+							logic.updateNewServer('port', parseInt((e.target as HTMLInputElement).value) || 22)}
 					/>
 
 					<FormField
 						id="root_username"
 						label="Root Username"
-						bind:value={state.newServer.root_username}
+						value={state.newServer.root_username}
+						oninput={(e) =>
+							logic.updateNewServer('root_username', (e.target as HTMLInputElement).value)}
 					/>
 
 					<FormField
 						id="app_username"
 						label="App Username"
-						bind:value={state.newServer.app_username}
+						value={state.newServer.app_username}
+						oninput={(e) =>
+							logic.updateNewServer('app_username', (e.target as HTMLInputElement).value)}
 					/>
 
 					<FormField
 						id="use_ssh_agent"
 						label="Use SSH Agent"
 						type="checkbox"
-						bind:checked={state.newServer.use_ssh_agent}
+						checked={state.newServer.use_ssh_agent}
+						onchange={(e) =>
+							logic.updateNewServer('use_ssh_agent', (e.target as HTMLInputElement).checked)}
 					/>
 				</div>
 
@@ -108,8 +118,10 @@
 					<FormField
 						id="manual_key_path"
 						label="Private Key Path"
-						bind:value={state.newServer.manual_key_path}
+						value={state.newServer.manual_key_path}
 						placeholder="/home/user/.ssh/id_rsa"
+						oninput={(e) =>
+							logic.updateNewServer('manual_key_path', (e.target as HTMLInputElement).value)}
 					/>
 				{/if}
 
