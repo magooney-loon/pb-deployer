@@ -8,12 +8,33 @@
 		serverName?: string;
 		loading?: boolean;
 		onclose?: () => void;
+		onretry?: () => void;
+		retryCount?: number;
+		maxRetries?: number;
 	}
 
-	let { open = false, result = null, serverName = '', loading = false, onclose }: Props = $props();
+	let {
+		open = false,
+		result = null,
+		serverName = '',
+		loading = false,
+		onclose,
+		onretry,
+		retryCount = 0,
+		maxRetries = 3
+	}: Props = $props();
 
 	// Create logic instance
-	const logic = new ConnectionTestModalLogic({ open, result, serverName, loading, onclose });
+	const logic = new ConnectionTestModalLogic({
+		open,
+		result,
+		serverName,
+		loading,
+		onclose,
+		onretry,
+		retryCount,
+		maxRetries
+	});
 	let state = $state(logic.getState());
 
 	// Update state when logic changes
@@ -23,7 +44,16 @@
 
 	// Update props when they change
 	$effect(() => {
-		logic.updateProps({ open, result, serverName, loading, onclose });
+		logic.updateProps({
+			open,
+			result,
+			serverName,
+			loading,
+			onclose,
+			onretry,
+			retryCount,
+			maxRetries
+		});
 	});
 </script>
 
@@ -62,6 +92,11 @@
 							TCP, Root SSH, and App SSH connections to {state.serverName || 'the server'} are working
 						{/if}
 					</div>
+					{#if logic.getTestDuration() > 0}
+						<div class="mt-1 text-xs text-gray-500 dark:text-gray-500">
+							Test completed in {logic.getTestDuration()}s
+						</div>
+					{/if}
 				</div>
 			</div>
 
@@ -198,6 +233,14 @@
 					<div class="mt-2 text-sm text-gray-600 dark:text-gray-400">
 						Status: {state.result?.overall_status || 'Unknown error'}
 					</div>
+					{#if logic.getTestDuration() > 0}
+						<div class="mt-1 text-xs text-gray-500 dark:text-gray-500">
+							Test completed in {logic.getTestDuration()}s
+							{#if logic.getRetryCount() > 0}
+								(Retry {logic.getRetryCount()}/{logic.getMaxRetries()})
+							{/if}
+						</div>
+					{/if}
 				</div>
 			</div>
 
@@ -350,24 +393,29 @@
 					</div>
 				</div>
 
+				<!-- Detailed Error Information -->
+				{#if logic.getDetailedErrorInfo().length > 0}
+					<div
+						class="mt-4 rounded-lg bg-red-50 p-4 ring-1 ring-red-200 dark:bg-red-950 dark:ring-red-800"
+					>
+						<h4 class="mb-2 font-semibold text-red-900 dark:text-red-100">Error Details</h4>
+						<ul class="space-y-1 text-sm text-red-800 dark:text-red-200">
+							{#each logic.getDetailedErrorInfo() as error, i (i)}
+								<li class="font-mono">• {error}</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
+
 				<!-- Troubleshooting Tips -->
 				<div
 					class="mt-4 rounded-lg bg-blue-50 p-4 ring-1 ring-blue-200 dark:bg-blue-950 dark:ring-blue-800"
 				>
 					<h4 class="mb-2 font-semibold text-blue-900 dark:text-blue-100">Troubleshooting Tips</h4>
 					<ul class="space-y-1 text-sm text-blue-800 dark:text-blue-200">
-						{#if state.result?.overall_status === 'healthy_secured' || state.result?.overall_status === 'app_ssh_failed'}
-							<li>• For security-locked servers, only app user SSH access is available</li>
-							<li>• Verify app user SSH keys are properly configured</li>
-							<li>• Check that the app user has sudo privileges for deployment operations</li>
-							<li>• Root SSH access is intentionally disabled after security hardening</li>
-						{:else}
-							<li>• Check that the server IP address and port are correct</li>
-							<li>• Verify SSH keys are properly configured and accessible</li>
-							<li>• Check firewall settings on both client and server</li>
-							<li>• Ensure the specified usernames exist on the server</li>
-							<li>• Check SSH service is running on the server</li>
-						{/if}
+						{#each logic.getTroubleshootingTips() as tip, i (i)}
+							<li>• {tip}</li>
+						{/each}
 					</ul>
 				</div>
 			</div>
@@ -392,13 +440,49 @@
 	{/if}
 
 	{#snippet footer()}
-		<div class="flex justify-end space-x-3">
-			<button
-				onclick={() => logic.handleClose()}
-				class="rounded-lg border border-gray-200 bg-white px-4 py-2 font-medium text-gray-900 transition-colors hover:border-gray-300 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-100 dark:hover:bg-gray-900"
-			>
-				Close
-			</button>
+		<div class="flex items-center justify-between">
+			<div class="flex items-center space-x-3">
+				{#if logic.shouldShowAutoRetryOption()}
+					<label class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+						<input
+							type="checkbox"
+							checked={logic.isAutoRetryEnabled()}
+							onchange={(e) => {
+								if (e.currentTarget.checked) {
+									logic.enableAutoRetry();
+								} else {
+									logic.disableAutoRetry();
+								}
+							}}
+							class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
+						/>
+						<span>Auto-retry</span>
+					</label>
+				{/if}
+			</div>
+
+			<div class="flex space-x-3">
+				{#if logic.shouldShowRetryButton()}
+					<button
+						onclick={() => logic.handleRetry()}
+						disabled={state.loading}
+						class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 font-medium text-blue-900 transition-colors hover:border-blue-300 hover:bg-blue-100 disabled:opacity-50 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-100 dark:hover:bg-blue-900"
+					>
+						{#if state.loading}
+							Retrying...
+						{:else}
+							Retry ({logic.getRetryCount()}/{logic.getMaxRetries()})
+						{/if}
+					</button>
+				{/if}
+
+				<button
+					onclick={() => logic.handleClose()}
+					class="rounded-lg border border-gray-200 bg-white px-4 py-2 font-medium text-gray-900 transition-colors hover:border-gray-300 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-100 dark:hover:bg-gray-900"
+				>
+					Close
+				</button>
+			</div>
 		</div>
 	{/snippet}
 </Modal>

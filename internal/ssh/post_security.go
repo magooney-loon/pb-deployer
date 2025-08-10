@@ -39,8 +39,12 @@ func NewPostSecurityManager(server *models.Server, securityLocked bool) (*PostSe
 	// Always try to create app user connection
 	appManager, err := NewSSHManager(server, false)
 	if err != nil {
+		// Ensure cleanup of any successfully created managers
 		if psm.rootManager != nil {
-			psm.rootManager.Close()
+			if closeErr := psm.rootManager.Close(); closeErr != nil {
+				// Log but don't override the original error
+				fmt.Printf("Warning: Failed to close root manager during cleanup: %v\n", closeErr)
+			}
 		}
 		return nil, fmt.Errorf("failed to create app user SSH manager: %w", err)
 	}
@@ -73,6 +77,12 @@ func (psm *PostSecurityManager) ExecuteCommand(command string) (string, error) {
 	if manager == nil {
 		return "", fmt.Errorf("no active SSH manager available")
 	}
+
+	// Validate connection before executing command
+	if !manager.IsConnected() {
+		return "", fmt.Errorf("SSH connection is not active")
+	}
+
 	return manager.ExecuteCommand(command)
 }
 
@@ -82,6 +92,12 @@ func (psm *PostSecurityManager) ExecuteCommandStream(command string, output chan
 	if manager == nil {
 		return fmt.Errorf("no active SSH manager available")
 	}
+
+	// Validate connection before executing command
+	if !manager.IsConnected() {
+		return fmt.Errorf("SSH connection is not active")
+	}
+
 	return manager.ExecuteCommandStream(command, output)
 }
 
@@ -90,10 +106,19 @@ func (psm *PostSecurityManager) ExecuteCommandStream(command string, output chan
 func (psm *PostSecurityManager) ExecutePrivilegedCommand(command string) (string, error) {
 	if psm.securityMode || psm.rootManager == nil {
 		// Use sudo through app user
+		if psm.appManager == nil {
+			return "", fmt.Errorf("app manager not available for privileged command")
+		}
+		if !psm.appManager.IsConnected() {
+			return "", fmt.Errorf("app SSH connection is not active")
+		}
 		sudoCommand := fmt.Sprintf("sudo %s", command)
 		return psm.appManager.ExecuteCommand(sudoCommand)
 	} else {
 		// Use root manager directly
+		if !psm.rootManager.IsConnected() {
+			return "", fmt.Errorf("root SSH connection is not active")
+		}
 		return psm.rootManager.ExecuteCommand(command)
 	}
 }
@@ -142,7 +167,10 @@ func (psm *PostSecurityManager) SwitchToSecurityMode() error {
 
 	// Close root connection if it exists
 	if psm.rootManager != nil {
-		psm.rootManager.Close()
+		if err := psm.rootManager.Close(); err != nil {
+			// Log but don't fail the switch
+			fmt.Printf("Warning: Failed to close root manager during security mode switch: %v\n", err)
+		}
 		psm.rootManager = nil
 	}
 
@@ -237,6 +265,10 @@ func (psm *PostSecurityManager) RestartService(serviceName string) error {
 		return fmt.Errorf("no active SSH manager available")
 	}
 
+	if !manager.IsConnected() {
+		return fmt.Errorf("SSH connection is not active")
+	}
+
 	if psm.securityMode || psm.rootManager == nil {
 		// Use sudo
 		cmd := fmt.Sprintf("sudo systemctl restart %s", serviceName)
@@ -253,6 +285,10 @@ func (psm *PostSecurityManager) StartService(serviceName string) error {
 	manager := psm.GetActiveManager()
 	if manager == nil {
 		return fmt.Errorf("no active SSH manager available")
+	}
+
+	if !manager.IsConnected() {
+		return fmt.Errorf("SSH connection is not active")
 	}
 
 	if psm.securityMode || psm.rootManager == nil {
@@ -283,6 +319,10 @@ func (psm *PostSecurityManager) StopService(serviceName string) error {
 	manager := psm.GetActiveManager()
 	if manager == nil {
 		return fmt.Errorf("no active SSH manager available")
+	}
+
+	if !manager.IsConnected() {
+		return fmt.Errorf("SSH connection is not active")
 	}
 
 	if psm.securityMode || psm.rootManager == nil {
@@ -323,6 +363,7 @@ func (psm *PostSecurityManager) ExecutePrivilegedCommandWithDetails(command stri
 func (psm *PostSecurityManager) Close() error {
 	var errors []string
 
+	// Close app manager
 	if psm.appManager != nil {
 		if err := psm.appManager.Close(); err != nil {
 			errors = append(errors, fmt.Sprintf("app manager close error: %v", err))
@@ -330,12 +371,16 @@ func (psm *PostSecurityManager) Close() error {
 		psm.appManager = nil
 	}
 
+	// Close root manager
 	if psm.rootManager != nil {
 		if err := psm.rootManager.Close(); err != nil {
 			errors = append(errors, fmt.Sprintf("root manager close error: %v", err))
 		}
 		psm.rootManager = nil
 	}
+
+	// Reset state
+	psm.securityMode = false
 
 	if len(errors) > 0 {
 		return fmt.Errorf("close errors: %s", strings.Join(errors, "; "))
@@ -356,6 +401,16 @@ func (psm *PostSecurityManager) GetServer() *models.Server {
 
 // ValidateDeploymentCapabilities checks if the manager can perform deployment operations
 func (psm *PostSecurityManager) ValidateDeploymentCapabilities() error {
+	// Ensure we have an active manager
+	manager := psm.GetActiveManager()
+	if manager == nil {
+		return fmt.Errorf("no active SSH manager available for validation")
+	}
+
+	if !manager.IsConnected() {
+		return fmt.Errorf("SSH connection is not active for validation")
+	}
+
 	// Test file operations
 	testDir := "/tmp/pb_deploy_test"
 
@@ -363,6 +418,13 @@ func (psm *PostSecurityManager) ValidateDeploymentCapabilities() error {
 	if _, err := psm.ExecutePrivilegedCommand(fmt.Sprintf("mkdir -p %s", testDir)); err != nil {
 		return fmt.Errorf("failed to create test directory: %w", err)
 	}
+
+	// Ensure cleanup happens even if tests fail
+	defer func() {
+		if _, cleanupErr := psm.ExecutePrivilegedCommand(fmt.Sprintf("rm -rf %s", testDir)); cleanupErr != nil {
+			fmt.Printf("Warning: Failed to cleanup test directory %s: %v\n", testDir, cleanupErr)
+		}
+	}()
 
 	// Test file permissions
 	if _, err := psm.ExecutePrivilegedCommand(fmt.Sprintf("touch %s/test_file", testDir)); err != nil {
@@ -379,9 +441,6 @@ func (psm *PostSecurityManager) ValidateDeploymentCapabilities() error {
 	if _, err := psm.ExecutePrivilegedCommand("systemctl --version"); err != nil {
 		return fmt.Errorf("systemctl access test failed: %w", err)
 	}
-
-	// Cleanup
-	psm.ExecutePrivilegedCommand(fmt.Sprintf("rm -rf %s", testDir))
 
 	return nil
 }

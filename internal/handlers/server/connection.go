@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -78,6 +79,10 @@ func testServerConnection(app core.App, e *core.RequestEvent) error {
 		"port", server.Port,
 		"security_locked", server.SecurityLocked)
 
+	// Create context with timeout for the entire test
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
 	// Test TCP connectivity first
 	tcpResult := testTCPConnectionEnhanced(server.Host, server.Port)
 
@@ -93,11 +98,11 @@ func testServerConnection(app core.App, e *core.RequestEvent) error {
 			Error:    "Root SSH access disabled after security lockdown",
 		}
 		// Focus on app user connection for security-locked servers
-		appSSHResult = testSSHConnectionEnhanced(server, false, app)
+		appSSHResult = testSSHConnectionEnhancedWithContext(ctx, server, false, app)
 	} else {
-		// For non-security-locked servers, test both connections
-		rootSSHResult = testSSHConnection(server, true, app) // as root
-		appSSHResult = testSSHConnection(server, false, app) // as app user
+		// For non-security-locked servers, test both connections using enhanced version
+		rootSSHResult = testSSHConnectionEnhancedWithContext(ctx, server, true, app) // as root
+		appSSHResult = testSSHConnectionEnhancedWithContext(ctx, server, false, app) // as app user
 	}
 
 	// Determine overall success based on security status
@@ -182,6 +187,13 @@ func testTCPConnectionEnhanced(host string, port int) TCPTestResult {
 
 // testSSHConnectionEnhanced tests SSH connectivity for a specific user with enhanced error handling
 func testSSHConnectionEnhanced(server *models.Server, asRoot bool, app core.App) SSHTestResult {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	return testSSHConnectionEnhancedWithContext(ctx, server, asRoot, app)
+}
+
+// testSSHConnectionEnhancedWithContext tests SSH connectivity with context for timeout control
+func testSSHConnectionEnhancedWithContext(ctx context.Context, server *models.Server, asRoot bool, app core.App) SSHTestResult {
 	username := server.AppUsername
 	if asRoot {
 		username = server.RootUsername
@@ -200,24 +212,38 @@ func testSSHConnectionEnhanced(server *models.Server, asRoot bool, app core.App)
 		return result
 	}
 
+	// Check context timeout first
+	select {
+	case <-ctx.Done():
+		result.Error = "Connection test timed out before starting"
+		return result
+	default:
+	}
+
 	// Pre-accept host key to avoid host key verification issues
 	if err := ssh.AcceptHostKey(server); err != nil {
 		app.Logger().Debug("Failed to pre-accept host key (continuing anyway)",
 			"host", server.Host,
 			"error", err)
+		// Continue with connection attempt even if host key pre-acceptance fails
 	}
 
 	// Attempt SSH connection with retry logic
 	var sshManager *ssh.SSHManager
 	var err error
 
-	// Try multiple times for app user on security-locked servers
-	maxRetries := 1
-	if server.SecurityLocked && !asRoot {
-		maxRetries = 3
-	}
+	// Try multiple times for all connections to improve reliability
+	maxRetries := 3
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
+		// Check context timeout before each attempt
+		select {
+		case <-ctx.Done():
+			result.Error = fmt.Sprintf("Connection test timed out during attempt %d", attempt)
+			return result
+		default:
+		}
+
 		sshManager, err = ssh.NewSSHManager(server, asRoot)
 		if err == nil {
 			break
@@ -229,7 +255,16 @@ func testSSHConnectionEnhanced(server *models.Server, asRoot bool, app core.App)
 				"host", server.Host,
 				"attempt", attempt,
 				"error", err)
-			time.Sleep(time.Duration(attempt) * time.Second)
+
+			// Wait with context timeout awareness
+			waitTime := time.Duration(attempt) * time.Second
+			select {
+			case <-ctx.Done():
+				result.Error = "Connection test timed out during retry wait"
+				return result
+			case <-time.After(waitTime):
+				// Continue to next attempt
+			}
 		}
 	}
 
@@ -242,16 +277,40 @@ func testSSHConnectionEnhanced(server *models.Server, asRoot bool, app core.App)
 			"error", err)
 		return result
 	}
-	defer sshManager.Close()
 
-	// Test a simple command to verify the connection works
-	err = sshManager.RunCommand("echo 'connection_test'")
-	if err != nil {
-		result.Error = fmt.Sprintf("SSH command test failed: %v", err)
-		app.Logger().Debug("SSH command test failed",
+	// Ensure SSH manager is always closed, even if command fails
+	defer func() {
+		if sshManager != nil {
+			if closeErr := sshManager.Close(); closeErr != nil {
+				app.Logger().Debug("Failed to close SSH manager",
+					"username", username,
+					"host", server.Host,
+					"error", closeErr)
+			}
+		}
+	}()
+
+	// Test a simple command to verify the connection works with timeout
+	commandDone := make(chan error, 1)
+	go func() {
+		commandDone <- sshManager.RunCommand("echo 'connection_test'")
+	}()
+
+	select {
+	case err = <-commandDone:
+		if err != nil {
+			result.Error = fmt.Sprintf("SSH command test failed: %v", err)
+			app.Logger().Debug("SSH command test failed",
+				"username", username,
+				"host", server.Host,
+				"error", err)
+			return result
+		}
+	case <-ctx.Done():
+		result.Error = "SSH command test timed out"
+		app.Logger().Debug("SSH command test timed out",
 			"username", username,
-			"host", server.Host,
-			"error", err)
+			"host", server.Host)
 		return result
 	}
 
@@ -274,57 +333,15 @@ func testSSHConnectionEnhanced(server *models.Server, asRoot bool, app core.App)
 	return result
 }
 
-// testSSHConnection tests SSH connectivity for a specific user (legacy function)
+// testSSHConnection tests SSH connectivity for a specific user (legacy function - deprecated)
+// Use testSSHConnectionEnhanced instead for better reliability
 func testSSHConnection(server *models.Server, asRoot bool, app core.App) SSHTestResult {
-	username := server.AppUsername
-	if asRoot {
-		username = server.RootUsername
-	}
-
-	result := SSHTestResult{
-		Username: username,
-	}
-
-	// Attempt SSH connection
-	sshManager, err := ssh.NewSSHManager(server, asRoot)
-	if err != nil {
-		result.Error = fmt.Sprintf("SSH connection failed: %v", err)
-		app.Logger().Debug("SSH connection failed",
-			"username", username,
-			"host", server.Host,
-			"error", err)
-		return result
-	}
-	defer sshManager.Close()
-
-	// Test a simple command to verify the connection works
-	err = sshManager.RunCommand("echo 'connection_test'")
-	if err != nil {
-		result.Error = fmt.Sprintf("SSH command test failed: %v", err)
-		app.Logger().Debug("SSH command test failed",
-			"username", username,
-			"host", server.Host,
-			"error", err)
-		return result
-	}
-
-	result.Success = true
-
-	// Determine auth method used
-	if server.UseSSHAgent {
-		result.AuthMethod = "ssh_agent"
-	} else if server.ManualKeyPath != "" {
-		result.AuthMethod = "private_key"
-	} else {
-		result.AuthMethod = "default_keys"
-	}
-
-	app.Logger().Debug("SSH connection successful",
-		"username", username,
+	app.Logger().Debug("Using legacy SSH connection test - consider upgrading to enhanced version",
 		"host", server.Host,
-		"auth_method", result.AuthMethod)
+		"as_root", asRoot)
 
-	return result
+	// Delegate to enhanced version for consistency
+	return testSSHConnectionEnhanced(server, asRoot, app)
 }
 
 // testTCPConnection performs a simple TCP connection test to check if the server is reachable
@@ -361,8 +378,22 @@ func getServerStatus(app core.App, e *core.RequestEvent) error {
 	setupComplete := record.GetBool("setup_complete")
 	securityLocked := record.GetBool("security_locked")
 
-	// Test connection for current status
-	connected, connErr := testTCPConnection(host, port)
+	// Test connection for current status with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	// Test connection with context timeout
+	connected := false
+	var connErr error
+
+	connectionDone := make(chan bool, 1)
+	connectionErrChan := make(chan error, 1)
+
+	go func() {
+		conn, err := testTCPConnection(host, port)
+		connectionDone <- conn
+		connectionErrChan <- err
+	}()
 
 	status := map[string]interface{}{
 		"server_id":       serverID,
@@ -372,13 +403,33 @@ func getServerStatus(app core.App, e *core.RequestEvent) error {
 		"timestamp":       time.Now().UTC().Format(time.RFC3339),
 	}
 
+	select {
+	case connected = <-connectionDone:
+		select {
+		case connErr = <-connectionErrChan:
+		default:
+		}
+	case <-ctx.Done():
+		status["connection"] = "timeout"
+		status["connection_error"] = "Connection test timed out"
+		app.Logger().Info("Server status checked - timeout",
+			"server_id", serverID,
+			"host", host,
+			"port", port)
+		return e.JSON(http.StatusOK, status)
+	}
+
 	if connected {
 		status["connection"] = "online"
-	} else {
+	} else if connErr != nil {
 		status["connection_error"] = connErr.Error()
 	}
 
-	app.Logger().Info("Server status checked", "server_id", serverID, "connected", connected)
+	app.Logger().Info("Server status checked",
+		"server_id", serverID,
+		"connected", connected,
+		"host", host,
+		"port", port)
 
 	return e.JSON(http.StatusOK, status)
 }

@@ -19,10 +19,12 @@ import (
 
 // SSHManager handles SSH connections and command execution for server management
 type SSHManager struct {
-	server   *models.Server
-	conn     *ssh.Client
-	username string
-	isRoot   bool
+	server      *models.Server
+	conn        *ssh.Client
+	username    string
+	isRoot      bool
+	isConnected bool
+	lastUsed    time.Time
 }
 
 // SetupStep represents a step in the server setup process
@@ -125,10 +127,12 @@ func NewSSHManager(server *models.Server, asRoot bool) (*SSHManager, error) {
 	}
 
 	return &SSHManager{
-		server:   server,
-		conn:     conn,
-		username: username,
-		isRoot:   asRoot,
+		server:      server,
+		conn:        conn,
+		username:    username,
+		isRoot:      asRoot,
+		isConnected: true,
+		lastUsed:    time.Now(),
 	}, nil
 }
 
@@ -418,12 +422,27 @@ func (sm *SSHManager) ExecuteCommand(command string) (string, error) {
 
 	session, err := sm.conn.NewSession()
 	if err != nil {
-		return "", fmt.Errorf("failed to create SSH session: %w", err)
+		// Try to reconnect once if session creation fails
+		if reconnectErr := sm.reconnect(); reconnectErr != nil {
+			return "", fmt.Errorf("failed to create SSH session and reconnect failed: %w (original: %v)", reconnectErr, err)
+		}
+		// Try session creation again after reconnect
+		session, err = sm.conn.NewSession()
+		if err != nil {
+			return "", fmt.Errorf("failed to create SSH session after reconnect: %w", err)
+		}
 	}
-	defer session.Close()
+	defer func() {
+		if session != nil {
+			session.Close()
+		}
+	}()
 
 	// Set session timeout
 	session.Setenv("TMOUT", "300") // 5 minute timeout
+
+	// Update last used time
+	sm.lastUsed = time.Now()
 
 	output, err := session.CombinedOutput(command)
 	if err != nil {
@@ -449,9 +468,24 @@ func (sm *SSHManager) ExecuteCommandStream(command string, output chan<- string)
 
 	session, err := sm.conn.NewSession()
 	if err != nil {
-		return fmt.Errorf("failed to create SSH session: %w", err)
+		// Try to reconnect once if session creation fails
+		if reconnectErr := sm.reconnect(); reconnectErr != nil {
+			return fmt.Errorf("failed to create SSH session and reconnect failed: %w (original: %v)", reconnectErr, err)
+		}
+		// Try session creation again after reconnect
+		session, err = sm.conn.NewSession()
+		if err != nil {
+			return fmt.Errorf("failed to create SSH session after reconnect: %w", err)
+		}
 	}
-	defer session.Close()
+	defer func() {
+		if session != nil {
+			session.Close()
+		}
+	}()
+
+	// Update last used time
+	sm.lastUsed = time.Now()
 
 	// Create pipes for stdout and stderr
 	stdout, err := session.StdoutPipe()
@@ -560,14 +594,26 @@ func (sm *SSHManager) Close() error {
 	if sm.conn != nil {
 		err := sm.conn.Close()
 		sm.conn = nil
+		sm.isConnected = false
 		return err
 	}
+	sm.isConnected = false
 	return nil
 }
 
 // IsConnected returns true if the SSH connection is active
 func (sm *SSHManager) IsConnected() bool {
-	return sm.conn != nil
+	if sm.conn == nil || !sm.isConnected {
+		return false
+	}
+
+	// Test connection health with a lightweight check
+	if err := sm.validateConnection(); err != nil {
+		sm.isConnected = false
+		return false
+	}
+
+	return true
 }
 
 // GetUsername returns the username used for this SSH connection
@@ -685,16 +731,30 @@ func validateAuthMethods(authMethods []ssh.AuthMethod) error {
 
 // validateConnection validates that the SSH connection is still active
 func (sm *SSHManager) validateConnection() error {
-	if sm.conn == nil {
+	if sm.conn == nil || !sm.isConnected {
 		return fmt.Errorf("SSH connection is not established")
+	}
+
+	// Check if connection has been idle too long (30 minutes)
+	if time.Since(sm.lastUsed) > 30*time.Minute {
+		// Try to refresh the connection
+		if err := sm.reconnect(); err != nil {
+			sm.isConnected = false
+			return fmt.Errorf("SSH connection has been idle too long and reconnect failed: %w", err)
+		}
 	}
 
 	// Test if connection is still alive with a simple keepalive
 	_, _, err := sm.conn.SendRequest("keepalive@openssh.com", true, nil)
 	if err != nil {
-		return fmt.Errorf("SSH connection appears to be dead: %w", err)
+		sm.isConnected = false
+		// Try to reconnect once
+		if reconnectErr := sm.reconnect(); reconnectErr != nil {
+			return fmt.Errorf("SSH connection appears to be dead and reconnect failed: %w (original: %v)", reconnectErr, err)
+		}
 	}
 
+	sm.lastUsed = time.Now()
 	return nil
 }
 
@@ -703,18 +763,59 @@ func establishConnectionWithRetry(address string, config *ssh.ClientConfig, maxR
 	var lastErr error
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
+		// Set a reasonable timeout for each attempt
+		config.Timeout = 30 * time.Second
+
 		conn, err := ssh.Dial("tcp", address, config)
 		if err == nil {
-			return conn, nil
+			// Test the connection immediately to ensure it's working
+			_, _, testErr := conn.SendRequest("keepalive@openssh.com", true, nil)
+			if testErr == nil {
+				return conn, nil
+			}
+			// Close connection if it's not working properly
+			conn.Close()
+			lastErr = fmt.Errorf("connection established but not responding: %w", testErr)
+		} else {
+			lastErr = err
 		}
 
-		lastErr = err
 		if attempt < maxRetries {
-			// Wait before retrying (exponential backoff)
-			waitTime := time.Duration(attempt*2) * time.Second
+			// Wait before retrying (exponential backoff with jitter)
+			baseWait := time.Duration(attempt*2) * time.Second
+			jitter := time.Duration(attempt*500) * time.Millisecond
+			waitTime := baseWait + jitter
 			time.Sleep(waitTime)
 		}
 	}
 
 	return nil, fmt.Errorf("failed to establish connection after %d attempts: %w", maxRetries, lastErr)
+}
+
+// reconnect attempts to re-establish the SSH connection
+func (sm *SSHManager) reconnect() error {
+	if sm.conn != nil {
+		sm.conn.Close()
+		sm.conn = nil
+	}
+	sm.isConnected = false
+
+	// Create new SSH client configuration
+	config, err := createSSHConfig(sm.server, sm.username)
+	if err != nil {
+		return fmt.Errorf("failed to create SSH config for reconnect: %w", err)
+	}
+
+	// Establish new connection
+	address := fmt.Sprintf("%s:%d", sm.server.Host, sm.server.Port)
+	conn, err := establishConnectionWithRetry(address, config, 3)
+	if err != nil {
+		return fmt.Errorf("failed to reconnect: %w", err)
+	}
+
+	sm.conn = conn
+	sm.isConnected = true
+	sm.lastUsed = time.Now()
+
+	return nil
 }
