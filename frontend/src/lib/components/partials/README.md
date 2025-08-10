@@ -1,0 +1,273 @@
+# Reusable Partial Components
+
+This directory contains reusable UI components that can be used throughout the PB Deployer application. These components follow Svelte 5 patterns and provide consistent styling and behavior.
+
+## Components
+
+### ErrorAlert
+
+A flexible alert component for displaying error, warning, info, or success messages.
+
+```svelte
+<script>
+  import { ErrorAlert } from '$lib/components/partials';
+</script>
+
+<ErrorAlert 
+  message="Something went wrong!"
+  type="error"
+  onDismiss={() => console.log('dismissed')}
+/>
+
+<!-- Different types -->
+<ErrorAlert message="Success!" type="success" />
+<ErrorAlert message="Warning!" type="warning" />
+<ErrorAlert message="Info message" type="info" />
+```
+
+**Props:**
+- `message: string` - The message to display
+- `title?: string` - Alert title (default: "Error")
+- `type?: 'error' | 'warning' | 'info' | 'success'` - Alert type (default: "error")
+- `icon?: string` - Custom icon (uses defaults based on type)
+- `dismissible?: boolean` - Show dismiss button (default: true)
+- `onDismiss?: () => void` - Callback when dismissed
+- `class?: string` - Additional CSS classes
+
+### LoadingSpinner
+
+A customizable loading spinner with text.
+
+```svelte
+<script>
+  import { LoadingSpinner } from '$lib/components/partials';
+</script>
+
+<LoadingSpinner />
+<LoadingSpinner text="Loading data..." size="lg" color="green" />
+<LoadingSpinner centered={false} />
+```
+
+**Props:**
+- `text?: string` - Loading text (default: "Loading...")
+- `size?: 'sm' | 'md' | 'lg'` - Spinner size (default: "md")
+- `color?: 'blue' | 'gray' | 'green' | 'red' | 'yellow'` - Spinner color (default: "blue")
+- `centered?: boolean` - Center the spinner (default: true)
+- `class?: string` - Additional CSS classes
+
+### MetricCard
+
+A card component for displaying metrics with optional icons and colors.
+
+```svelte
+<script>
+  import { MetricCard } from '$lib/components/partials';
+</script>
+
+<MetricCard title="Total Users" value={1234} icon="👥" />
+<MetricCard 
+  title="Revenue" 
+  value="$12,345" 
+  icon="💰" 
+  color="green"
+  size="lg"
+  onclick={() => console.log('clicked')}
+/>
+<MetricCard title="Visits" value={567} href="/analytics" />
+```
+
+**Props:**
+- `title: string` - Card title
+- `value: string | number` - Metric value
+- `icon?: string` - Icon to display
+- `color?: 'default' | 'blue' | 'green' | 'red' | 'yellow' | 'purple'` - Color theme (default: "default")
+- `size?: 'sm' | 'md' | 'lg'` - Card size (default: "md")
+- `href?: string` - Make card a link
+- `onclick?: () => void` - Click handler
+- `class?: string` - Additional CSS classes
+
+### Button
+
+A comprehensive button component with multiple variants and states.
+
+```svelte
+<script>
+  import { Button } from '$lib/components/partials';
+</script>
+
+<Button>Default Button</Button>
+<Button variant="outline" color="green">Outline Button</Button>
+<Button variant="ghost" icon="🔄">Ghost with Icon</Button>
+<Button href="/somewhere" icon="🔗">Link Button</Button>
+<Button loading={true}>Loading...</Button>
+<Button disabled>Disabled</Button>
+```
+
+**Props:**
+- `variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'link'` - Button style (default: "primary")
+- `color?: 'blue' | 'green' | 'red' | 'yellow' | 'gray' | 'white'` - Color theme (default: "blue")
+- `size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'` - Button size (default: "md")
+- `disabled?: boolean` - Disabled state (default: false)
+- `loading?: boolean` - Loading state (default: false)
+- `href?: string` - Make button a link
+- `target?: string` - Link target
+- `icon?: string` - Icon to display
+- `iconPosition?: 'left' | 'right'` - Icon position (default: "left")
+- `fullWidth?: boolean` - Full width button (default: false)
+- `onclick?: () => void` - Click handler
+- `type?: 'button' | 'submit' | 'reset'` - Button type (default: "button")
+- `class?: string` - Additional CSS classes
+- `children?: Snippet` - Button content
+
+### StatusBadge
+
+A badge component for displaying status with various styles.
+
+```svelte
+<script>
+  import { StatusBadge } from '$lib/components/partials';
+</script>
+
+<StatusBadge status="Online" variant="success" />
+<StatusBadge status="Pending" variant="warning" dot />
+<StatusBadge status="Error" variant="error" size="lg" />
+<StatusBadge 
+  status="Custom" 
+  variant="custom" 
+  customColors={{ bg: 'bg-purple-100', text: 'text-purple-800' }}
+/>
+```
+
+**Props:**
+- `status: string` - Status text
+- `variant?: 'success' | 'warning' | 'error' | 'info' | 'gray' | 'custom'` - Badge style (default: "gray")
+- `size?: 'xs' | 'sm' | 'md' | 'lg'` - Badge size (default: "sm")
+- `rounded?: boolean` - Rounded badge (default: true)
+- `dot?: boolean` - Show status dot (default: false)
+- `customColors?: { bg: string; text: string }` - Custom colors for "custom" variant
+- `class?: string` - Additional CSS classes
+
+### Card
+
+A flexible card container with optional header and interactive states.
+
+```svelte
+<script>
+  import { Card } from '$lib/components/partials';
+</script>
+
+<Card title="Simple Card">
+  <p>Card content goes here</p>
+</Card>
+
+<Card 
+  title="Interactive Card" 
+  subtitle="Click me"
+  hover
+  onclick={() => console.log('clicked')}
+>
+  <p>This card is clickable</p>
+</Card>
+
+<Card href="/link" title="Link Card">
+  <p>This card is a link</p>
+</Card>
+```
+
+**Props:**
+- `title?: string` - Card title
+- `subtitle?: string` - Card subtitle
+- `padding?: 'none' | 'sm' | 'md' | 'lg' | 'xl'` - Internal padding (default: "md")
+- `shadow?: 'none' | 'sm' | 'md' | 'lg' | 'xl'` - Shadow size (default: "md")
+- `rounded?: 'none' | 'sm' | 'md' | 'lg' | 'xl' | 'full'` - Border radius (default: "lg")
+- `hover?: boolean` - Hover effects (default: false)
+- `clickable?: boolean` - Make clickable (default: false)
+- `href?: string` - Make card a link
+- `target?: string` - Link target
+- `onclick?: () => void` - Click handler
+- `class?: string` - Additional CSS classes
+- `headerClass?: string` - Header CSS classes
+- `bodyClass?: string` - Body CSS classes
+- `children?: Snippet` - Card content
+
+### RecentItemsCard
+
+A specialized card for displaying lists of recent items with empty states.
+
+```svelte
+<script>
+  import { RecentItemsCard } from '$lib/components/partials';
+  
+  const servers = [
+    { id: 1, name: 'Server 1', status: 'online' },
+    { id: 2, name: 'Server 2', status: 'offline' }
+  ];
+</script>
+
+<RecentItemsCard
+  title="Recent Servers"
+  items={servers}
+  viewAllHref="/servers"
+  emptyState={{
+    message: 'No servers yet',
+    ctaText: 'Add your first server →',
+    ctaHref: '/servers/new'
+  }}
+>
+  {#snippet children(server, index)}
+    <div class="flex-1">
+      <h4>{server.name}</h4>
+      <p>Status: {server.status}</p>
+    </div>
+  {/snippet}
+</RecentItemsCard>
+```
+
+**Props:**
+- `title: string` - Card title
+- `items: T[]` - Array of items to display (generic type)
+- `viewAllHref?: string` - "View all" link
+- `viewAllText?: string` - "View all" text (default: "View all →")
+- `emptyState: EmptyState` - Empty state configuration
+- `itemClass?: string` - CSS classes for item containers
+- `class?: string` - Additional CSS classes
+- `children?: Snippet<[T, number]>` - Item renderer snippet
+
+**EmptyState interface:**
+```typescript
+interface EmptyState {
+  message: string;           // Main empty message
+  ctaText?: string;         // Call-to-action text
+  ctaHref?: string;         // Call-to-action link
+  secondaryText?: string;   // Additional helper text
+}
+```
+
+## Usage Tips
+
+1. **Import from index**: Always import from the index file for consistency:
+   ```svelte
+   import { Button, Card, ErrorAlert } from '$lib/components/partials';
+   ```
+
+2. **TypeScript support**: All components are fully typed with proper TypeScript interfaces.
+
+3. **Consistent styling**: Components use Tailwind CSS classes and follow the app's design system.
+
+4. **Dark mode**: All components support dark mode out of the box.
+
+5. **Accessibility**: Components include proper ARIA attributes and keyboard navigation support.
+
+6. **Snippets over slots**: Components use Svelte 5's snippet syntax for maximum flexibility.
+
+## Styling
+
+All components use Tailwind CSS classes and support the application's color palette:
+- Blue (primary)
+- Green (success)
+- Red (error/danger)
+- Yellow (warning)
+- Gray (neutral)
+- Purple (accent)
+
+Components automatically handle dark mode variants and maintain consistent spacing, shadows, and border radius throughout the application.

@@ -1,6 +1,16 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { DashboardLogic, type DashboardState } from './logic/Dashboard.js';
+	import type { Server, App } from '../api.js';
+	import {
+		ErrorAlert,
+		LoadingSpinner,
+		MetricCard,
+		Button,
+		StatusBadge,
+		Card,
+		RecentItemsCard
+	} from './partials/index.js';
 
 	// Create logic instance
 	const logic = new DashboardLogic();
@@ -28,367 +38,196 @@
 	</div>
 
 	{#if state.error}
-		<div
-			class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900"
-		>
-			<div class="flex">
-				<div class="flex-shrink-0">
-					<span class="text-red-400">❌</span>
-				</div>
-				<div class="ml-3">
-					<h3 class="text-sm font-medium text-red-800 dark:text-red-200">Error</h3>
-					<div class="mt-2 text-sm text-red-700 dark:text-red-300">
-						<p>{state.error}</p>
-					</div>
-					<div class="mt-4">
-						<button
-							onclick={() => logic.dismissError()}
-							class="rounded bg-red-100 px-3 py-1 text-sm text-red-800 hover:bg-red-200 dark:bg-red-800 dark:text-red-200 dark:hover:bg-red-700"
-						>
-							Dismiss
-						</button>
-					</div>
-				</div>
-			</div>
-		</div>
+		<ErrorAlert message={state.error} onDismiss={() => logic.dismissError()} />
 	{/if}
 
 	{#if state.loading}
-		<div class="flex items-center justify-center py-12">
-			<div class="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
-			<span class="ml-2 text-gray-600 dark:text-gray-400">Loading dashboard...</span>
-		</div>
+		<LoadingSpinner text="Loading dashboard..." />
 	{:else}
 		<!-- Metrics Cards -->
 		<div class="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-			<div class="overflow-hidden rounded-lg bg-white shadow dark:bg-gray-800 dark:shadow-gray-700">
-				<div class="p-5">
-					<div class="flex items-center">
-						<div class="flex-shrink-0">
-							<span class="text-2xl">🖥️</span>
-						</div>
-						<div class="ml-5 w-0 flex-1">
-							<dl>
-								<dt class="truncate text-sm font-medium text-gray-500 dark:text-gray-400">
-									Total Servers
-								</dt>
-								<dd class="text-lg font-medium text-gray-900 dark:text-white">
-									{metrics.totalServers}
-								</dd>
-							</dl>
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<div class="overflow-hidden rounded-lg bg-white shadow dark:bg-gray-800 dark:shadow-gray-700">
-				<div class="p-5">
-					<div class="flex items-center">
-						<div class="flex-shrink-0">
-							<span class="text-2xl">✅</span>
-						</div>
-						<div class="ml-5 w-0 flex-1">
-							<dl>
-								<dt class="truncate text-sm font-medium text-gray-500 dark:text-gray-400">
-									Ready Servers
-								</dt>
-								<dd class="text-lg font-medium text-gray-900 dark:text-white">
-									{metrics.readyServers.length}
-								</dd>
-							</dl>
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<div class="overflow-hidden rounded-lg bg-white shadow dark:bg-gray-800 dark:shadow-gray-700">
-				<div class="p-5">
-					<div class="flex items-center">
-						<div class="flex-shrink-0">
-							<span class="text-2xl">📱</span>
-						</div>
-						<div class="ml-5 w-0 flex-1">
-							<dl>
-								<dt class="truncate text-sm font-medium text-gray-500 dark:text-gray-400">
-									Total Apps
-								</dt>
-								<dd class="text-lg font-medium text-gray-900 dark:text-white">
-									{metrics.totalApps}
-								</dd>
-							</dl>
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<div class="overflow-hidden rounded-lg bg-white shadow dark:bg-gray-800 dark:shadow-gray-700">
-				<div class="p-5">
-					<div class="flex items-center">
-						<div class="flex-shrink-0">
-							<span class="text-2xl">🟢</span>
-						</div>
-						<div class="ml-5 w-0 flex-1">
-							<dl>
-								<dt class="truncate text-sm font-medium text-gray-500 dark:text-gray-400">
-									Online Apps
-								</dt>
-								<dd class="text-lg font-medium text-gray-900 dark:text-white">
-									{metrics.onlineApps.length}
-								</dd>
-							</dl>
-						</div>
-					</div>
-				</div>
-			</div>
+			<MetricCard title="Total Servers" value={metrics.totalServers} icon="🖥️" />
+			<MetricCard
+				title="Ready Servers"
+				value={metrics.readyServers.length}
+				icon="✅"
+				color="green"
+			/>
+			<MetricCard title="Total Apps" value={metrics.totalApps} icon="📱" />
+			<MetricCard title="Online Apps" value={metrics.onlineApps.length} icon="🟢" color="green" />
 		</div>
 
 		<!-- Quick Actions -->
-		<div class="mb-8 rounded-lg bg-white shadow dark:bg-gray-800 dark:shadow-gray-700">
-			<div class="px-4 py-5 sm:p-6">
-				<h3 class="mb-4 text-lg font-medium text-gray-900 dark:text-white">Quick Actions</h3>
-				<div class="flex flex-col gap-4 sm:flex-row">
-					<a
-						href="/servers"
-						class="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
-					>
-						<span class="mr-2">🖥️</span>
-						Manage Servers
-					</a>
-					<a
-						href="/apps"
-						class="inline-flex items-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:outline-none"
-					>
-						<span class="mr-2">📱</span>
-						Manage Apps
-					</a>
-					<button
-						onclick={() => logic.loadData()}
-						class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-					>
-						<span class="mr-2">🔄</span>
-						Refresh Data
-					</button>
-				</div>
+		<Card title="Quick Actions" class="mb-8">
+			<div class="flex flex-col gap-4 sm:flex-row">
+				<Button href="/servers" icon="🖥️" color="blue">Manage Servers</Button>
+				<Button href="/apps" icon="📱" color="green">Manage Apps</Button>
+				<Button variant="outline" icon="🔄" onclick={() => logic.loadData()}>Refresh Data</Button>
 			</div>
-		</div>
+		</Card>
 
 		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 			<!-- Recent Servers -->
-			<div class="rounded-lg bg-white shadow dark:bg-gray-800 dark:shadow-gray-700">
-				<div class="px-4 py-5 sm:p-6">
-					<div class="mb-4 flex items-center justify-between">
-						<h3 class="text-lg font-medium text-gray-900 dark:text-white">Recent Servers</h3>
-						<a
-							href="/servers"
-							class="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-							>View all →</a
-						>
-					</div>
-					{#if metrics.recentServers.length === 0}
-						<div class="py-6 text-center">
-							<p class="text-gray-500 dark:text-gray-400">No servers configured yet</p>
-							<a
-								href="/servers"
-								class="mt-2 inline-flex items-center text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-							>
-								Add your first server →
-							</a>
-						</div>
-					{:else}
-						<div class="space-y-3">
-							{#each metrics.recentServers as server (server.id)}
-								<div
-									class="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-700"
-								>
-									<div class="flex-1">
-										<div class="flex items-center">
-											<span class="text-sm font-medium text-gray-900 dark:text-white"
-												>{server.name}</span
-											>
-											{#if server.setup_complete && server.security_locked}
-												<span
-													class="ml-2 rounded bg-green-100 px-2 py-1 text-xs text-green-800 dark:bg-green-900 dark:text-green-200"
-													>Ready</span
-												>
-											{:else if server.setup_complete}
-												<span
-													class="ml-2 rounded bg-yellow-100 px-2 py-1 text-xs text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-													>Setup</span
-												>
-											{:else}
-												<span
-													class="ml-2 rounded bg-red-100 px-2 py-1 text-xs text-red-800 dark:bg-red-900 dark:text-red-200"
-													>New</span
-												>
-											{/if}
-										</div>
-										<div class="text-xs text-gray-500 dark:text-gray-400">
-											{server.host}:{server.port}
-										</div>
-									</div>
-								</div>
-							{/each}
-						</div>
-					{/if}
-				</div>
-			</div>
-
-			<!-- Recent Apps -->
-			<div class="rounded-lg bg-white shadow dark:bg-gray-800 dark:shadow-gray-700">
-				<div class="px-4 py-5 sm:p-6">
-					<div class="mb-4 flex items-center justify-between">
-						<h3 class="text-lg font-medium text-gray-900 dark:text-white">Recent Applications</h3>
-						<a
-							href="/apps"
-							class="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-							>View all →</a
-						>
-					</div>
-					{#if metrics.recentApps.length === 0}
-						<div class="py-6 text-center">
-							<p class="text-gray-500 dark:text-gray-400">No apps created yet</p>
-							{#if metrics.readyServers.length > 0}
-								<a
-									href="/apps"
-									class="mt-2 inline-flex items-center text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-								>
-									Create your first app →
-								</a>
+			<RecentItemsCard
+				title="Recent Servers"
+				items={metrics.recentServers}
+				viewAllHref="/servers"
+				emptyState={{
+					message: 'No servers configured yet',
+					ctaText: 'Add your first server →',
+					ctaHref: '/servers'
+				}}
+			>
+				{#snippet children(server: Server)}
+					<div class="flex-1">
+						<div class="flex items-center">
+							<span class="text-sm font-medium text-gray-900 dark:text-white">
+								{server.name}
+							</span>
+							{#if server.setup_complete && server.security_locked}
+								<StatusBadge status="Ready" variant="success" class="ml-2" />
+							{:else if server.setup_complete}
+								<StatusBadge status="Setup" variant="warning" class="ml-2" />
 							{:else}
-								<p class="mt-2 text-xs text-gray-400 dark:text-gray-500">Set up a server first</p>
+								<StatusBadge status="New" variant="error" class="ml-2" />
 							{/if}
 						</div>
-					{:else}
-						<div class="space-y-3">
-							{#each metrics.recentApps as app (app.id)}
-								<div
-									class="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-700"
-								>
-									<div class="flex-1">
-										<div class="flex items-center">
-											<span class="text-sm font-medium text-gray-900 dark:text-white"
-												>{app.name}</span
-											>
-											<span class="ml-2 text-xs">
-												{logic.getStatusIcon(app.status)}
-											</span>
-										</div>
-										<div class="text-xs text-gray-500 dark:text-gray-400">
-											<a
-												href="https://{app.domain}"
-												target="_blank"
-												class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-											>
-												{app.domain}
-											</a>
-										</div>
-										{#if app.current_version}
-											<div class="text-xs text-gray-400 dark:text-gray-500">
-												v{app.current_version}
-											</div>
-										{/if}
-									</div>
-									<div class="text-right">
-										<a
-											href="https://{app.domain}"
-											target="_blank"
-											class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-										>
-											Open →
-										</a>
-									</div>
-								</div>
-							{/each}
+						<div class="text-xs text-gray-500 dark:text-gray-400">
+							{server.host}:{server.port}
 						</div>
-					{/if}
-				</div>
-			</div>
+					</div>
+				{/snippet}
+			</RecentItemsCard>
+
+			<!-- Recent Apps -->
+			<RecentItemsCard
+				title="Recent Applications"
+				items={metrics.recentApps}
+				viewAllHref="/apps"
+				emptyState={{
+					message: 'No apps created yet',
+					ctaText: metrics.readyServers.length > 0 ? 'Create your first app →' : undefined,
+					ctaHref: metrics.readyServers.length > 0 ? '/apps' : undefined,
+					secondaryText: metrics.readyServers.length === 0 ? 'Set up a server first' : undefined
+				}}
+			>
+				{#snippet children(app: App)}
+					<div class="flex-1">
+						<div class="flex items-center">
+							<span class="text-sm font-medium text-gray-900 dark:text-white">
+								{app.name}
+							</span>
+							<span class="ml-2 text-xs">
+								{logic.getStatusIcon(app.status)}
+							</span>
+						</div>
+						<div class="text-xs text-gray-500 dark:text-gray-400">
+							<a
+								href="https://{app.domain}"
+								target="_blank"
+								class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+							>
+								{app.domain}
+							</a>
+						</div>
+						{#if app.current_version}
+							<div class="text-xs text-gray-400 dark:text-gray-500">
+								v{app.current_version}
+							</div>
+						{/if}
+					</div>
+					<div class="text-right">
+						<a
+							href="https://{app.domain}"
+							target="_blank"
+							class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+						>
+							Open →
+						</a>
+					</div>
+				{/snippet}
+			</RecentItemsCard>
 		</div>
 
 		<!-- Status Summary -->
 		{#if logic.hasData()}
-			<div class="mt-8 rounded-lg bg-white shadow dark:bg-gray-800 dark:shadow-gray-700">
-				<div class="px-4 py-5 sm:p-6">
-					<h3 class="mb-4 text-lg font-medium text-gray-900 dark:text-white">System Status</h3>
-					<div class="grid grid-cols-1 gap-6 md:grid-cols-3">
-						<div>
-							<h4 class="mb-2 text-sm font-medium text-gray-500 dark:text-gray-400">
-								Server Status
-							</h4>
-							<div class="space-y-1">
-								<div class="flex justify-between text-sm">
-									<span class="text-gray-700 dark:text-gray-300">Ready for deployment:</span>
-									<span class="font-medium text-green-600 dark:text-green-400"
-										>{metrics.serverStatusCounts.ready}</span
-									>
-								</div>
-								<div class="flex justify-between text-sm">
-									<span class="text-gray-700 dark:text-gray-300">Setup required:</span>
-									<span class="font-medium text-yellow-600 dark:text-yellow-400"
-										>{metrics.serverStatusCounts.setupRequired}</span
-									>
-								</div>
-								<div class="flex justify-between text-sm">
-									<span class="text-gray-700 dark:text-gray-300">Security pending:</span>
-									<span class="font-medium text-orange-600 dark:text-orange-400"
-										>{metrics.serverStatusCounts.securityPending}</span
-									>
-								</div>
+			<Card title="System Status" class="mt-8">
+				<div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+					<div>
+						<h4 class="mb-2 text-sm font-medium text-gray-500 dark:text-gray-400">Server Status</h4>
+						<div class="space-y-1">
+							<div class="flex justify-between text-sm">
+								<span class="text-gray-700 dark:text-gray-300">Ready for deployment:</span>
+								<span class="font-medium text-green-600 dark:text-green-400">
+									{metrics.serverStatusCounts.ready}
+								</span>
+							</div>
+							<div class="flex justify-between text-sm">
+								<span class="text-gray-700 dark:text-gray-300">Setup required:</span>
+								<span class="font-medium text-yellow-600 dark:text-yellow-400">
+									{metrics.serverStatusCounts.setupRequired}
+								</span>
+							</div>
+							<div class="flex justify-between text-sm">
+								<span class="text-gray-700 dark:text-gray-300">Security pending:</span>
+								<span class="font-medium text-orange-600 dark:text-orange-400">
+									{metrics.serverStatusCounts.securityPending}
+								</span>
 							</div>
 						</div>
-						<div>
-							<h4 class="mb-2 text-sm font-medium text-gray-500 dark:text-gray-400">
-								Application Status
-							</h4>
-							<div class="space-y-1">
-								<div class="flex justify-between text-sm">
-									<span class="text-gray-700 dark:text-gray-300">Online:</span>
-									<span class="font-medium text-green-600 dark:text-green-400"
-										>{metrics.appStatusCounts.online}</span
-									>
-								</div>
-								<div class="flex justify-between text-sm">
-									<span class="text-gray-700 dark:text-gray-300">Offline:</span>
-									<span class="font-medium text-red-600 dark:text-red-400"
-										>{metrics.appStatusCounts.offline}</span
-									>
-								</div>
-								<div class="flex justify-between text-sm">
-									<span class="text-gray-700 dark:text-gray-300">Unknown:</span>
-									<span class="font-medium text-gray-600 dark:text-gray-400"
-										>{metrics.appStatusCounts.unknown}</span
-									>
-								</div>
+					</div>
+					<div>
+						<h4 class="mb-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+							Application Status
+						</h4>
+						<div class="space-y-1">
+							<div class="flex justify-between text-sm">
+								<span class="text-gray-700 dark:text-gray-300">Online:</span>
+								<span class="font-medium text-green-600 dark:text-green-400">
+									{metrics.appStatusCounts.online}
+								</span>
+							</div>
+							<div class="flex justify-between text-sm">
+								<span class="text-gray-700 dark:text-gray-300">Offline:</span>
+								<span class="font-medium text-red-600 dark:text-red-400">
+									{metrics.appStatusCounts.offline}
+								</span>
+							</div>
+							<div class="flex justify-between text-sm">
+								<span class="text-gray-700 dark:text-gray-300">Unknown:</span>
+								<span class="font-medium text-gray-600 dark:text-gray-400">
+									{metrics.appStatusCounts.unknown}
+								</span>
 							</div>
 						</div>
-						<div>
-							<h4 class="mb-2 text-sm font-medium text-gray-500 dark:text-gray-400">
-								Deployment Info
-							</h4>
-							<div class="space-y-1">
-								<div class="flex justify-between text-sm">
-									<span class="text-gray-700 dark:text-gray-300">Apps deployed:</span>
-									<span class="font-medium text-gray-900 dark:text-gray-100"
-										>{metrics.deploymentInfo.appsDeployed}</span
-									>
-								</div>
-								<div class="flex justify-between text-sm">
-									<span class="text-gray-700 dark:text-gray-300">Pending deployment:</span>
-									<span class="font-medium text-gray-900 dark:text-gray-100"
-										>{metrics.deploymentInfo.pendingDeployment}</span
-									>
-								</div>
-								<div class="flex justify-between text-sm">
-									<span class="text-gray-700 dark:text-gray-300">Avg. uptime:</span>
-									<span class="font-medium text-green-600 dark:text-green-400">
-										{metrics.deploymentInfo.averageUptime}%
-									</span>
-								</div>
+					</div>
+					<div>
+						<h4 class="mb-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+							Deployment Info
+						</h4>
+						<div class="space-y-1">
+							<div class="flex justify-between text-sm">
+								<span class="text-gray-700 dark:text-gray-300">Apps deployed:</span>
+								<span class="font-medium text-gray-900 dark:text-gray-100">
+									{metrics.deploymentInfo.appsDeployed}
+								</span>
+							</div>
+							<div class="flex justify-between text-sm">
+								<span class="text-gray-700 dark:text-gray-300">Pending deployment:</span>
+								<span class="font-medium text-gray-900 dark:text-gray-100">
+									{metrics.deploymentInfo.pendingDeployment}
+								</span>
+							</div>
+							<div class="flex justify-between text-sm">
+								<span class="text-gray-700 dark:text-gray-300">Avg. uptime:</span>
+								<span class="font-medium text-green-600 dark:text-green-400">
+									{metrics.deploymentInfo.averageUptime}%
+								</span>
 							</div>
 						</div>
 					</div>
 				</div>
-			</div>
+			</Card>
 		{/if}
 	{/if}
 </div>
