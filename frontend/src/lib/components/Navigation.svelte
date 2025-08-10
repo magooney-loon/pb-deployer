@@ -1,24 +1,27 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { themeStore } from '$lib/theme.js';
+	import { NavigationLogic, type NavigationState } from './logic/Navigation.js';
 
+	// Create logic instance
+	const logic = new NavigationLogic(page.url.pathname);
+	let state = $state<NavigationState>(logic.getState());
+
+	// Update state when logic changes
+	logic.onStateUpdate((newState) => {
+		state = newState;
+	});
+
+	// Update path when page changes
+	$effect(() => {
+		logic.updateCurrentPath(page.url.pathname);
+	});
+
+	// Helper function to check if a path is active using reactive state
 	function isActive(path: string): boolean {
-		return page.url.pathname === path;
+		const normalizePath = (p: string) => (p === '/' ? p : p.endsWith('/') ? p.slice(0, -1) : p);
+		return normalizePath(state.currentPath) === normalizePath(path);
 	}
-
-	// Mobile menu toggle
-	let mobileMenuOpen = $state(false);
-
-	function toggleMobileMenu() {
-		mobileMenuOpen = !mobileMenuOpen;
-	}
-
-	// Navigation items
-	const navItems = [
-		{ href: '/', label: 'Dashboard', icon: '📊' },
-		{ href: '/servers', label: 'Servers', icon: '🖥️' },
-		{ href: '/apps', label: 'Applications', icon: '📱' }
-	];
 </script>
 
 <nav
@@ -37,9 +40,10 @@
 
 				<!-- Desktop navigation -->
 				<div class="hidden sm:ml-8 sm:flex sm:space-x-1">
-					{#each navItems as item (item.href)}
+					{#each logic.navItems as item (item.href)}
 						<a
 							href={item.href}
+							onclick={() => logic.handleNavItemClick(item.href)}
 							class="group inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ease-in-out
 							{isActive(item.href)
 								? 'bg-blue-50 text-blue-700 shadow-sm dark:bg-blue-900/50 dark:text-blue-300'
@@ -71,7 +75,7 @@
 
 				<!-- Theme toggle -->
 				<button
-					onclick={() => themeStore.toggle()}
+					onclick={() => logic.toggleTheme()}
 					class="rounded-lg p-2.5 text-gray-500 transition-all duration-200 hover:bg-gray-100 hover:text-gray-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 dark:focus:ring-offset-gray-800"
 					title="Toggle theme"
 					aria-label="Toggle dark mode"
@@ -83,13 +87,13 @@
 
 				<!-- Mobile menu button -->
 				<button
-					onclick={toggleMobileMenu}
+					onclick={() => logic.toggleMobileMenu()}
 					class="rounded-lg p-2.5 text-gray-500 transition-all duration-200 hover:bg-gray-100 hover:text-gray-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none sm:hidden dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 dark:focus:ring-offset-gray-800"
-					aria-expanded={mobileMenuOpen}
+					aria-expanded={state.mobileMenuOpen}
 					aria-label="Toggle mobile menu"
 				>
 					<span class="text-lg">
-						{mobileMenuOpen ? '✕' : '☰'}
+						{state.mobileMenuOpen ? '✕' : '☰'}
 					</span>
 				</button>
 			</div>
@@ -97,7 +101,7 @@
 	</div>
 
 	<!-- Mobile menu -->
-	{#if mobileMenuOpen}
+	{#if state.mobileMenuOpen}
 		<div
 			class="border-t border-gray-200 bg-gray-50 sm:hidden dark:border-gray-700 dark:bg-gray-800/50"
 		>
@@ -114,12 +118,10 @@
 					</span>
 				</div>
 
-				{#each navItems as item (item.href)}
+				{#each logic.navItems as item (item.href)}
 					<a
 						href={item.href}
-						onclick={() => {
-							mobileMenuOpen = false;
-						}}
+						onclick={() => logic.handleNavItemClick(item.href)}
 						class="group flex items-center rounded-lg px-3 py-3 text-base font-medium transition-all duration-200
 						{isActive(item.href)
 							? 'bg-blue-50 text-blue-700 shadow-sm dark:bg-blue-900/50 dark:text-blue-300'

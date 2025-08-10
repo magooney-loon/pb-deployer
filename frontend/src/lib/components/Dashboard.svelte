@@ -1,39 +1,22 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { api, type Server, type App, getStatusIcon } from '$lib/api.js';
+	import { DashboardLogic, type DashboardState } from './logic/Dashboard.js';
 
-	let servers = $state<Server[]>([]);
-	let apps = $state<App[]>([]);
-	let loading = $state(true);
-	let error = $state<string | null>(null);
+	// Create logic instance
+	const logic = new DashboardLogic();
+	let state = $state<DashboardState>(logic.getState());
 
-	onMount(async () => {
-		await loadData();
+	// Update state when logic changes
+	logic.onStateUpdate((newState) => {
+		state = newState;
 	});
 
-	async function loadData() {
-		try {
-			loading = true;
-			error = null;
+	// Get computed metrics
+	let metrics = $derived(logic.getMetrics());
 
-			const [serversResponse, appsResponse] = await Promise.all([api.getServers(), api.getApps()]);
-
-			servers = serversResponse.servers || [];
-			apps = appsResponse.apps || [];
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to load dashboard data';
-			servers = [];
-			apps = [];
-		} finally {
-			loading = false;
-		}
-	}
-
-	// Computed values for dashboard metrics
-	let readyServers = $derived(servers?.filter((s) => s.setup_complete && s.security_locked) || []);
-	let onlineApps = $derived(apps?.filter((a) => a.status === 'online') || []);
-	let recentServers = $derived(servers?.slice(0, 3) || []);
-	let recentApps = $derived(apps?.slice(0, 5) || []);
+	onMount(async () => {
+		await logic.loadData();
+	});
 </script>
 
 <div class="px-4 sm:px-0">
@@ -44,7 +27,7 @@
 		</p>
 	</div>
 
-	{#if error}
+	{#if state.error}
 		<div
 			class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900"
 		>
@@ -55,11 +38,11 @@
 				<div class="ml-3">
 					<h3 class="text-sm font-medium text-red-800 dark:text-red-200">Error</h3>
 					<div class="mt-2 text-sm text-red-700 dark:text-red-300">
-						<p>{error}</p>
+						<p>{state.error}</p>
 					</div>
 					<div class="mt-4">
 						<button
-							onclick={() => (error = null)}
+							onclick={() => logic.dismissError()}
 							class="rounded bg-red-100 px-3 py-1 text-sm text-red-800 hover:bg-red-200 dark:bg-red-800 dark:text-red-200 dark:hover:bg-red-700"
 						>
 							Dismiss
@@ -70,7 +53,7 @@
 		</div>
 	{/if}
 
-	{#if loading}
+	{#if state.loading}
 		<div class="flex items-center justify-center py-12">
 			<div class="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
 			<span class="ml-2 text-gray-600 dark:text-gray-400">Loading dashboard...</span>
@@ -90,7 +73,7 @@
 									Total Servers
 								</dt>
 								<dd class="text-lg font-medium text-gray-900 dark:text-white">
-									{servers?.length || 0}
+									{metrics.totalServers}
 								</dd>
 							</dl>
 						</div>
@@ -110,7 +93,7 @@
 									Ready Servers
 								</dt>
 								<dd class="text-lg font-medium text-gray-900 dark:text-white">
-									{readyServers.length}
+									{metrics.readyServers.length}
 								</dd>
 							</dl>
 						</div>
@@ -130,7 +113,7 @@
 									Total Apps
 								</dt>
 								<dd class="text-lg font-medium text-gray-900 dark:text-white">
-									{apps?.length || 0}
+									{metrics.totalApps}
 								</dd>
 							</dl>
 						</div>
@@ -150,7 +133,7 @@
 									Online Apps
 								</dt>
 								<dd class="text-lg font-medium text-gray-900 dark:text-white">
-									{onlineApps.length}
+									{metrics.onlineApps.length}
 								</dd>
 							</dl>
 						</div>
@@ -179,7 +162,7 @@
 						Manage Apps
 					</a>
 					<button
-						onclick={loadData}
+						onclick={() => logic.loadData()}
 						class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
 					>
 						<span class="mr-2">🔄</span>
@@ -201,7 +184,7 @@
 							>View all →</a
 						>
 					</div>
-					{#if recentServers.length === 0}
+					{#if metrics.recentServers.length === 0}
 						<div class="py-6 text-center">
 							<p class="text-gray-500 dark:text-gray-400">No servers configured yet</p>
 							<a
@@ -213,7 +196,7 @@
 						</div>
 					{:else}
 						<div class="space-y-3">
-							{#each recentServers as server (server.id)}
+							{#each metrics.recentServers as server (server.id)}
 								<div
 									class="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-700"
 								>
@@ -261,10 +244,10 @@
 							>View all →</a
 						>
 					</div>
-					{#if recentApps.length === 0}
+					{#if metrics.recentApps.length === 0}
 						<div class="py-6 text-center">
 							<p class="text-gray-500 dark:text-gray-400">No apps created yet</p>
-							{#if readyServers.length > 0}
+							{#if metrics.readyServers.length > 0}
 								<a
 									href="/apps"
 									class="mt-2 inline-flex items-center text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
@@ -277,7 +260,7 @@
 						</div>
 					{:else}
 						<div class="space-y-3">
-							{#each recentApps as app (app.id)}
+							{#each metrics.recentApps as app (app.id)}
 								<div
 									class="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-700"
 								>
@@ -287,7 +270,7 @@
 												>{app.name}</span
 											>
 											<span class="ml-2 text-xs">
-												{getStatusIcon(app.status)}
+												{logic.getStatusIcon(app.status)}
 											</span>
 										</div>
 										<div class="text-xs text-gray-500 dark:text-gray-400">
@@ -323,7 +306,7 @@
 		</div>
 
 		<!-- Status Summary -->
-		{#if (servers?.length || 0) > 0 || (apps?.length || 0) > 0}
+		{#if logic.hasData()}
 			<div class="mt-8 rounded-lg bg-white shadow dark:bg-gray-800 dark:shadow-gray-700">
 				<div class="px-4 py-5 sm:p-6">
 					<h3 class="mb-4 text-lg font-medium text-gray-900 dark:text-white">System Status</h3>
@@ -336,20 +319,19 @@
 								<div class="flex justify-between text-sm">
 									<span class="text-gray-700 dark:text-gray-300">Ready for deployment:</span>
 									<span class="font-medium text-green-600 dark:text-green-400"
-										>{readyServers.length}</span
+										>{metrics.serverStatusCounts.ready}</span
 									>
 								</div>
 								<div class="flex justify-between text-sm">
 									<span class="text-gray-700 dark:text-gray-300">Setup required:</span>
 									<span class="font-medium text-yellow-600 dark:text-yellow-400"
-										>{servers?.filter((s) => !s.setup_complete).length || 0}</span
+										>{metrics.serverStatusCounts.setupRequired}</span
 									>
 								</div>
 								<div class="flex justify-between text-sm">
 									<span class="text-gray-700 dark:text-gray-300">Security pending:</span>
 									<span class="font-medium text-orange-600 dark:text-orange-400"
-										>{servers?.filter((s) => s.setup_complete && !s.security_locked).length ||
-											0}</span
+										>{metrics.serverStatusCounts.securityPending}</span
 									>
 								</div>
 							</div>
@@ -362,20 +344,19 @@
 								<div class="flex justify-between text-sm">
 									<span class="text-gray-700 dark:text-gray-300">Online:</span>
 									<span class="font-medium text-green-600 dark:text-green-400"
-										>{onlineApps.length}</span
+										>{metrics.appStatusCounts.online}</span
 									>
 								</div>
 								<div class="flex justify-between text-sm">
 									<span class="text-gray-700 dark:text-gray-300">Offline:</span>
 									<span class="font-medium text-red-600 dark:text-red-400"
-										>{apps?.filter((a) => a.status === 'offline').length || 0}</span
+										>{metrics.appStatusCounts.offline}</span
 									>
 								</div>
 								<div class="flex justify-between text-sm">
 									<span class="text-gray-700 dark:text-gray-300">Unknown:</span>
 									<span class="font-medium text-gray-600 dark:text-gray-400"
-										>{apps?.filter((a) => a.status !== 'online' && a.status !== 'offline').length ||
-											0}</span
+										>{metrics.appStatusCounts.unknown}</span
 									>
 								</div>
 							</div>
@@ -388,21 +369,19 @@
 								<div class="flex justify-between text-sm">
 									<span class="text-gray-700 dark:text-gray-300">Apps deployed:</span>
 									<span class="font-medium text-gray-900 dark:text-gray-100"
-										>{apps?.filter((a) => a.current_version).length || 0}</span
+										>{metrics.deploymentInfo.appsDeployed}</span
 									>
 								</div>
 								<div class="flex justify-between text-sm">
 									<span class="text-gray-700 dark:text-gray-300">Pending deployment:</span>
 									<span class="font-medium text-gray-900 dark:text-gray-100"
-										>{apps?.filter((a) => !a.current_version).length || 0}</span
+										>{metrics.deploymentInfo.pendingDeployment}</span
 									>
 								</div>
 								<div class="flex justify-between text-sm">
 									<span class="text-gray-700 dark:text-gray-300">Avg. uptime:</span>
 									<span class="font-medium text-green-600 dark:text-green-400">
-										{onlineApps.length > 0 && (apps?.length || 0) > 0
-											? Math.round((onlineApps.length / (apps?.length || 1)) * 100)
-											: 0}%
+										{metrics.deploymentInfo.averageUptime}%
 									</span>
 								</div>
 							</div>

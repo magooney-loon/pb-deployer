@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Modal from '$lib/components/Modal.svelte';
 	import type { Server, App } from '$lib/api.js';
+	import { DeleteServerModalLogic } from './DeleteServerModal.js';
 
 	interface Props {
 		open?: boolean;
@@ -20,28 +21,29 @@
 		onconfirm
 	}: Props = $props();
 
-	let confirmationText = $state('');
+	// Create logic instance
+	const logic = new DeleteServerModalLogic({ open, server, apps, loading, onclose, onconfirm });
+	let state = $state(logic.getState());
 
-	// Get apps associated with this server
-	let associatedApps = $derived(
-		server ? apps?.filter((app) => app.server_id === server.id) || [] : []
-	);
+	// Update state when logic changes
+	logic.onStateUpdate((newState) => {
+		state = newState;
+	});
 
-	function handleClose() {
-		if (!loading) {
-			onclose?.();
-		}
-	}
-
-	function handleConfirm() {
-		if (server && !loading) {
-			onconfirm?.(server.id);
-		}
-	}
+	// Update props when they change
+	$effect(() => {
+		logic.updateProps({ open, server, apps, loading, onclose, onconfirm });
+	});
 </script>
 
-<Modal {open} title="Delete Server" size="md" closeable={!loading} onclose={handleClose}>
-	{#if server}
+<Modal
+	open={state.open}
+	title="Delete Server"
+	size="md"
+	closeable={!state.loading}
+	onclose={() => logic.handleClose()}
+>
+	{#if state.server !== null}
 		<div class="space-y-6">
 			<!-- Warning -->
 			<div class="rounded-lg bg-red-50 p-4 dark:bg-red-900/20">
@@ -75,33 +77,39 @@
 				<div class="space-y-2 text-sm">
 					<div class="flex justify-between">
 						<span class="text-gray-600 dark:text-gray-400">Name:</span>
-						<span class="font-medium text-gray-900 dark:text-white">{server.name}</span>
+						<span class="font-medium text-gray-900 dark:text-white">{state.server?.name}</span>
 					</div>
 					<div class="flex justify-between">
 						<span class="text-gray-600 dark:text-gray-400">Host:</span>
-						<span class="font-mono text-gray-900 dark:text-white">{server.host}:{server.port}</span>
+						<span class="font-mono text-gray-900 dark:text-white"
+							>{state.server?.host}:{state.server?.port}</span
+						>
 					</div>
 					<div class="flex justify-between">
 						<span class="text-gray-600 dark:text-gray-400">Setup Status:</span>
 						<span class="text-gray-900 dark:text-white">
-							{#if server.setup_complete && server.security_locked}
-								<span
-									class="rounded bg-green-100 px-2 py-1 text-xs text-green-800 dark:bg-green-900 dark:text-green-200"
-								>
-									Ready
-								</span>
-							{:else if server.setup_complete}
-								<span
-									class="rounded bg-yellow-100 px-2 py-1 text-xs text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-								>
-									Setup Complete
-								</span>
+							{#if state.server}
+								{#if state.server.setup_complete && state.server.security_locked}
+									<span
+										class="rounded bg-green-100 px-2 py-1 text-xs text-green-800 dark:bg-green-900 dark:text-green-200"
+									>
+										Ready
+									</span>
+								{:else if state.server.setup_complete}
+									<span
+										class="rounded bg-yellow-100 px-2 py-1 text-xs text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+									>
+										Setup Complete
+									</span>
+								{:else}
+									<span
+										class="rounded bg-red-100 px-2 py-1 text-xs text-red-800 dark:bg-red-900 dark:text-red-200"
+									>
+										Not Setup
+									</span>
+								{/if}
 							{:else}
-								<span
-									class="rounded bg-red-100 px-2 py-1 text-xs text-red-800 dark:bg-red-900 dark:text-red-200"
-								>
-									Not Setup
-								</span>
+								<span class="bg-gray-100 text-gray-800">Unknown</span>
 							{/if}
 						</span>
 					</div>
@@ -109,7 +117,7 @@
 			</div>
 
 			<!-- Associated Apps Warning -->
-			{#if associatedApps.length > 0}
+			{#if state.server && state.apps.filter((app) => app.server_id === state.server!.id).length > 0}
 				<div class="rounded-lg bg-orange-50 p-4 dark:bg-orange-900/20">
 					<div class="flex">
 						<div class="flex-shrink-0">
@@ -127,14 +135,16 @@
 							</h3>
 							<div class="mt-2">
 								<p class="text-sm text-orange-700 dark:text-orange-300">
-									This server has {associatedApps.length} app{associatedApps.length !== 1
+									This server has {state.apps.filter((app) => app.server_id === state.server!.id)
+										.length} app{state.apps.filter((app) => app.server_id === state.server!.id)
+										.length !== 1
 										? 's'
 										: ''} deployed on it:
 								</p>
 								<ul
 									class="mt-2 list-inside list-disc space-y-1 text-sm text-orange-700 dark:text-orange-300"
 								>
-									{#each associatedApps as app (app.id)}
+									{#each state.apps.filter((app) => app.server_id === state.server!.id) as app (app.id)}
 										<li>
 											<span class="font-medium">{app.name}</span>
 											{#if app.domain}
@@ -155,15 +165,17 @@
 			<!-- Confirmation Input -->
 			<div class="rounded-lg bg-gray-50 p-4 dark:bg-gray-700">
 				<p class="mb-2 text-sm text-gray-700 dark:text-gray-300">
-					To confirm deletion, type the server name: <strong class="font-mono">{server.name}</strong
+					To confirm deletion, type the server name: <strong class="font-mono"
+						>{state.server?.name}</strong
 					>
 				</p>
 				<input
 					type="text"
 					placeholder="Enter server name to confirm"
 					class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-					bind:value={confirmationText}
-					disabled={loading}
+					value={state.confirmationText}
+					oninput={(e) => logic.updateConfirmationText(e.currentTarget.value)}
+					disabled={state.loading}
 				/>
 			</div>
 		</div>
@@ -176,18 +188,18 @@
 	{#snippet footer()}
 		<div class="flex justify-end space-x-3">
 			<button
-				onclick={handleClose}
-				disabled={loading}
+				onclick={() => logic.handleClose()}
+				disabled={state.loading}
 				class="rounded-lg bg-gray-600 px-4 py-2 font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50 dark:bg-gray-500 dark:hover:bg-gray-600"
 			>
 				Cancel
 			</button>
 			<button
-				onclick={handleConfirm}
-				disabled={loading || !server || confirmationText !== server.name}
+				onclick={() => logic.handleConfirm()}
+				disabled={state.loading || !state.server || state.confirmationText !== state.server!.name}
 				class="rounded-lg bg-red-600 px-4 py-2 font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
 			>
-				{#if loading}
+				{#if state.loading}
 					<div class="flex items-center">
 						<div class="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
 						Deleting...

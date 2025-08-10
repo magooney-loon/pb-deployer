@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { Snippet } from 'svelte';
+	import { ModalLogic, type ModalState } from './logic/Modal.js';
 
 	interface Props {
 		open?: boolean;
@@ -22,77 +23,60 @@
 		footer
 	}: Props = $props();
 
-	// Handle escape key
-	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Escape' && closeable && open) {
-			close();
-		}
-	}
+	// Create logic instance
+	const logic = new ModalLogic({ open, title, size, closeable, onclose });
+	let state = $state<ModalState>(logic.getState());
 
-	function close() {
-		onclose?.();
-	}
+	// Update state when logic changes
+	logic.onStateUpdate((newState) => {
+		state = newState;
+	});
 
-	// Manage body scroll
+	// Update props when they change
 	$effect(() => {
-		if (open) {
-			document.body.style.overflow = 'hidden';
-		} else {
-			document.body.style.overflow = '';
-		}
-
-		return () => {
-			document.body.style.overflow = '';
-		};
+		logic.updateProps({ open, title, size, closeable, onclose });
 	});
 
 	onMount(() => {
 		return () => {
-			// Cleanup: restore scroll when component unmounts
-			document.body.style.overflow = '';
+			logic.cleanup();
 		};
 	});
-
-	// Size classes
-	const sizeClasses = {
-		sm: 'max-w-md',
-		md: 'max-w-lg',
-		lg: 'max-w-2xl',
-		xl: 'max-w-4xl'
-	};
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window onkeydown={logic.getKeydownHandler()} />
 
-{#if open}
+{#if state.open}
 	<!-- Backdrop -->
-	<div class="bg-opacity-50 fixed inset-0 z-50 bg-black backdrop-blur-sm" role="presentation">
+	<div
+		class="bg-opacity-50 fixed inset-0 z-50 bg-black backdrop-blur-sm"
+		role="presentation"
+		onclick={(e) => logic.handleBackdropClick(e)}
+	>
 		<!-- Modal Container -->
 		<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
 			<div
-				class="relative w-full {sizeClasses[
-					size
-				]} modal-appear max-h-[90vh] overflow-hidden rounded-lg bg-white shadow-xl dark:bg-gray-800"
+				class="relative w-full {logic.getSizeClass()} modal-appear max-h-[90vh] overflow-hidden rounded-lg bg-white shadow-xl dark:bg-gray-800"
 				role="dialog"
 				aria-modal="true"
 				tabindex="-1"
 			>
 				<!-- Header -->
-				{#if title || closeable}
+				{#if state.title || state.closeable}
 					<div
 						class="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700"
 					>
-						{#if title}
+						{#if state.title}
 							<h2 class="text-xl font-semibold text-gray-900 dark:text-white">
-								{title}
+								{state.title}
 							</h2>
 						{:else}
 							<div></div>
 						{/if}
 
-						{#if closeable}
+						{#if state.closeable}
 							<button
-								onclick={close}
+								onclick={() => logic.close()}
 								class="p-1 text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
 								aria-label="Close modal"
 							>

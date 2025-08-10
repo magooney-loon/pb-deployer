@@ -1,418 +1,41 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { api, type Server, type App, type SetupStep, formatTimestamp } from '../api.js';
+	import { formatTimestamp } from '../api.js';
+	import { ServerListLogic, type ServerListState } from './logic/ServerList.js';
 	import ConnectionTestModal from '$lib/components/modals/ConnectionTestModal.svelte';
 	import DeleteServerModal from '$lib/components/modals/DeleteServerModal.svelte';
 	import ProgressModal from '$lib/components/modals/ProgressModal.svelte';
 
-	let servers = $state<Server[]>([]);
-	let apps = $state<App[]>([]);
-	let loading = $state(true);
-	let error = $state<string | null>(null);
-	let showCreateForm = $state(false);
-	let testingConnection = $state<Set<string>>(new Set());
-	let runningSetup = $state<Set<string>>(new Set());
-	let applyingSecurity = $state<Set<string>>(new Set());
+	// Create logic instance
+	const logic = new ServerListLogic();
+	let state = $state<ServerListState>(logic.getState());
 
-	// Progress tracking state (using objects for Svelte reactivity)
-	let setupProgress = $state<Record<string, SetupStep[]>>({});
-	let securityProgress = $state<Record<string, SetupStep[]>>({});
-	let setupUnsubscribers = $state<Record<string, () => void>>({});
-	let securityUnsubscribers = $state<Record<string, () => void>>({});
-
-	// Modal state
-	let showConnectionModal = $state(false);
-	let connectionTestLoading = $state(false);
-	interface ConnectionTestResult {
-		success: boolean;
-		connection_info?: {
-			server_host: string;
-			username: string;
-		};
-		app_user_connection?: string;
-		error?: string;
-	}
-
-	let connectionTestResult = $state<ConnectionTestResult | null>(null);
-	let testedServerName = $state('');
-
-	// Delete modal state
-	let showDeleteModal = $state(false);
-	let serverToDelete = $state<Server | null>(null);
-	let deleting = $state(false);
-
-	// Progress modal state
-	let showSetupProgressModal = $state(false);
-	let showSecurityProgressModal = $state(false);
-	let currentProgressServerId = $state<string | null>(null);
-	let currentProgressServerName = $state('');
-
-	// Form data for creating new server
-	let newServer = $state({
-		name: '',
-		host: '',
-		port: 22,
-		root_username: 'root',
-		app_username: 'pocketbase',
-		use_ssh_agent: true,
-		manual_key_path: ''
+	// Update state when logic changes
+	logic.onStateUpdate((newState) => {
+		state = newState;
 	});
 
 	onMount(async () => {
-		await loadServers();
+		await logic.loadServers();
 	});
 
 	onDestroy(async () => {
-		// Clean up all subscriptions
-		for (const unsubscribe of Object.values(setupUnsubscribers)) {
-			unsubscribe();
-		}
-		for (const unsubscribe of Object.values(securityUnsubscribers)) {
-			unsubscribe();
-		}
-		await api.unsubscribeFromAll();
+		await logic.cleanup();
 	});
-
-	async function loadServers() {
-		try {
-			console.log('ServerList: Starting to load servers...');
-			loading = true;
-			error = null;
-			const [serversResponse, appsResponse] = await Promise.all([api.getServers(), api.getApps()]);
-			console.log('ServerList: API response received:', serversResponse);
-			servers = serversResponse.servers || [];
-			apps = appsResponse.apps || [];
-			console.log('ServerList: Servers set to:', servers);
-			console.log('ServerList: Servers length:', servers.length);
-		} catch (err) {
-			console.error('ServerList: Error loading servers:', err);
-			error = err instanceof Error ? err.message : 'Failed to load servers';
-			servers = [];
-			apps = [];
-		} finally {
-			loading = false;
-			console.log('ServerList: Loading finished. Final servers count:', servers.length);
-		}
-	}
-
-	async function createServer() {
-		try {
-			const server = await api.createServer(newServer);
-			servers = [...servers, server];
-			showCreateForm = false;
-			resetForm();
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to create server';
-		}
-	}
-
-	function deleteServer(id: string) {
-		const server = servers.find((s) => s.id === id);
-		if (server) {
-			serverToDelete = server;
-			showDeleteModal = true;
-		}
-	}
-
-	async function confirmDeleteServer(id: string) {
-		try {
-			deleting = true;
-			await api.deleteServer(id);
-			servers = servers.filter((s) => s.id !== id);
-			showDeleteModal = false;
-			serverToDelete = null;
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to delete server';
-		} finally {
-			deleting = false;
-		}
-	}
-
-	async function testConnection(id: string) {
-		const server = servers.find((s) => s.id === id);
-		if (!server) return;
-
-		// Open modal immediately with loading state
-		connectionTestResult = null;
-		testedServerName = server.name;
-		connectionTestLoading = true;
-		showConnectionModal = true;
-
-		try {
-			testingConnection.add(id);
-			const result = await api.testServerConnection(id);
-			connectionTestResult = result;
-		} catch (err) {
-			connectionTestResult = {
-				success: false,
-				error: err instanceof Error ? err.message : 'Unknown error'
-			};
-		} finally {
-			testingConnection.delete(id);
-			connectionTestLoading = false;
-		}
-	}
-
-	async function runSetup(id: string) {
-		try {
-			const server = servers.find((s) => s.id === id);
-			if (!server) return;
-
-			runningSetup.add(id);
-			setupProgress[id] = [];
-			setupProgress = { ...setupProgress };
-
-			// Show progress modal
-			currentProgressServerId = id;
-			currentProgressServerName = server.name;
-			showSetupProgressModal = true;
-			console.log('Setup progress modal opened for server:', server.name);
-
-			// Subscribe to setup progress
-			const unsubscribe = await api.subscribeToSetupProgress(id, (step: SetupStep) => {
-				console.log('Setup progress received for server', id, ':', step);
-				const currentProgress = setupProgress[id] || [];
-				const updatedProgress = [...currentProgress, step];
-				setupProgress[id] = updatedProgress;
-				setupProgress = { ...setupProgress };
-				console.log('Setup progress updated:', updatedProgress.length, 'steps');
-
-				// If setup is complete, clean up after delay
-				if (step.step === 'complete') {
-					setTimeout(() => {
-						runningSetup.delete(id);
-						if (setupUnsubscribers[id]) {
-							setupUnsubscribers[id]();
-							delete setupUnsubscribers[id];
-							setupUnsubscribers = { ...setupUnsubscribers };
-						}
-						loadServers(); // Refresh the list
-					}, 3000); // Keep visible for 3 seconds after completion
-				}
-			});
-
-			setupUnsubscribers[id] = unsubscribe;
-			setupUnsubscribers = { ...setupUnsubscribers };
-
-			// Start the setup process
-			await api.runServerSetup(id);
-		} catch (err) {
-			alert(`Setup failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-			runningSetup.delete(id);
-			delete setupProgress[id];
-			setupProgress = { ...setupProgress };
-			showSetupProgressModal = false;
-		}
-	}
-
-	async function applySecurity(id: string) {
-		if (!confirm('This will apply security lockdown to the server. Continue?')) return;
-
-		try {
-			const server = servers.find((s) => s.id === id);
-			if (!server) return;
-
-			applyingSecurity.add(id);
-			securityProgress[id] = [];
-			securityProgress = { ...securityProgress };
-
-			// Show progress modal
-			currentProgressServerId = id;
-			currentProgressServerName = server.name;
-			showSecurityProgressModal = true;
-			console.log('Security progress modal opened for server:', server.name);
-
-			// Subscribe to security progress
-			const unsubscribe = await api.subscribeToSecurityProgress(id, (step: SetupStep) => {
-				console.log('Security progress received for server', id, ':', step);
-				const currentProgress = securityProgress[id] || [];
-				const updatedProgress = [...currentProgress, step];
-				securityProgress[id] = updatedProgress;
-				securityProgress = { ...securityProgress };
-				console.log('Security progress updated:', updatedProgress.length, 'steps');
-
-				// If security is complete, clean up after delay
-				if (step.step === 'complete') {
-					setTimeout(() => {
-						applyingSecurity.delete(id);
-						if (securityUnsubscribers[id]) {
-							securityUnsubscribers[id]();
-							delete securityUnsubscribers[id];
-							securityUnsubscribers = { ...securityUnsubscribers };
-						}
-						loadServers(); // Refresh the list
-					}, 3000); // Keep visible for 3 seconds after completion
-				}
-			});
-
-			securityUnsubscribers[id] = unsubscribe;
-			securityUnsubscribers = { ...securityUnsubscribers };
-
-			// Start the security lockdown process
-			await api.applySecurityLockdown(id);
-		} catch (err) {
-			alert(`Security lockdown failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-			applyingSecurity.delete(id);
-			delete securityProgress[id];
-			securityProgress = { ...securityProgress };
-			showSecurityProgressModal = false;
-		}
-	}
-
-	function resetForm() {
-		newServer = {
-			name: '',
-			host: '',
-			port: 22,
-			root_username: 'root',
-			app_username: 'pocketbase',
-			use_ssh_agent: true,
-			manual_key_path: ''
-		};
-	}
-
-	function getServerStatusBadge(server: Server) {
-		// Check if setup is in progress
-		if (runningSetup.has(server.id)) {
-			const currentProgress = setupProgress[server.id] || [];
-			if (currentProgress.length > 0) {
-				const latestStep = currentProgress[currentProgress.length - 1];
-				if (latestStep.status === 'failed') {
-					return { text: 'Setup Failed', color: 'bg-red-100 text-red-800' };
-				}
-			}
-			return { text: 'Setting Up...', color: 'bg-blue-100 text-blue-800' };
-		}
-
-		// Check if security is in progress
-		if (applyingSecurity.has(server.id)) {
-			const currentProgress = securityProgress[server.id] || [];
-			if (currentProgress.length > 0) {
-				const latestStep = currentProgress[currentProgress.length - 1];
-				if (latestStep.status === 'failed') {
-					return { text: 'Security Failed', color: 'bg-red-100 text-red-800' };
-				}
-			}
-			return { text: 'Securing...', color: 'bg-purple-100 text-purple-800' };
-		}
-
-		if (!server.setup_complete) {
-			return { text: 'Not Setup', color: 'bg-red-100 text-red-800' };
-		} else if (!server.security_locked) {
-			return { text: 'Setup Complete', color: 'bg-yellow-100 text-yellow-800' };
-		} else {
-			return { text: 'Ready', color: 'bg-green-100 text-green-800' };
-		}
-	}
-
-	function getProgressStepIcon(status: string): string {
-		switch (status) {
-			case 'running':
-				return '🔄';
-			case 'success':
-				return '✅';
-			case 'failed':
-				return '❌';
-			default:
-				return '⏳';
-		}
-	}
-
-	function isFailed(): boolean {
-		if (!currentProgressServerId) return false;
-
-		// Check setup progress
-		if (runningSetup.has(currentProgressServerId)) {
-			const currentProgress = setupProgress[currentProgressServerId] || [];
-			if (currentProgress.length > 0) {
-				const latestStep = currentProgress[currentProgress.length - 1];
-				return latestStep.status === 'failed';
-			}
-		}
-
-		// Check security progress
-		if (applyingSecurity.has(currentProgressServerId)) {
-			const currentProgress = securityProgress[currentProgressServerId] || [];
-			if (currentProgress.length > 0) {
-				const latestStep = currentProgress[currentProgress.length - 1];
-				return latestStep.status === 'failed';
-			}
-		}
-
-		return false;
-	}
-
-	function closeSetupProgressModal() {
-		// Check if operation is still running (not failed or complete)
-		if (currentProgressServerId && runningSetup.has(currentProgressServerId)) {
-			const currentProgress = setupProgress[currentProgressServerId] || [];
-			if (currentProgress.length > 0) {
-				const latestStep = currentProgress[currentProgress.length - 1];
-				// Only prevent closing if operation is still running (not failed or complete)
-				if (latestStep.status === 'running' && latestStep.step !== 'complete') {
-					return; // Don't close
-				}
-			} else if (!isFailed()) {
-				return; // Don't close if no progress yet and not failed
-			}
-		}
-
-		// Clean up state when closing
-		if (currentProgressServerId) {
-			runningSetup.delete(currentProgressServerId);
-			if (setupUnsubscribers[currentProgressServerId]) {
-				setupUnsubscribers[currentProgressServerId]();
-				delete setupUnsubscribers[currentProgressServerId];
-				setupUnsubscribers = { ...setupUnsubscribers };
-			}
-		}
-
-		showSetupProgressModal = false;
-		currentProgressServerId = null;
-	}
-
-	function closeSecurityProgressModal() {
-		// Check if operation is still running (not failed or complete)
-		if (currentProgressServerId && applyingSecurity.has(currentProgressServerId)) {
-			const currentProgress = securityProgress[currentProgressServerId] || [];
-			if (currentProgress.length > 0) {
-				const latestStep = currentProgress[currentProgress.length - 1];
-				// Only prevent closing if operation is still running (not failed or complete)
-				if (latestStep.status === 'running' && latestStep.step !== 'complete') {
-					return; // Don't close
-				}
-			} else if (!isFailed()) {
-				return; // Don't close if no progress yet and not failed
-			}
-		}
-
-		// Clean up state when closing
-		if (currentProgressServerId) {
-			applyingSecurity.delete(currentProgressServerId);
-			if (securityUnsubscribers[currentProgressServerId]) {
-				securityUnsubscribers[currentProgressServerId]();
-				delete securityUnsubscribers[currentProgressServerId];
-				securityUnsubscribers = { ...securityUnsubscribers };
-			}
-		}
-
-		showSecurityProgressModal = false;
-		currentProgressServerId = null;
-	}
 </script>
 
 <div class="p-6">
 	<div class="mb-6 flex items-center justify-between">
 		<h1 class="text-3xl font-bold text-gray-900 dark:text-white">Servers</h1>
 		<button
-			onclick={() => (showCreateForm = !showCreateForm)}
+			onclick={() => logic.toggleCreateForm()}
 			class="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700"
 		>
-			{showCreateForm ? 'Cancel' : 'Add Server'}
+			{state.showCreateForm ? 'Cancel' : 'Add Server'}
 		</button>
 	</div>
 
-	{#if error}
+	{#if state.error}
 		<div
 			class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900"
 		>
@@ -423,11 +46,11 @@
 				<div class="ml-3">
 					<h3 class="text-sm font-medium text-red-800 dark:text-red-200">Error</h3>
 					<div class="mt-2 text-sm text-red-700 dark:text-red-300">
-						<p>{error}</p>
+						<p>{state.error}</p>
 					</div>
 					<div class="mt-4">
 						<button
-							onclick={() => (error = null)}
+							onclick={() => logic.dismissError()}
 							class="rounded bg-red-100 px-3 py-1 text-sm text-red-800 hover:bg-red-200 dark:bg-red-800 dark:text-red-200 dark:hover:bg-red-700"
 						>
 							Dismiss
@@ -438,13 +61,13 @@
 		</div>
 	{/if}
 
-	{#if showCreateForm}
+	{#if state.showCreateForm}
 		<div class="mb-6 rounded-lg bg-white p-6 shadow dark:bg-gray-800 dark:shadow-gray-700">
 			<h2 class="mb-4 text-xl font-semibold dark:text-white">Add New Server</h2>
 			<form
 				onsubmit={(e) => {
 					e.preventDefault();
-					createServer();
+					logic.createServer();
 				}}
 				class="space-y-4"
 			>
@@ -455,7 +78,7 @@
 						>
 						<input
 							id="name"
-							bind:value={newServer.name}
+							bind:value={state.newServer.name}
 							type="text"
 							required
 							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
@@ -468,7 +91,7 @@
 						>
 						<input
 							id="host"
-							bind:value={newServer.host}
+							bind:value={state.newServer.host}
 							type="text"
 							required
 							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
@@ -481,7 +104,7 @@
 						>
 						<input
 							id="port"
-							bind:value={newServer.port}
+							bind:value={state.newServer.port}
 							type="number"
 							min="1"
 							max="65535"
@@ -496,7 +119,7 @@
 						>
 						<input
 							id="root_username"
-							bind:value={newServer.root_username}
+							bind:value={state.newServer.root_username}
 							type="text"
 							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 						/>
@@ -508,7 +131,7 @@
 						>
 						<input
 							id="app_username"
-							bind:value={newServer.app_username}
+							bind:value={state.newServer.app_username}
 							type="text"
 							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 						/>
@@ -516,7 +139,7 @@
 					<div class="flex items-center">
 						<input
 							id="use_ssh_agent"
-							bind:checked={newServer.use_ssh_agent}
+							bind:checked={state.newServer.use_ssh_agent}
 							type="checkbox"
 							class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
 						/>
@@ -525,7 +148,7 @@
 						</label>
 					</div>
 				</div>
-				{#if !newServer.use_ssh_agent}
+				{#if !state.newServer.use_ssh_agent}
 					<div>
 						<label
 							for="manual_key_path"
@@ -534,7 +157,7 @@
 						>
 						<input
 							id="manual_key_path"
-							bind:value={newServer.manual_key_path}
+							bind:value={state.newServer.manual_key_path}
 							type="text"
 							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 							placeholder="/home/user/.ssh/id_rsa"
@@ -551,8 +174,8 @@
 					<button
 						type="button"
 						onclick={() => {
-							showCreateForm = false;
-							resetForm();
+							logic.toggleCreateForm();
+							logic.resetForm();
 						}}
 						class="rounded-lg bg-gray-600 px-4 py-2 font-medium text-white hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600"
 					>
@@ -563,16 +186,16 @@
 		</div>
 	{/if}
 
-	{#if loading}
+	{#if state.loading}
 		<div class="flex items-center justify-center py-12">
 			<div class="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
 			<span class="ml-2 text-gray-600 dark:text-gray-400">Loading servers...</span>
 		</div>
-	{:else if servers.length === 0}
+	{:else if state.servers.length === 0}
 		<div class="py-12 text-center">
 			<p class="mb-4 text-lg text-gray-500 dark:text-gray-400">No servers configured yet</p>
 			<button
-				onclick={() => (showCreateForm = true)}
+				onclick={() => logic.toggleCreateForm()}
 				class="rounded-lg bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
 			>
 				Add Your First Server
@@ -609,8 +232,8 @@
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
-						{#each servers as server (server.id)}
-							{@const statusBadge = getServerStatusBadge(server)}
+						{#each state.servers as server (server.id)}
+							{@const statusBadge = logic.getServerStatusBadge(server)}
 							<tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
 								<td class="px-6 py-4 whitespace-nowrap">
 									<div class="flex items-center">
@@ -633,12 +256,12 @@
 										</span>
 
 										<!-- Setup Progress -->
-										{#if server.id in setupProgress}
-											{@const steps = setupProgress[server.id] || []}
+										{#if server.id in state.setupProgress}
+											{@const steps = state.setupProgress[server.id] || []}
 											<div class="space-y-1 text-xs">
 												{#each steps.slice(-3) as step, index (step.timestamp + index)}
 													<div class="flex items-center space-x-1 text-blue-600 dark:text-blue-400">
-														<span>{getProgressStepIcon(step.status)}</span>
+														<span>{logic.getProgressStepIcon(step.status)}</span>
 														<span class="max-w-32 truncate">{step.message}</span>
 													</div>
 												{/each}
@@ -646,14 +269,14 @@
 										{/if}
 
 										<!-- Security Progress -->
-										{#if server.id in securityProgress}
-											{@const steps = securityProgress[server.id] || []}
+										{#if server.id in state.securityProgress}
+											{@const steps = state.securityProgress[server.id] || []}
 											<div class="space-y-1 text-xs">
 												{#each steps.slice(-3) as step, index (step.timestamp + index)}
 													<div
 														class="flex items-center space-x-1 text-purple-600 dark:text-purple-400"
 													>
-														<span>{getProgressStepIcon(step.status)}</span>
+														<span>{logic.getProgressStepIcon(step.status)}</span>
 														<span class="max-w-32 truncate">{step.message}</span>
 													</div>
 												{/each}
@@ -675,34 +298,35 @@
 								</td>
 								<td class="space-x-2 px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
 									<button
-										onclick={() => testConnection(server.id)}
-										disabled={testingConnection.has(server.id)}
+										onclick={() => logic.testConnection(server.id)}
+										disabled={state.testingConnection.has(server.id)}
 										class="text-blue-600 hover:text-blue-900 disabled:opacity-50 dark:text-blue-400 dark:hover:text-blue-300"
 									>
-										{testingConnection.has(server.id) ? 'Testing...' : 'Test Connection'}
+										{state.testingConnection.has(server.id) ? 'Testing...' : 'Test Connection'}
 									</button>
 
 									{#if !server.setup_complete}
 										<button
-											onclick={() => runSetup(server.id)}
-											disabled={runningSetup.has(server.id)}
+											onclick={() => logic.runSetup(server.id)}
+											disabled={state.runningSetup.has(server.id)}
 											class="text-green-600 hover:text-green-900 disabled:opacity-50 dark:text-green-400 dark:hover:text-green-300"
 										>
-											{runningSetup.has(server.id) ? 'Setting Up...' : 'Run Setup'}
+											{state.runningSetup.has(server.id) ? 'Setting Up...' : 'Run Setup'}
 										</button>
 									{:else if !server.security_locked}
 										<button
-											onclick={() => applySecurity(server.id)}
-											disabled={applyingSecurity.has(server.id)}
+											onclick={() => logic.applySecurity(server.id)}
+											disabled={state.applyingSecurity.has(server.id)}
 											class="text-purple-600 hover:text-purple-900 disabled:opacity-50 dark:text-purple-400 dark:hover:text-purple-300"
 										>
-											{applyingSecurity.has(server.id) ? 'Securing...' : 'Apply Security'}
+											{state.applyingSecurity.has(server.id) ? 'Securing...' : 'Apply Security'}
 										</button>
 									{/if}
 
 									<button
-										onclick={() => deleteServer(server.id)}
-										disabled={runningSetup.has(server.id) || applyingSecurity.has(server.id)}
+										onclick={() => logic.deleteServer(server.id)}
+										disabled={state.runningSetup.has(server.id) ||
+											state.applyingSecurity.has(server.id)}
 										class="text-red-600 hover:text-red-900 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
 									>
 										Delete
@@ -717,10 +341,10 @@
 
 		<div class="mt-4 flex items-center justify-between">
 			<p class="text-sm text-gray-700 dark:text-gray-300">
-				Showing {servers.length} server{servers.length !== 1 ? 's' : ''}
+				Showing {state.servers.length} server{state.servers.length !== 1 ? 's' : ''}
 			</p>
 			<button
-				onclick={loadServers}
+				onclick={() => logic.loadServers()}
 				class="rounded bg-gray-100 px-3 py-1 text-sm text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
 			>
 				🔄 Refresh
@@ -731,47 +355,48 @@
 
 <!-- Connection Test Modal -->
 <ConnectionTestModal
-	open={showConnectionModal}
-	result={connectionTestResult}
-	serverName={testedServerName}
-	loading={connectionTestLoading}
-	onclose={() => (showConnectionModal = false)}
+	open={state.showConnectionModal}
+	result={state.connectionTestResult}
+	serverName={state.testedServerName}
+	loading={state.connectionTestLoading}
+	onclose={() => logic.closeConnectionModal()}
 />
 
 <!-- Delete Server Modal -->
 <DeleteServerModal
-	open={showDeleteModal}
-	server={serverToDelete}
-	{apps}
-	loading={deleting}
-	onclose={() => {
-		if (!deleting) {
-			showDeleteModal = false;
-			serverToDelete = null;
-		}
-	}}
-	onconfirm={confirmDeleteServer}
+	open={state.showDeleteModal}
+	server={state.serverToDelete}
+	apps={state.apps}
+	loading={state.deleting}
+	onclose={() => logic.closeDeleteModal()}
+	onconfirm={(id) => logic.confirmDeleteServer(id)}
 />
 
 <!-- Setup Progress Modal -->
 <ProgressModal
-	bind:show={showSetupProgressModal}
-	title="Server Setup Progress - {currentProgressServerName}"
-	progress={currentProgressServerId ? setupProgress[currentProgressServerId] || [] : []}
-	onClose={closeSetupProgressModal}
-	loading={runningSetup.has(currentProgressServerId || '')}
-	operationInProgress={currentProgressServerId ? runningSetup.has(currentProgressServerId) : false}
+	bind:show={state.showSetupProgressModal}
+	title="Server Setup Progress - {state.currentProgressServerName}"
+	progress={state.currentProgressServerId
+		? state.setupProgress[state.currentProgressServerId] || []
+		: []}
+	onClose={() => logic.closeSetupProgressModal()}
+	loading={state.runningSetup.has(state.currentProgressServerId || '')}
+	operationInProgress={state.currentProgressServerId
+		? state.runningSetup.has(state.currentProgressServerId)
+		: false}
 />
 
 <!-- Security Progress Modal -->
 <ProgressModal
-	bind:show={showSecurityProgressModal}
-	title="Security Lockdown Progress - {currentProgressServerName}"
-	progress={currentProgressServerId ? securityProgress[currentProgressServerId] || [] : []}
-	onClose={closeSecurityProgressModal}
-	loading={applyingSecurity.has(currentProgressServerId || '')}
-	operationInProgress={currentProgressServerId
-		? applyingSecurity.has(currentProgressServerId)
+	bind:show={state.showSecurityProgressModal}
+	title="Security Lockdown Progress - {state.currentProgressServerName}"
+	progress={state.currentProgressServerId
+		? state.securityProgress[state.currentProgressServerId] || []
+		: []}
+	onClose={() => logic.closeSecurityProgressModal()}
+	loading={state.applyingSecurity.has(state.currentProgressServerId || '')}
+	operationInProgress={state.currentProgressServerId
+		? state.applyingSecurity.has(state.currentProgressServerId)
 		: false}
 />
 

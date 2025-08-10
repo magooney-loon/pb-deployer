@@ -1,15 +1,6 @@
 <script lang="ts">
 	import Modal from '$lib/components/Modal.svelte';
-
-	interface ConnectionTestResult {
-		success: boolean;
-		connection_info?: {
-			server_host: string;
-			username: string;
-		};
-		app_user_connection?: string;
-		error?: string;
-	}
+	import { ConnectionTestModalLogic, type ConnectionTestResult } from './ConnectionTestModal.js';
 
 	interface Props {
 		open?: boolean;
@@ -21,20 +12,29 @@
 
 	let { open = false, result = null, serverName = '', loading = false, onclose }: Props = $props();
 
-	// Event handlers
-	function handleClose() {
-		onclose?.();
-	}
+	// Create logic instance
+	const logic = new ConnectionTestModalLogic({ open, result, serverName, loading, onclose });
+	let state = $state(logic.getState());
+
+	// Update state when logic changes
+	logic.onStateUpdate((newState) => {
+		state = newState;
+	});
+
+	// Update props when they change
+	$effect(() => {
+		logic.updateProps({ open, result, serverName, loading, onclose });
+	});
 </script>
 
 <Modal
-	{open}
-	title={loading ? 'Testing Connection...' : 'Connection Test Results'}
+	open={state.open}
+	title={state.loading ? 'Testing Connection...' : 'Connection Test Results'}
 	size="md"
-	{onclose}
+	onclose={() => logic.handleClose()}
 >
-	{#if result}
-		{#if result.success}
+	{#if state.result !== null}
+		{#if state.result?.success === true}
 			<!-- Success State -->
 			<div class="text-center">
 				<div
@@ -53,7 +53,7 @@
 				<div class="mt-3">
 					<h3 class="text-lg font-medium text-gray-900 dark:text-white">Connection Successful!</h3>
 					<div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-						Successfully connected to {serverName || 'the server'}
+						Successfully connected to {state.serverName || 'the server'}
 					</div>
 				</div>
 			</div>
@@ -66,20 +66,20 @@
 						<div class="flex justify-between">
 							<span class="text-gray-600 dark:text-gray-400">Server Host:</span>
 							<span class="font-mono text-gray-900 dark:text-white"
-								>{result.connection_info?.server_host}</span
+								>{state.result?.connection_info?.server_host}</span
 							>
 						</div>
 						<div class="flex justify-between">
 							<span class="text-gray-600 dark:text-gray-400">Root User:</span>
 							<span class="font-mono text-gray-900 dark:text-white"
-								>{result.connection_info?.username}</span
+								>{state.result?.connection_info?.username}</span
 							>
 						</div>
-						{#if result.app_user_connection}
+						{#if state.result?.app_user_connection}
 							<div class="flex justify-between">
 								<span class="text-gray-600 dark:text-gray-400">App User:</span>
 								<span class="font-mono text-gray-900 dark:text-white"
-									>{result.app_user_connection}</span
+									>{state.result?.app_user_connection}</span
 								>
 							</div>
 						{/if}
@@ -109,7 +109,7 @@
 				<div class="mt-3">
 					<h3 class="text-lg font-medium text-gray-900 dark:text-white">Connection Failed</h3>
 					<div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-						Could not connect to {serverName || 'the server'}
+						Could not connect to {state.serverName || 'the server'}
 					</div>
 				</div>
 			</div>
@@ -121,7 +121,7 @@
 					<p
 						class="rounded bg-red-100 p-2 font-mono text-sm text-red-700 dark:bg-red-900/40 dark:text-red-300"
 					>
-						{result.error || 'Unknown connection error'}
+						{state.result?.error || 'Unknown connection error'}
 					</p>
 				</div>
 
@@ -135,13 +135,13 @@
 				</div>
 			</div>
 		{/if}
-	{:else if loading}
+	{:else if state.loading}
 		<!-- Loading State -->
 		<div class="py-8 text-center">
 			<div class="flex items-center justify-center">
 				<div class="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
 				<span class="ml-3 text-gray-600 dark:text-gray-400"
-					>Testing connection to {serverName || 'server'}...</span
+					>Testing connection to {state.serverName || 'the server'}...</span
 				>
 			</div>
 		</div>
@@ -155,7 +155,7 @@
 	{#snippet footer()}
 		<div class="flex justify-end space-x-3">
 			<button
-				onclick={handleClose}
+				onclick={() => logic.handleClose()}
 				class="rounded-lg bg-gray-600 px-4 py-2 font-medium text-white transition-colors hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600"
 			>
 				Close
