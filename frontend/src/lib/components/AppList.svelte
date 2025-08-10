@@ -37,7 +37,12 @@
 				Manage your deployed PocketBase applications
 			</p>
 		</div>
-		<Button onclick={() => logic.toggleCreateForm()} disabled={availableServers.length === 0}>
+		<Button
+			variant="outline"
+			icon={state.showCreateForm ? 'x' : '+'}
+			onclick={() => logic.toggleCreateForm()}
+			disabled={availableServers.length === 0}
+		>
 			{state.showCreateForm ? 'Cancel' : 'Add App'}
 		</Button>
 	</div>
@@ -217,7 +222,7 @@
 					</div>
 
 					<div class="flex space-x-3">
-						<Button type="submit" disabled={state.creating}>
+						<Button variant="outline" type="submit" disabled={state.creating}>
 							{state.creating ? 'Creating...' : 'Create App'}
 						</Button>
 						<Button

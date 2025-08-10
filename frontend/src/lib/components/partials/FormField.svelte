@@ -224,17 +224,15 @@
 	}
 
 	/* Dark mode variables */
-	@media (prefers-color-scheme: dark) {
-		.form-field {
-			--color-text: #f9fafb;
-			--color-text-secondary: #9ca3af;
-			--color-bg: #111827;
-			--color-bg-secondary: #1f2937;
-			--color-border: #374151;
-			--color-border-hover: #4b5563;
-			--color-disabled-bg: #1f2937;
-			--shadow-focus: 0 0 0 3px rgba(59, 130, 246, 0.2);
-		}
+	:global([data-theme='dark']) .form-field {
+		--color-text: #f9fafb;
+		--color-text-secondary: #9ca3af;
+		--color-bg: #111827;
+		--color-bg-secondary: #1f2937;
+		--color-border: #374151;
+		--color-border-hover: #4b5563;
+		--color-disabled-bg: #1f2937;
+		--shadow-focus: 0 0 0 3px rgba(59, 130, 246, 0.2);
 	}
 
 	/* Base styles */

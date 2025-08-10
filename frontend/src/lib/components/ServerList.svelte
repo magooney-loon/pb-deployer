@@ -40,7 +40,11 @@
 				Manage your VPS servers and deployment infrastructure
 			</p>
 		</div>
-		<Button onclick={() => logic.toggleCreateForm()} icon={state.showCreateForm ? '✕' : '🖥️'}>
+		<Button
+			variant="outline"
+			onclick={() => logic.toggleCreateForm()}
+			icon={state.showCreateForm ? '✕' : '🖥️'}
+		>
 			{state.showCreateForm ? 'Cancel' : 'Add Server'}
 		</Button>
 	</div>
@@ -126,7 +130,7 @@
 				{/if}
 
 				<div class="flex space-x-3">
-					<Button type="submit">Create Server</Button>
+					<Button variant="outline" type="submit">Create Server</Button>
 					<Button
 						variant="outline"
 						color="gray"
