@@ -16,6 +16,10 @@ func RegisterServerHandlers(app core.App, group *router.RouterGroup[*core.Reques
 		return getServerStatus(app, e)
 	})
 
+	group.GET("/servers/{id}/health", func(e *core.RequestEvent) error {
+		return getConnectionHealth(app, e)
+	})
+
 	// Setup endpoints
 	group.POST("/servers/{id}/setup", func(e *core.RequestEvent) error {
 		return runServerSetup(app, e)

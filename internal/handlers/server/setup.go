@@ -63,21 +63,8 @@ func runServerSetup(app core.App, e *core.RequestEvent) error {
 			ProgressPct: 0,
 		})
 
-		// Create SSH manager as root for setup
-		sshManager, err := ssh.NewSSHManager(server, true)
-		if err != nil {
-			app.Logger().Error("Failed to create SSH manager", "server_id", serverID, "error", err)
-			notifySetupProgress(app, serverID, ssh.SetupStep{
-				Step:        "init",
-				Status:      "failed",
-				Message:     "Failed to establish SSH connection",
-				Details:     err.Error(),
-				Timestamp:   time.Now().Format(time.RFC3339),
-				ProgressPct: 0,
-			})
-			return
-		}
-		defer sshManager.Close()
+		// Get SSH service for setup operations
+		sshService := ssh.GetSSHService()
 
 		// Create progress channel
 		progressChan := make(chan ssh.SetupStep, 10)
@@ -90,10 +77,10 @@ func runServerSetup(app core.App, e *core.RequestEvent) error {
 			}
 		}()
 
-		// Run server setup
+		// Run server setup using SSH service
 		go func() {
 			defer close(progressChan)
-			err := sshManager.RunServerSetup(progressChan)
+			err := sshService.RunServerSetup(server, progressChan)
 			setupDone <- err
 		}()
 

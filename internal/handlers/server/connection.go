@@ -199,136 +199,32 @@ func testSSHConnectionEnhancedWithContext(ctx context.Context, server *models.Se
 		username = server.RootUsername
 	}
 
+	// Use SSH service for connection testing
+	sshService := ssh.GetSSHService()
+
+	// Test connection with context timeout
+	testResult := sshService.TestConnectionWithContext(ctx, server, asRoot)
+
+	// Convert SSH service result to handler result format
 	result := SSHTestResult{
-		Username: username,
+		Username:   username,
+		Success:    testResult.Success,
+		Error:      testResult.Error,
+		AuthMethod: testResult.AuthMethod,
 	}
 
-	// For security-locked servers attempting root connection, return expected failure
-	if server.SecurityLocked && asRoot {
-		result.Error = "Root SSH access disabled by security lockdown"
-		app.Logger().Debug("Skipping root SSH test on security-locked server",
+	if testResult.Success {
+		app.Logger().Debug("SSH connection successful",
 			"username", username,
-			"host", server.Host)
-		return result
-	}
-
-	// Check context timeout first
-	select {
-	case <-ctx.Done():
-		result.Error = "Connection test timed out before starting"
-		return result
-	default:
-	}
-
-	// Pre-accept host key to avoid host key verification issues
-	if err := ssh.AcceptHostKey(server); err != nil {
-		app.Logger().Debug("Failed to pre-accept host key (continuing anyway)",
 			"host", server.Host,
-			"error", err)
-		// Continue with connection attempt even if host key pre-acceptance fails
-	}
-
-	// Attempt SSH connection with retry logic
-	var sshManager *ssh.SSHManager
-	var err error
-
-	// Try multiple times for all connections to improve reliability
-	maxRetries := 3
-
-	for attempt := 1; attempt <= maxRetries; attempt++ {
-		// Check context timeout before each attempt
-		select {
-		case <-ctx.Done():
-			result.Error = fmt.Sprintf("Connection test timed out during attempt %d", attempt)
-			return result
-		default:
-		}
-
-		sshManager, err = ssh.NewSSHManager(server, asRoot)
-		if err == nil {
-			break
-		}
-
-		if attempt < maxRetries {
-			app.Logger().Debug("SSH connection attempt failed, retrying",
-				"username", username,
-				"host", server.Host,
-				"attempt", attempt,
-				"error", err)
-
-			// Wait with context timeout awareness
-			waitTime := time.Duration(attempt) * time.Second
-			select {
-			case <-ctx.Done():
-				result.Error = "Connection test timed out during retry wait"
-				return result
-			case <-time.After(waitTime):
-				// Continue to next attempt
-			}
-		}
-	}
-
-	if err != nil {
-		result.Error = fmt.Sprintf("SSH connection failed after %d attempts: %v", maxRetries, err)
+			"auth_method", result.AuthMethod,
+			"response_time", testResult.ResponseTime)
+	} else {
 		app.Logger().Debug("SSH connection failed",
 			"username", username,
 			"host", server.Host,
-			"attempts", maxRetries,
-			"error", err)
-		return result
+			"error", testResult.Error)
 	}
-
-	// Ensure SSH manager is always closed, even if command fails
-	defer func() {
-		if sshManager != nil {
-			if closeErr := sshManager.Close(); closeErr != nil {
-				app.Logger().Debug("Failed to close SSH manager",
-					"username", username,
-					"host", server.Host,
-					"error", closeErr)
-			}
-		}
-	}()
-
-	// Test a simple command to verify the connection works with timeout
-	commandDone := make(chan error, 1)
-	go func() {
-		commandDone <- sshManager.RunCommand("echo 'connection_test'")
-	}()
-
-	select {
-	case err = <-commandDone:
-		if err != nil {
-			result.Error = fmt.Sprintf("SSH command test failed: %v", err)
-			app.Logger().Debug("SSH command test failed",
-				"username", username,
-				"host", server.Host,
-				"error", err)
-			return result
-		}
-	case <-ctx.Done():
-		result.Error = "SSH command test timed out"
-		app.Logger().Debug("SSH command test timed out",
-			"username", username,
-			"host", server.Host)
-		return result
-	}
-
-	result.Success = true
-
-	// Determine auth method used
-	if server.UseSSHAgent {
-		result.AuthMethod = "ssh_agent"
-	} else if server.ManualKeyPath != "" {
-		result.AuthMethod = "private_key"
-	} else {
-		result.AuthMethod = "default_keys"
-	}
-
-	app.Logger().Debug("SSH connection successful",
-		"username", username,
-		"host", server.Host,
-		"auth_method", result.AuthMethod)
 
 	return result
 }
@@ -432,4 +328,104 @@ func getServerStatus(app core.App, e *core.RequestEvent) error {
 		"port", port)
 
 	return e.JSON(http.StatusOK, status)
+}
+
+// getConnectionHealth handles the connection health endpoint
+func getConnectionHealth(app core.App, e *core.RequestEvent) error {
+	serverID := e.Request.PathValue("id")
+	if serverID == "" {
+		return e.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Server ID is required",
+		})
+	}
+
+	// Get server from database
+	record, err := app.FindRecordById("servers", serverID)
+	if err != nil {
+		app.Logger().Error("Failed to find server", "id", serverID, "error", err)
+		return e.JSON(http.StatusNotFound, map[string]string{
+			"error": "Server not found",
+		})
+	}
+
+	// Convert PocketBase record to models.Server
+	server := &models.Server{
+		ID:             record.Id,
+		Name:           record.GetString("name"),
+		Host:           record.GetString("host"),
+		Port:           record.GetInt("port"),
+		RootUsername:   record.GetString("root_username"),
+		AppUsername:    record.GetString("app_username"),
+		UseSSHAgent:    record.GetBool("use_ssh_agent"),
+		ManualKeyPath:  record.GetString("manual_key_path"),
+		SetupComplete:  record.GetBool("setup_complete"),
+		SecurityLocked: record.GetBool("security_locked"),
+	}
+
+	// Get SSH service for health monitoring
+	sshService := ssh.GetSSHService()
+
+	// Get connection health status
+	connectionStatus := sshService.GetConnectionStatus()
+	healthMetrics := sshService.GetHealthMetrics()
+
+	// Get specific connection keys for this server
+	rootKey := sshService.GetConnectionKey(server, true)
+	appKey := sshService.GetConnectionKey(server, false)
+
+	response := map[string]interface{}{
+		"server_id":       serverID,
+		"server_name":     server.Name,
+		"host":            server.Host,
+		"port":            server.Port,
+		"security_locked": server.SecurityLocked,
+		"timestamp":       time.Now().UTC().Format(time.RFC3339),
+		"connections": map[string]interface{}{
+			"root": getConnectionDetails(connectionStatus, rootKey, server.SecurityLocked),
+			"app":  getConnectionDetails(connectionStatus, appKey, false),
+		},
+		"overall_metrics": map[string]interface{}{
+			"total_connections":     healthMetrics.TotalConnections,
+			"healthy_connections":   healthMetrics.HealthyConnections,
+			"unhealthy_connections": healthMetrics.UnhealthyConnections,
+			"average_response_time": healthMetrics.AverageResponseTime.String(),
+			"error_rate":            fmt.Sprintf("%.2f%%", healthMetrics.ErrorRate*100),
+			"last_update":           healthMetrics.LastUpdate.Format(time.RFC3339),
+		},
+	}
+
+	app.Logger().Info("Connection health status retrieved",
+		"server_id", serverID,
+		"host", server.Host,
+		"security_locked", server.SecurityLocked)
+
+	return e.JSON(http.StatusOK, response)
+}
+
+// getConnectionDetails extracts connection details from status map
+func getConnectionDetails(connectionStatus map[string]ssh.ConnectionHealthStatus, key string, expectDisabled bool) map[string]interface{} {
+	if status, exists := connectionStatus[key]; exists {
+		return map[string]interface{}{
+			"exists":        true,
+			"healthy":       status.Healthy,
+			"last_used":     status.LastUsed.Format(time.RFC3339),
+			"age":           status.Age.String(),
+			"use_count":     status.UseCount,
+			"response_time": status.ResponseTime.String(),
+			"last_error":    status.LastError,
+		}
+	} else if expectDisabled {
+		return map[string]interface{}{
+			"exists":   false,
+			"healthy":  false,
+			"disabled": true,
+			"reason":   "Root connections are disabled after security lockdown",
+		}
+	} else {
+		return map[string]interface{}{
+			"exists":  false,
+			"healthy": false,
+			"reason":  "Connection not established or not in pool",
+		}
+	}
 }

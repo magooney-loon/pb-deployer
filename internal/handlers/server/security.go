@@ -70,21 +70,8 @@ func applySecurityLockdown(app core.App, e *core.RequestEvent) error {
 			ProgressPct: 0,
 		})
 
-		// Create SSH manager as root for security operations
-		sshManager, err := ssh.NewSSHManager(server, true)
-		if err != nil {
-			app.Logger().Error("Failed to create SSH manager", "server_id", serverID, "error", err)
-			notifySecurityProgress(app, serverID, ssh.SetupStep{
-				Step:        "init",
-				Status:      "failed",
-				Message:     "Failed to establish SSH connection",
-				Details:     err.Error(),
-				Timestamp:   time.Now().Format(time.RFC3339),
-				ProgressPct: 0,
-			})
-			return
-		}
-		defer sshManager.Close()
+		// Get SSH service for security operations
+		sshService := ssh.GetSSHService()
 
 		// Create progress channel
 		progressChan := make(chan ssh.SetupStep, 10)
@@ -97,10 +84,10 @@ func applySecurityLockdown(app core.App, e *core.RequestEvent) error {
 			}
 		}()
 
-		// Run security lockdown
+		// Run security lockdown using SSH service
 		go func() {
 			defer close(progressChan)
-			err := sshManager.ApplySecurityLockdown(progressChan)
+			err := sshService.ApplySecurityLockdown(server, progressChan)
 			securityDone <- err
 		}()
 
@@ -118,22 +105,8 @@ func applySecurityLockdown(app core.App, e *core.RequestEvent) error {
 			return
 		}
 
-		// Switch SSH manager to app user since root login is now disabled
-		app.Logger().Info("Switching SSH manager to app user after security lockdown", "server_id", serverID)
-		if err := sshManager.SwitchToAppUser(); err != nil {
-			app.Logger().Error("Failed to switch to app user after security lockdown", "server_id", serverID, "error", err)
-			notifySecurityProgress(app, serverID, ssh.SetupStep{
-				Step:        "switch_user",
-				Status:      "failed",
-				Message:     "Failed to switch to app user after security lockdown",
-				Details:     err.Error(),
-				Timestamp:   time.Now().Format(time.RFC3339),
-				ProgressPct: 100,
-			})
-			// Don't return here - security lockdown was successful, just log the switch failure
-		} else {
-			app.Logger().Info("Successfully switched to app user", "server_id", serverID)
-		}
+		// Note: After security lockdown, connections will automatically use app user
+		app.Logger().Info("Security lockdown completed - future connections will use app user", "server_id", serverID)
 
 		// Update database to mark security as locked
 		record.Set("security_locked", true)
