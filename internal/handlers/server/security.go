@@ -118,6 +118,23 @@ func applySecurityLockdown(app core.App, e *core.RequestEvent) error {
 			return
 		}
 
+		// Switch SSH manager to app user since root login is now disabled
+		app.Logger().Info("Switching SSH manager to app user after security lockdown", "server_id", serverID)
+		if err := sshManager.SwitchToAppUser(); err != nil {
+			app.Logger().Error("Failed to switch to app user after security lockdown", "server_id", serverID, "error", err)
+			notifySecurityProgress(app, serverID, ssh.SetupStep{
+				Step:        "switch_user",
+				Status:      "failed",
+				Message:     "Failed to switch to app user after security lockdown",
+				Details:     err.Error(),
+				Timestamp:   time.Now().Format(time.RFC3339),
+				ProgressPct: 100,
+			})
+			// Don't return here - security lockdown was successful, just log the switch failure
+		} else {
+			app.Logger().Info("Successfully switched to app user", "server_id", serverID)
+		}
+
 		// Update database to mark security as locked
 		record.Set("security_locked", true)
 		if err := app.Save(record); err != nil {

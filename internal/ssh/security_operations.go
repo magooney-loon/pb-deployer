@@ -20,6 +20,7 @@ func (sm *SSHManager) ApplySecurityLockdown(progressChan chan<- SetupStep) error
 	}{
 		{"setup_firewall", sm.setupFirewallWithProgress},
 		{"setup_fail2ban", sm.setupFail2banWithProgress},
+		{"validate_app_user", sm.validateAppUserConnectionWithProgress},
 		{"harden_ssh", sm.hardenSSHWithProgress},
 		{"verify_security", sm.verifySecurityLockdownWithProgress},
 	}
@@ -317,7 +318,6 @@ func (sm *SSHManager) hardenSSHWithProgress(progressChan chan<- SetupStep) error
 
 	// SSH hardening settings
 	sshSettings := map[string]string{
-		"PermitRootLogin":                 "no",
 		"PasswordAuthentication":          "no",
 		"PubkeyAuthentication":            "yes",
 		"X11Forwarding":                   "no",
@@ -336,45 +336,64 @@ func (sm *SSHManager) hardenSSHWithProgress(progressChan chan<- SetupStep) error
 		"GSSAPIAuthentication":            "no",
 	}
 
-	totalSettings := len(sshSettings)
+	// Apply PermitRootLogin setting last, after ensuring app user works
+	rootLoginSettings := map[string]string{
+		"PermitRootLogin": "no",
+	}
+
+	totalSettings := len(sshSettings) + len(rootLoginSettings)
 	i := 0
 
+	// Apply general SSH hardening settings first
 	for setting, value := range sshSettings {
 		if progressChan != nil {
-			sm.SendProgressUpdate(progressChan, "harden_ssh", "running", fmt.Sprintf("Configuring SSH setting: %s = %s", setting, value), 10+(i*70)/totalSettings)
+			sm.SendProgressUpdate(progressChan, "harden_ssh", "running", fmt.Sprintf("Configuring SSH setting: %s = %s", setting, value), 10+(i*60)/totalSettings)
 		}
 
-		// Check if setting already exists in config
-		checkCmd := fmt.Sprintf("grep -q '^%s' /etc/ssh/sshd_config", setting)
-		if _, err := sm.ExecuteCommand(checkCmd); err == nil {
-			// Setting exists, update it
-			updateCmd := fmt.Sprintf("sed -i 's/^%s.*/%s %s/' /etc/ssh/sshd_config", setting, setting, value)
-			if _, err := sm.ExecuteCommand(updateCmd); err != nil {
-				return fmt.Errorf("failed to update SSH setting %s: %w", setting, err)
-			}
-		} else {
-			// Setting doesn't exist, add it
-			addCmd := fmt.Sprintf("echo '%s %s' >> /etc/ssh/sshd_config", setting, value)
-			if _, err := sm.ExecuteCommand(addCmd); err != nil {
-				return fmt.Errorf("failed to add SSH setting %s: %w", setting, err)
-			}
+		if err := sm.applySSHSetting(setting, value); err != nil {
+			return fmt.Errorf("failed to apply SSH setting %s: %w", setting, err)
 		}
 		i++
 	}
 
-	// Detect SSH service name
+	// Test SSH service reload before applying root login restriction
+	if progressChan != nil {
+		sm.SendProgressUpdate(progressChan, "harden_ssh", "running", "Testing SSH configuration before disabling root login", 70)
+	}
+
 	serviceName, err := sm.detectSSHServiceName(progressChan)
 	if err != nil {
 		return fmt.Errorf("failed to detect SSH service name: %w", err)
 	}
 
-	if progressChan != nil {
-		sm.SendProgressUpdate(progressChan, "harden_ssh", "running", fmt.Sprintf("Reloading SSH service: %s", serviceName), 90)
+	if err := sm.testSSHConfigAndReload(serviceName, progressChan); err != nil {
+		return fmt.Errorf("SSH configuration test failed: %w", err)
 	}
 
-	// Reload SSH service to apply changes
+	// Apply root login restriction last
+	if progressChan != nil {
+		sm.SendProgressUpdate(progressChan, "harden_ssh", "running", "Applying final security settings (disabling root login)", 80)
+	}
+
+	for setting, value := range rootLoginSettings {
+		if err := sm.applySSHSetting(setting, value); err != nil {
+			return fmt.Errorf("failed to apply SSH setting %s: %w", setting, err)
+		}
+		i++
+	}
+
+	// Final SSH service reload
+	if progressChan != nil {
+		sm.SendProgressUpdate(progressChan, "harden_ssh", "running", fmt.Sprintf("Final SSH service reload: %s", serviceName), 90)
+	}
+
 	if err := sm.reloadSSHService(serviceName, progressChan); err != nil {
 		return fmt.Errorf("failed to reload SSH service: %w", err)
+	}
+
+	// Warn about root access being disabled
+	if progressChan != nil {
+		sm.SendProgressUpdate(progressChan, "harden_ssh", "running", "SSH hardening complete - root login now disabled", 95)
 	}
 
 	return nil
@@ -593,6 +612,85 @@ func (sm *SSHManager) GetSecurityStatus() (map[string]bool, error) {
 	}
 
 	return status, nil
+}
+
+// validateAppUserConnectionWithProgress validates that app user can connect before disabling root
+func (sm *SSHManager) validateAppUserConnectionWithProgress(progressChan chan<- SetupStep) error {
+	if progressChan != nil {
+		sm.SendProgressUpdate(progressChan, "validate_app_user", "running", "Testing app user SSH connection", 10)
+	}
+
+	// Create a test SSH connection as the app user
+	testManager, err := NewSSHManager(sm.server, false)
+	if err != nil {
+		return fmt.Errorf("failed to create app user connection: %w", err)
+	}
+	defer testManager.Close()
+
+	if progressChan != nil {
+		sm.SendProgressUpdate(progressChan, "validate_app_user", "running", "Verifying app user can execute commands", 50)
+	}
+
+	// Test basic command execution
+	if err := testManager.TestConnection(); err != nil {
+		return fmt.Errorf("app user connection test failed: %w", err)
+	}
+
+	// Test sudo access for deployment commands
+	testSudoCmd := "sudo -n systemctl --version"
+	if _, err := testManager.ExecuteCommand(testSudoCmd); err != nil {
+		return fmt.Errorf("app user sudo access test failed: %w", err)
+	}
+
+	if progressChan != nil {
+		sm.SendProgressUpdate(progressChan, "validate_app_user", "running", "App user connection validated successfully", 90)
+	}
+
+	return nil
+}
+
+// applySSHSetting applies a single SSH configuration setting
+func (sm *SSHManager) applySSHSetting(setting, value string) error {
+	// Check if setting already exists in config
+	checkCmd := fmt.Sprintf("grep -q '^%s' /etc/ssh/sshd_config", setting)
+	if _, err := sm.ExecuteCommand(checkCmd); err == nil {
+		// Setting exists, update it
+		updateCmd := fmt.Sprintf("sed -i 's/^%s.*/%s %s/' /etc/ssh/sshd_config", setting, setting, value)
+		if _, err := sm.ExecuteCommand(updateCmd); err != nil {
+			return fmt.Errorf("failed to update SSH setting %s: %w", setting, err)
+		}
+	} else {
+		// Setting doesn't exist, add it
+		addCmd := fmt.Sprintf("echo '%s %s' >> /etc/ssh/sshd_config", setting, value)
+		if _, err := sm.ExecuteCommand(addCmd); err != nil {
+			return fmt.Errorf("failed to add SSH setting %s: %w", setting, err)
+		}
+	}
+	return nil
+}
+
+// testSSHConfigAndReload tests SSH configuration and reloads if valid
+func (sm *SSHManager) testSSHConfigAndReload(serviceName string, progressChan chan<- SetupStep) error {
+	if progressChan != nil {
+		sm.SendProgressUpdate(progressChan, "harden_ssh", "running", "Testing SSH configuration syntax", 75)
+	}
+
+	// Test SSH configuration syntax
+	testCmd := "sshd -t"
+	if _, err := sm.ExecuteCommand(testCmd); err != nil {
+		return fmt.Errorf("SSH configuration syntax test failed: %w", err)
+	}
+
+	if progressChan != nil {
+		sm.SendProgressUpdate(progressChan, "harden_ssh", "running", "Reloading SSH service to apply changes", 78)
+	}
+
+	// Reload SSH service to apply changes
+	if err := sm.reloadSSHService(serviceName, progressChan); err != nil {
+		return fmt.Errorf("failed to reload SSH service: %w", err)
+	}
+
+	return nil
 }
 
 // DisableSecurityForTesting temporarily disables security measures for testing purposes

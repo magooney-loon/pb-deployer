@@ -590,6 +590,67 @@ func (sm *SSHManager) AcceptHostKeyForServer() error {
 	return AcceptHostKey(sm.server)
 }
 
+// SwitchToAppUser switches the SSH manager from root to app user mode
+// This is essential after security lockdown when root login is disabled
+func (sm *SSHManager) SwitchToAppUser() error {
+	if !sm.isRoot {
+		return fmt.Errorf("SSH manager is already using app user")
+	}
+
+	if sm.server.AppUsername == "" {
+		return fmt.Errorf("app username is not configured")
+	}
+
+	// Close existing root connection
+	if sm.conn != nil {
+		sm.conn.Close()
+		sm.conn = nil
+	}
+
+	// Create new SSH client configuration for app user
+	config, err := createSSHConfig(sm.server, sm.server.AppUsername)
+	if err != nil {
+		return fmt.Errorf("failed to create SSH config for app user: %w", err)
+	}
+
+	// Establish new connection as app user with retry logic
+	address := fmt.Sprintf("%s:%d", sm.server.Host, sm.server.Port)
+	conn, err := establishConnectionWithRetry(address, config, 3)
+	if err != nil {
+		return fmt.Errorf("failed to connect as app user %s after retries: %w", sm.server.AppUsername, err)
+	}
+
+	// Update SSH manager state
+	sm.conn = conn
+	sm.username = sm.server.AppUsername
+	sm.isRoot = false
+
+	// Test the new connection
+	if err := sm.TestConnection(); err != nil {
+		sm.conn.Close()
+		sm.conn = nil
+		return fmt.Errorf("app user connection test failed: %w", err)
+	}
+
+	return nil
+}
+
+// CreateAppUserManager creates a new SSH manager instance using app user credentials
+// This is useful when you need a separate app user connection alongside an existing root connection
+func (sm *SSHManager) CreateAppUserManager() (*SSHManager, error) {
+	if sm.server.AppUsername == "" {
+		return nil, fmt.Errorf("app username is not configured")
+	}
+
+	// Create new SSH manager as app user
+	appManager, err := NewSSHManager(sm.server, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create app user SSH manager: %w", err)
+	}
+
+	return appManager, nil
+}
+
 // validateServerConfig validates the server configuration
 func validateServerConfig(server *models.Server) error {
 	if server.Host == "" {
