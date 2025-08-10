@@ -5,6 +5,8 @@ export interface DashboardState {
 	apps: App[];
 	loading: boolean;
 	error: string | null;
+	refreshCounter: number;
+	nextRefreshIn: number;
 }
 
 export interface DashboardMetrics {
@@ -34,6 +36,8 @@ export interface DashboardMetrics {
 export class DashboardLogic {
 	private state: DashboardState;
 	private stateUpdateCallback?: (state: DashboardState) => void;
+	private refreshInterval?: number;
+	private countdownInterval?: number;
 
 	constructor() {
 		this.state = this.getInitialState();
@@ -44,7 +48,9 @@ export class DashboardLogic {
 			servers: [],
 			apps: [],
 			loading: true,
-			error: null
+			error: null,
+			refreshCounter: 0,
+			nextRefreshIn: 30
 		};
 	}
 
@@ -70,7 +76,12 @@ export class DashboardLogic {
 			const servers = serversResponse.servers || [];
 			const apps = appsResponse.apps || [];
 
-			this.updateState({ servers, apps });
+			this.updateState({
+				servers,
+				apps,
+				refreshCounter: this.state.refreshCounter + 1,
+				nextRefreshIn: 30
+			});
 		} catch (err) {
 			const error = err instanceof Error ? err.message : 'Failed to load dashboard data';
 			this.updateState({
@@ -85,6 +96,40 @@ export class DashboardLogic {
 
 	public dismissError(): void {
 		this.updateState({ error: null });
+	}
+
+	public startAutoRefresh(): void {
+		this.stopAutoRefresh(); // Clear any existing intervals
+
+		// Start countdown timer (updates every second)
+		this.countdownInterval = setInterval(() => {
+			const nextRefreshIn = this.state.nextRefreshIn - 1;
+			if (nextRefreshIn <= 0) {
+				this.updateState({ nextRefreshIn: 30 });
+			} else {
+				this.updateState({ nextRefreshIn });
+			}
+		}, 1000);
+
+		// Start refresh timer (every 30 seconds)
+		this.refreshInterval = setInterval(async () => {
+			await this.loadData();
+		}, 30000);
+	}
+
+	public stopAutoRefresh(): void {
+		if (this.refreshInterval) {
+			clearInterval(this.refreshInterval);
+			this.refreshInterval = undefined;
+		}
+		if (this.countdownInterval) {
+			clearInterval(this.countdownInterval);
+			this.countdownInterval = undefined;
+		}
+	}
+
+	public destroy(): void {
+		this.stopAutoRefresh();
 	}
 
 	public getMetrics(): DashboardMetrics {

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { DashboardLogic, type DashboardState } from './logic/Dashboard.js';
 	import type { Server, App } from '../api.js';
 	import {
@@ -25,15 +25,34 @@
 
 	onMount(async () => {
 		await logic.loadData();
+		logic.startAutoRefresh();
+	});
+
+	onDestroy(() => {
+		logic.destroy();
 	});
 </script>
 
 <div class="px-4 sm:px-0">
 	<div class="mb-8">
-		<h1 class="text-3xl font-semibold text-gray-900 dark:text-gray-100">Dashboard</h1>
-		<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-			Overview of your PocketBase deployment infrastructure
-		</p>
+		<div class="flex items-center justify-between">
+			<div>
+				<h1 class="text-3xl font-semibold text-gray-900 dark:text-gray-100">Dashboard</h1>
+				<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+					Overview of your PocketBase deployment infrastructure
+				</p>
+			</div>
+			{#if !state.loading && state.refreshCounter > 0}
+				<div class="text-right">
+					<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
+						Refreshes: {state.refreshCounter}
+					</div>
+					<div class="text-xs text-gray-500 dark:text-gray-400">
+						Next refresh: {state.nextRefreshIn}s
+					</div>
+				</div>
+			{/if}
+		</div>
 	</div>
 
 	{#if state.error}
