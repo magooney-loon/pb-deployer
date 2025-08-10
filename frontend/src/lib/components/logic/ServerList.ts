@@ -10,14 +10,26 @@ export interface ServerFormData {
 	manual_key_path: string;
 }
 
+export interface TCPTestResult {
+	success: boolean;
+	error?: string;
+	latency?: string;
+}
+
+export interface SSHTestResult {
+	success: boolean;
+	error?: string;
+	username: string;
+	auth_method?: string;
+}
+
 export interface ConnectionTestResult {
 	success: boolean;
-	connection_info?: {
-		server_host: string;
-		username: string;
-	};
-	app_user_connection?: string;
 	error?: string;
+	tcp_connection: TCPTestResult;
+	root_ssh_connection: SSHTestResult;
+	app_ssh_connection: SSHTestResult;
+	overall_status: string;
 }
 
 export interface ServerListState {
@@ -202,9 +214,25 @@ export class ServerListLogic {
 			const result = await api.testServerConnection(id);
 			this.updateState({ connectionTestResult: result });
 		} catch (err) {
+			const errorMsg = err instanceof Error ? err.message : 'Unknown error';
 			const connectionTestResult: ConnectionTestResult = {
 				success: false,
-				error: err instanceof Error ? err.message : 'Unknown error'
+				error: errorMsg,
+				tcp_connection: {
+					success: false,
+					error: errorMsg
+				},
+				root_ssh_connection: {
+					success: false,
+					error: errorMsg,
+					username: server.root_username || 'unknown'
+				},
+				app_ssh_connection: {
+					success: false,
+					error: errorMsg,
+					username: server.app_username || 'unknown'
+				},
+				overall_status: 'test_failed'
 			};
 			this.updateState({ connectionTestResult });
 		} finally {
@@ -249,7 +277,7 @@ export class ServerListLogic {
 				console.log('Setup progress updated:', updatedProgress.length, 'steps');
 
 				// If setup is complete, remove from running state and refresh servers
-				if (step.step === 'complete') {
+				if (step.step === 'complete' || step.status === 'failed') {
 					const runningSetup = new Set(this.state.runningSetup);
 					runningSetup.delete(id);
 					this.updateState({ runningSetup });
@@ -305,7 +333,7 @@ export class ServerListLogic {
 				console.log('Security progress updated:', updatedProgress.length, 'steps');
 
 				// If security is complete, remove from running state and refresh servers
-				if (step.step === 'complete') {
+				if (step.step === 'complete' || step.status === 'failed') {
 					const applyingSecurity = new Set(this.state.applyingSecurity);
 					applyingSecurity.delete(id);
 					this.updateState({ applyingSecurity });
@@ -536,8 +564,19 @@ export class ServerListLogic {
 		if (currentProgress.length === 0) return true; // Just started, no progress yet
 
 		const latestStep = currentProgress[currentProgress.length - 1];
-		// If completed or failed, not in progress anymore
-		return latestStep.step !== 'complete' && latestStep.status !== 'failed';
+
+		// If any step has failed or operation is complete, not in progress anymore
+		if (latestStep.status === 'failed' || latestStep.step === 'complete') {
+			return false;
+		}
+
+		// Check if any previous step failed (not just the latest)
+		const hasFailedStep = currentProgress.some((step) => step.status === 'failed');
+		if (hasFailedStep) {
+			return false;
+		}
+
+		return true;
 	}
 
 	public isSecurityInProgress(serverId: string | null): boolean {
@@ -551,8 +590,19 @@ export class ServerListLogic {
 		if (currentProgress.length === 0) return true; // Just started, no progress yet
 
 		const latestStep = currentProgress[currentProgress.length - 1];
-		// If completed or failed, not in progress anymore
-		return latestStep.step !== 'complete' && latestStep.status !== 'failed';
+
+		// If any step has failed or operation is complete, not in progress anymore
+		if (latestStep.status === 'failed' || latestStep.step === 'complete') {
+			return false;
+		}
+
+		// Check if any previous step failed (not just the latest)
+		const hasFailedStep = currentProgress.some((step) => step.status === 'failed');
+		if (hasFailedStep) {
+			return false;
+		}
+
+		return true;
 	}
 
 	public async cleanup(): Promise<void> {

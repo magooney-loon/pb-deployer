@@ -1,11 +1,23 @@
+export interface TCPTestResult {
+	success: boolean;
+	error?: string;
+	latency?: string;
+}
+
+export interface SSHTestResult {
+	success: boolean;
+	error?: string;
+	username: string;
+	auth_method?: string;
+}
+
 export interface ConnectionTestResult {
 	success: boolean;
-	connection_info?: {
-		server_host: string;
-		username: string;
-	};
-	app_user_connection?: string;
 	error?: string;
+	tcp_connection: TCPTestResult;
+	root_ssh_connection: SSHTestResult;
+	app_ssh_connection: SSHTestResult;
+	overall_status: string;
 }
 
 export interface ConnectionTestModalProps {
@@ -102,12 +114,20 @@ export class ConnectionTestModalLogic {
 		return this.state.loading ? 'Testing Connection...' : 'Connection Test Results';
 	}
 
-	public getConnectionInfo(): { server_host: string; username: string } | undefined {
-		return this.state.result?.connection_info;
+	public getTCPConnection(): TCPTestResult | undefined {
+		return this.state.result?.tcp_connection;
 	}
 
-	public getAppUserConnection(): string | undefined {
-		return this.state.result?.app_user_connection;
+	public getRootSSHConnection(): SSHTestResult | undefined {
+		return this.state.result?.root_ssh_connection;
+	}
+
+	public getAppSSHConnection(): SSHTestResult | undefined {
+		return this.state.result?.app_ssh_connection;
+	}
+
+	public getOverallStatus(): string | undefined {
+		return this.state.result?.overall_status;
 	}
 
 	public getError(): string {

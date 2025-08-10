@@ -52,38 +52,86 @@
 				</div>
 				<div class="mt-4">
 					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
-						Connection Successful!
+						All Connections Successful!
 					</h3>
 					<div class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-						Successfully connected to {state.serverName || 'the server'}
+						TCP, Root SSH, and App SSH connections to {state.serverName || 'the server'} are working
 					</div>
 				</div>
 			</div>
 
 			<!-- Connection Details -->
 			<div class="mt-6 space-y-4">
+				<!-- TCP Connection -->
 				<div
 					class="rounded-lg bg-gray-50 p-4 ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-800"
 				>
-					<h4 class="mb-3 font-semibold text-gray-900 dark:text-gray-100">Connection Details</h4>
+					<h4 class="mb-3 flex items-center font-semibold text-gray-900 dark:text-gray-100">
+						<span class="mr-2 text-emerald-500">✓</span>
+						TCP Connection
+					</h4>
 					<div class="space-y-2 text-sm">
 						<div class="flex justify-between">
-							<span class="text-gray-600 dark:text-gray-400">Server Host:</span>
-							<span class="font-mono text-gray-900 dark:text-gray-100"
-								>{state.result?.connection_info?.server_host}</span
-							>
+							<span class="text-gray-600 dark:text-gray-400">Status:</span>
+							<span class="font-medium text-emerald-600 dark:text-emerald-400">Connected</span>
 						</div>
-						<div class="flex justify-between">
-							<span class="text-gray-600 dark:text-gray-400">Root User:</span>
-							<span class="font-mono text-gray-900 dark:text-gray-100"
-								>{state.result?.connection_info?.username}</span
-							>
-						</div>
-						{#if state.result?.app_user_connection}
+						{#if state.result?.tcp_connection?.latency}
 							<div class="flex justify-between">
-								<span class="text-gray-600 dark:text-gray-400">App User:</span>
+								<span class="text-gray-600 dark:text-gray-400">Latency:</span>
 								<span class="font-mono text-gray-900 dark:text-gray-100"
-									>{state.result?.app_user_connection}</span
+									>{state.result.tcp_connection.latency}</span
+								>
+							</div>
+						{/if}
+					</div>
+				</div>
+
+				<!-- Root SSH Connection -->
+				<div
+					class="rounded-lg bg-gray-50 p-4 ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-800"
+				>
+					<h4 class="mb-3 flex items-center font-semibold text-gray-900 dark:text-gray-100">
+						<span class="mr-2 text-emerald-500">✓</span>
+						Root SSH Connection
+					</h4>
+					<div class="space-y-2 text-sm">
+						<div class="flex justify-between">
+							<span class="text-gray-600 dark:text-gray-400">Username:</span>
+							<span class="font-mono text-gray-900 dark:text-gray-100"
+								>{state.result?.root_ssh_connection?.username}</span
+							>
+						</div>
+						{#if state.result?.root_ssh_connection?.auth_method}
+							<div class="flex justify-between">
+								<span class="text-gray-600 dark:text-gray-400">Auth Method:</span>
+								<span class="font-mono text-gray-900 dark:text-gray-100"
+									>{state.result.root_ssh_connection.auth_method}</span
+								>
+							</div>
+						{/if}
+					</div>
+				</div>
+
+				<!-- App SSH Connection -->
+				<div
+					class="rounded-lg bg-gray-50 p-4 ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-800"
+				>
+					<h4 class="mb-3 flex items-center font-semibold text-gray-900 dark:text-gray-100">
+						<span class="mr-2 text-emerald-500">✓</span>
+						App SSH Connection
+					</h4>
+					<div class="space-y-2 text-sm">
+						<div class="flex justify-between">
+							<span class="text-gray-600 dark:text-gray-400">Username:</span>
+							<span class="font-mono text-gray-900 dark:text-gray-100"
+								>{state.result?.app_ssh_connection?.username}</span
+							>
+						</div>
+						{#if state.result?.app_ssh_connection?.auth_method}
+							<div class="flex justify-between">
+								<span class="text-gray-600 dark:text-gray-400">Auth Method:</span>
+								<span class="font-mono text-gray-900 dark:text-gray-100"
+									>{state.result.app_ssh_connection.auth_method}</span
 								>
 							</div>
 						{/if}
@@ -111,32 +159,175 @@
 					</svg>
 				</div>
 				<div class="mt-4">
-					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Connection Failed</h3>
+					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+						Connection Issues Detected
+					</h3>
 					<div class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-						Could not connect to {state.serverName || 'the server'}
+						Status: {state.result?.overall_status || 'Unknown error'}
 					</div>
 				</div>
 			</div>
 
-			<!-- Error Details -->
-			<div class="mt-6">
-				<div class="rounded-lg bg-red-50 p-4 ring-1 ring-red-200 dark:bg-red-950 dark:ring-red-800">
-					<h4 class="mb-2 font-semibold text-red-700 dark:text-red-300">Error Details</h4>
-					<p
-						class="rounded bg-red-100 p-3 font-mono text-sm text-red-700 ring-1 ring-red-200 dark:bg-red-900 dark:text-red-300 dark:ring-red-700"
-					>
-						{state.result?.error || 'Unknown connection error'}
-					</p>
+			<!-- Connection Test Details -->
+			<div class="mt-6 space-y-4">
+				<!-- TCP Connection -->
+				<div
+					class="rounded-lg bg-gray-50 p-4 ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-800"
+				>
+					<h4 class="mb-3 flex items-center font-semibold text-gray-900 dark:text-gray-100">
+						<span
+							class="mr-2 {state.result?.tcp_connection?.success
+								? 'text-emerald-500'
+								: 'text-red-500'}"
+						>
+							{state.result?.tcp_connection?.success ? '✓' : '✗'}
+						</span>
+						TCP Connection
+					</h4>
+					<div class="space-y-2 text-sm">
+						<div class="flex justify-between">
+							<span class="text-gray-600 dark:text-gray-400">Status:</span>
+							<span
+								class="font-medium {state.result?.tcp_connection?.success
+									? 'text-emerald-600 dark:text-emerald-400'
+									: 'text-red-600 dark:text-red-400'}"
+							>
+								{state.result?.tcp_connection?.success ? 'Connected' : 'Failed'}
+							</span>
+						</div>
+						{#if state.result?.tcp_connection?.latency}
+							<div class="flex justify-between">
+								<span class="text-gray-600 dark:text-gray-400">Latency:</span>
+								<span class="font-mono text-gray-900 dark:text-gray-100"
+									>{state.result.tcp_connection.latency}</span
+								>
+							</div>
+						{/if}
+						{#if state.result?.tcp_connection?.error}
+							<div class="mt-2">
+								<p
+									class="rounded bg-red-100 p-2 font-mono text-xs text-red-700 ring-1 ring-red-200 dark:bg-red-900 dark:text-red-300 dark:ring-red-700"
+								>
+									{state.result.tcp_connection.error}
+								</p>
+							</div>
+						{/if}
+					</div>
+				</div>
+
+				<!-- Root SSH Connection -->
+				<div
+					class="rounded-lg bg-gray-50 p-4 ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-800"
+				>
+					<h4 class="mb-3 flex items-center font-semibold text-gray-900 dark:text-gray-100">
+						<span
+							class="mr-2 {state.result?.root_ssh_connection?.success
+								? 'text-emerald-500'
+								: 'text-red-500'}"
+						>
+							{state.result?.root_ssh_connection?.success ? '✓' : '✗'}
+						</span>
+						Root SSH Connection
+					</h4>
+					<div class="space-y-2 text-sm">
+						<div class="flex justify-between">
+							<span class="text-gray-600 dark:text-gray-400">Username:</span>
+							<span class="font-mono text-gray-900 dark:text-gray-100"
+								>{state.result?.root_ssh_connection?.username}</span
+							>
+						</div>
+						<div class="flex justify-between">
+							<span class="text-gray-600 dark:text-gray-400">Status:</span>
+							<span
+								class="font-medium {state.result?.root_ssh_connection?.success
+									? 'text-emerald-600 dark:text-emerald-400'
+									: 'text-red-600 dark:text-red-400'}"
+							>
+								{state.result?.root_ssh_connection?.success ? 'Connected' : 'Failed'}
+							</span>
+						</div>
+						{#if state.result?.root_ssh_connection?.auth_method}
+							<div class="flex justify-between">
+								<span class="text-gray-600 dark:text-gray-400">Auth Method:</span>
+								<span class="font-mono text-gray-900 dark:text-gray-100"
+									>{state.result.root_ssh_connection.auth_method}</span
+								>
+							</div>
+						{/if}
+						{#if state.result?.root_ssh_connection?.error}
+							<div class="mt-2">
+								<p
+									class="rounded bg-red-100 p-2 font-mono text-xs text-red-700 ring-1 ring-red-200 dark:bg-red-900 dark:text-red-300 dark:ring-red-700"
+								>
+									{state.result.root_ssh_connection.error}
+								</p>
+							</div>
+						{/if}
+					</div>
+				</div>
+
+				<!-- App SSH Connection -->
+				<div
+					class="rounded-lg bg-gray-50 p-4 ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-800"
+				>
+					<h4 class="mb-3 flex items-center font-semibold text-gray-900 dark:text-gray-100">
+						<span
+							class="mr-2 {state.result?.app_ssh_connection?.success
+								? 'text-emerald-500'
+								: 'text-red-500'}"
+						>
+							{state.result?.app_ssh_connection?.success ? '✓' : '✗'}
+						</span>
+						App SSH Connection
+					</h4>
+					<div class="space-y-2 text-sm">
+						<div class="flex justify-between">
+							<span class="text-gray-600 dark:text-gray-400">Username:</span>
+							<span class="font-mono text-gray-900 dark:text-gray-100"
+								>{state.result?.app_ssh_connection?.username}</span
+							>
+						</div>
+						<div class="flex justify-between">
+							<span class="text-gray-600 dark:text-gray-400">Status:</span>
+							<span
+								class="font-medium {state.result?.app_ssh_connection?.success
+									? 'text-emerald-600 dark:text-emerald-400'
+									: 'text-red-600 dark:text-red-400'}"
+							>
+								{state.result?.app_ssh_connection?.success ? 'Connected' : 'Failed'}
+							</span>
+						</div>
+						{#if state.result?.app_ssh_connection?.auth_method}
+							<div class="flex justify-between">
+								<span class="text-gray-600 dark:text-gray-400">Auth Method:</span>
+								<span class="font-mono text-gray-900 dark:text-gray-100"
+									>{state.result.app_ssh_connection.auth_method}</span
+								>
+							</div>
+						{/if}
+						{#if state.result?.app_ssh_connection?.error}
+							<div class="mt-2">
+								<p
+									class="rounded bg-red-100 p-2 font-mono text-xs text-red-700 ring-1 ring-red-200 dark:bg-red-900 dark:text-red-300 dark:ring-red-700"
+								>
+									{state.result.app_ssh_connection.error}
+								</p>
+							</div>
+						{/if}
+					</div>
 				</div>
 
 				<!-- Troubleshooting Tips -->
 				<div
-					class="mt-4 rounded-lg bg-gray-50 p-4 ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-800"
+					class="mt-4 rounded-lg bg-blue-50 p-4 ring-1 ring-blue-200 dark:bg-blue-950 dark:ring-blue-800"
 				>
-					<h4 class="mb-2 font-semibold text-gray-900 dark:text-gray-100">Troubleshooting Tips</h4>
-					<ul class="space-y-1 text-sm text-gray-600 dark:text-gray-400">
-						<li>• Check that the server IP address is correct</li>
+					<h4 class="mb-2 font-semibold text-blue-900 dark:text-blue-100">Troubleshooting Tips</h4>
+					<ul class="space-y-1 text-sm text-blue-800 dark:text-blue-200">
+						<li>• Check that the server IP address and port are correct</li>
+						<li>• Verify SSH keys are properly configured and accessible</li>
 						<li>• Check firewall settings on both client and server</li>
+						<li>• Ensure the specified usernames exist on the server</li>
+						<li>• Check SSH service is running on the server</li>
 					</ul>
 				</div>
 			</div>

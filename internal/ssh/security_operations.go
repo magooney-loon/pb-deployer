@@ -50,82 +50,82 @@ func (sm *SSHManager) detectSSHServiceName(progressChan chan<- SetupStep) (strin
 		sm.SendProgressUpdate(progressChan, "harden_ssh", "running", "Detecting SSH service name", 81)
 	}
 
-	// Try common SSH service names
-	serviceNames := []string{"sshd", "ssh", "openssh", "openssh-server"}
-	var lastError error
+	// Try common SSH service names in order of likelihood
+	serviceNames := []string{"ssh", "sshd", "openssh-server", "openssh"}
+	var detectionErrors []string
 
 	for _, serviceName := range serviceNames {
 		if progressChan != nil {
 			sm.SendProgressUpdate(progressChan, "harden_ssh", "running", fmt.Sprintf("Testing service name: %s", serviceName), 82)
 		}
 
-		// Method 1: Check if service is loaded (regardless of enabled status)
-		cmd := fmt.Sprintf("systemctl list-units --type=service --all | grep -q '%s.service'", serviceName)
-		if _, err := sm.ExecuteCommand(cmd); err == nil {
-			if progressChan != nil {
-				sm.SendProgressUpdate(progressChan, "harden_ssh", "running", fmt.Sprintf("Found SSH service: %s (method: list-units)", serviceName), 83)
-			}
-			return serviceName, nil
-		}
-
-		// Method 2: Check if service unit file exists
-		cmd = fmt.Sprintf("systemctl list-unit-files --type=service | grep -q '%s.service'", serviceName)
-		if _, err := sm.ExecuteCommand(cmd); err == nil {
-			if progressChan != nil {
-				sm.SendProgressUpdate(progressChan, "harden_ssh", "running", fmt.Sprintf("Found SSH service: %s (method: list-unit-files)", serviceName), 83)
-			}
-			return serviceName, nil
-		}
-
-		// Method 3: Check if service status can be queried (even if inactive)
-		cmd = fmt.Sprintf("systemctl status %s", serviceName)
-		if output, err := sm.ExecuteCommand(cmd); err == nil {
-			if progressChan != nil {
-				sm.SendProgressUpdate(progressChan, "harden_ssh", "running", fmt.Sprintf("Found SSH service: %s (method: status check)", serviceName), 83)
-			}
-			return serviceName, nil
-		} else {
-			lastError = fmt.Errorf("service %s status check failed: %w (output: %s)", serviceName, err, output)
-		}
-	}
-
-	// Method 4: Check for running SSH daemon process
-	if progressChan != nil {
-		sm.SendProgressUpdate(progressChan, "harden_ssh", "running", "Checking for running SSH daemon process", 84)
-	}
-	if output, err := sm.ExecuteCommand("ps aux | grep sshd | grep -v grep"); err == nil && strings.TrimSpace(output) != "" {
-		if progressChan != nil {
-			sm.SendProgressUpdate(progressChan, "harden_ssh", "running", "Found running SSH daemon, checking if managed by systemctl", 85)
-		}
-
-		// Check if any of the service names can control this daemon
-		for _, serviceName := range serviceNames {
-			testCmd := fmt.Sprintf("systemctl is-active %s || systemctl is-failed %s || systemctl is-enabled %s", serviceName, serviceName, serviceName)
-			if _, err := sm.ExecuteCommand(testCmd); err == nil {
+		// Method 1: Check with and without .service suffix
+		for _, variant := range []string{serviceName + ".service", serviceName} {
+			statusCmd := fmt.Sprintf("systemctl status %s 2>/dev/null", variant)
+			if output, err := sm.ExecuteCommand(statusCmd); err == nil || !strings.Contains(output, "not found") {
 				if progressChan != nil {
-					sm.SendProgressUpdate(progressChan, "harden_ssh", "running", fmt.Sprintf("SSH daemon is managed by systemctl as '%s'", serviceName), 87)
+					sm.SendProgressUpdate(progressChan, "harden_ssh", "running", fmt.Sprintf("Found SSH service: %s", serviceName), 83)
 				}
 				return serviceName, nil
 			}
 		}
 
-		if progressChan != nil {
-			sm.SendProgressUpdate(progressChan, "harden_ssh", "running", "SSH daemon running but not managed by systemctl", 87)
+		// Method 2: Check if service unit file exists
+		unitFileCmd := fmt.Sprintf("systemctl list-unit-files 2>/dev/null | grep -E '^%s\\.service|^%s\\s'", serviceName, serviceName)
+		if output, err := sm.ExecuteCommand(unitFileCmd); err == nil && strings.TrimSpace(output) != "" {
+			if progressChan != nil {
+				sm.SendProgressUpdate(progressChan, "harden_ssh", "running", fmt.Sprintf("Found SSH service unit file: %s", serviceName), 83)
+			}
+			return serviceName, nil
 		}
+
+		detectionErrors = append(detectionErrors, fmt.Sprintf("%s: not found in systemctl", serviceName))
 	}
 
-	// Method 5: Check for SSH configuration file existence
+	// Method 3: Check for running SSH daemon process
 	if progressChan != nil {
-		sm.SendProgressUpdate(progressChan, "harden_ssh", "running", "Checking for SSH configuration file", 86)
+		sm.SendProgressUpdate(progressChan, "harden_ssh", "running", "Checking for running SSH daemon process", 84)
+	}
+	if output, err := sm.ExecuteCommand("ps aux | grep '[s]shd' | head -1"); err == nil && strings.TrimSpace(output) != "" {
+		if progressChan != nil {
+			sm.SendProgressUpdate(progressChan, "harden_ssh", "running", "Found running SSH daemon, checking system type", 85)
+		}
+
+		// Determine likely service name based on OS
+		if _, err := sm.ExecuteCommand("test -f /etc/debian_version"); err == nil {
+			// Debian/Ubuntu systems typically use 'ssh'
+			return "ssh", nil
+		}
+		if _, err := sm.ExecuteCommand("test -f /etc/redhat-release"); err == nil {
+			// RHEL/CentOS systems typically use 'sshd'
+			return "sshd", nil
+		}
+
+		// Default for other systems
+		return "ssh", nil
+	}
+
+	// Method 4: Check for SSH configuration file
+	if progressChan != nil {
+		sm.SendProgressUpdate(progressChan, "harden_ssh", "running", "Checking SSH config file", 86)
 	}
 	if _, err := sm.ExecuteCommand("test -f /etc/ssh/sshd_config"); err == nil {
-		if progressChan != nil {
-			sm.SendProgressUpdate(progressChan, "harden_ssh", "running", "Found SSH config file, but no running daemon detected", 87)
+		// Try to determine service name from OS type
+		if _, err := sm.ExecuteCommand("which apt-get"); err == nil {
+			return "ssh", nil // Debian/Ubuntu
 		}
-		return "sshd", nil // Default to sshd if config exists
+		if _, err := sm.ExecuteCommand("which yum"); err == nil {
+			return "sshd", nil // RHEL/CentOS
+		}
+		return "ssh", nil // Default for modern systems
 	}
 
-	return "", fmt.Errorf("could not detect SSH service name. Last error: %v", lastError)
+	// If we can't detect anything, warn but continue with 'ssh' as default
+	if progressChan != nil {
+		errorDetails := strings.Join(detectionErrors, "; ")
+		sm.SendProgressUpdate(progressChan, "harden_ssh", "running", fmt.Sprintf("Could not detect SSH service. Will try 'ssh' as default. Errors: %s", errorDetails), 87)
+	}
+	return "ssh", nil
 }
 
 // setupFirewall configures UFW firewall
@@ -397,34 +397,57 @@ func (sm *SSHManager) reloadSSHService(serviceName string, progressChan chan<- S
 	}
 
 	if progressChan != nil {
-		sm.SendProgressUpdate(progressChan, "harden_ssh", "running", fmt.Sprintf("Reloading SSH service: %s", serviceName), 93)
+		sm.SendProgressUpdate(progressChan, "harden_ssh", "running", fmt.Sprintf("Attempting to reload SSH service: %s", serviceName), 93)
 	}
 
-	// Reload the SSH service
-	reloadCmd := fmt.Sprintf("systemctl reload %s", serviceName)
-	if _, err := sm.ExecuteCommand(reloadCmd); err != nil {
-		// If reload fails, try restart
-		if progressChan != nil {
-			sm.SendProgressUpdate(progressChan, "harden_ssh", "running", "Reload failed, attempting restart", 94)
-		}
-		restartCmd := fmt.Sprintf("systemctl restart %s", serviceName)
-		if _, err := sm.ExecuteCommand(restartCmd); err != nil {
-			return fmt.Errorf("failed to restart SSH service: %w", err)
+	// Try different service names and methods
+	serviceVariants := []string{serviceName + ".service", serviceName}
+
+	for _, variant := range serviceVariants {
+		// First verify the service exists
+		checkCmd := fmt.Sprintf("systemctl status %s 2>/dev/null", variant)
+		if output, err := sm.ExecuteCommand(checkCmd); err == nil || !strings.Contains(output, "not found") {
+			if progressChan != nil {
+				sm.SendProgressUpdate(progressChan, "harden_ssh", "running", fmt.Sprintf("Found service as: %s", variant), 94)
+			}
+
+			// Try reload first (graceful)
+			reloadCmd := fmt.Sprintf("systemctl reload %s", variant)
+			if _, err := sm.ExecuteCommand(reloadCmd); err == nil {
+				// Verify service is still running
+				statusCmd := fmt.Sprintf("systemctl is-active %s", variant)
+				if output, err := sm.ExecuteCommand(statusCmd); err == nil && strings.Contains(output, "active") {
+					if progressChan != nil {
+						sm.SendProgressUpdate(progressChan, "harden_ssh", "running", fmt.Sprintf("SSH service %s successfully reloaded", variant), 98)
+					}
+					return nil
+				}
+			}
+
+			// If reload fails, try restart
+			if progressChan != nil {
+				sm.SendProgressUpdate(progressChan, "harden_ssh", "running", "Reload failed, attempting restart", 95)
+			}
+			restartCmd := fmt.Sprintf("systemctl restart %s", variant)
+			if _, err := sm.ExecuteCommand(restartCmd); err == nil {
+				// Verify service is still running
+				statusCmd := fmt.Sprintf("systemctl is-active %s", variant)
+				if output, err := sm.ExecuteCommand(statusCmd); err == nil && strings.Contains(output, "active") {
+					if progressChan != nil {
+						sm.SendProgressUpdate(progressChan, "harden_ssh", "running", fmt.Sprintf("SSH service %s successfully restarted", variant), 98)
+					}
+					return nil
+				}
+			}
 		}
 	}
 
+	// If systemctl methods fail, try manual reload
 	if progressChan != nil {
-		sm.SendProgressUpdate(progressChan, "harden_ssh", "running", "Verifying SSH service is running", 96)
+		sm.SendProgressUpdate(progressChan, "harden_ssh", "running", "Systemctl methods failed, trying manual reload", 96)
 	}
 
-	// Verify service is still running
-	statusCmd := fmt.Sprintf("systemctl is-active %s", serviceName)
-	output, err := sm.ExecuteCommand(statusCmd)
-	if err != nil || !strings.Contains(output, "active") {
-		return fmt.Errorf("SSH service is not active after reload")
-	}
-
-	return nil
+	return sm.reloadSSHConfigManually(progressChan)
 }
 
 // reloadSSHConfigManually attempts to reload SSH config without systemctl

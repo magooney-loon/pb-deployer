@@ -1,11 +1,21 @@
 import PocketBase from 'pocketbase';
 
+// Singleton PocketBase instance
+let pocketBaseInstance: PocketBase | null = null;
+
+function getPocketBaseInstance(baseUrl: string = 'http://localhost:8090'): PocketBase {
+	if (!pocketBaseInstance) {
+		pocketBaseInstance = new PocketBase(baseUrl);
+		console.log('PocketBase client initialized with URL:', baseUrl);
+	}
+	return pocketBaseInstance;
+}
+
 export class BaseClient {
 	protected pb: PocketBase;
 
 	constructor(baseUrl: string = 'http://localhost:8090') {
-		this.pb = new PocketBase(baseUrl);
-		console.log('PocketBase client initialized with URL:', baseUrl);
+		this.pb = getPocketBaseInstance(baseUrl);
 	}
 
 	// Health & Info endpoints

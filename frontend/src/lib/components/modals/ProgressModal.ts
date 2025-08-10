@@ -129,8 +129,8 @@ export class ProgressModalLogic {
 
 	public isFailed(): boolean {
 		if (this.state.progress.length === 0) return false;
-		const latestStep = this.state.progress[this.state.progress.length - 1];
-		return latestStep?.status === 'failed';
+		// Check if any step has failed, not just the latest
+		return this.state.progress.some((step) => step.status === 'failed');
 	}
 
 	public isInProgress(): boolean {
@@ -143,9 +143,11 @@ export class ProgressModalLogic {
 
 		const latestStep = this.state.progress[this.state.progress.length - 1];
 
-		// If operation has failed or completed successfully, it's not in progress
+		// If operation has completed successfully, it's not in progress
 		if (latestStep.step === 'complete') return false;
-		if (latestStep.status === 'failed') return false;
+
+		// If any step has failed, operation is not in progress anymore
+		if (this.state.progress.some((step) => step.status === 'failed')) return false;
 
 		// If latest step is running, it's in progress
 		return latestStep.status === 'running';

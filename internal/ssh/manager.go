@@ -256,6 +256,12 @@ func (sm *SSHManager) ExecuteCommandStream(command string, output chan<- string)
 	return cmdErr
 }
 
+// RunCommand is an alias for ExecuteCommand for simpler usage
+func (sm *SSHManager) RunCommand(command string) error {
+	_, err := sm.ExecuteCommand(command)
+	return err
+}
+
 // TestConnection verifies the SSH connection is working
 func (sm *SSHManager) TestConnection() error {
 	output, err := sm.ExecuteCommand("echo 'SSH connection test successful'")
