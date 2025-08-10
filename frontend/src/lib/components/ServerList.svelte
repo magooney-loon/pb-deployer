@@ -40,7 +40,7 @@
 				Manage your VPS servers and deployment infrastructure
 			</p>
 		</div>
-		<Button onclick={() => logic.toggleCreateForm()}>
+		<Button onclick={() => logic.toggleCreateForm()} icon={state.showCreateForm ? '✕' : '🖥️'}>
 			{state.showCreateForm ? 'Cancel' : 'Add Server'}
 		</Button>
 	</div>
@@ -251,6 +251,7 @@
 										size="sm"
 										onclick={() => logic.testConnection(server.id)}
 										disabled={state.testingConnection.has(server.id)}
+										icon={state.testingConnection.has(server.id) ? '🔄' : '🔌'}
 									>
 										{state.testingConnection.has(server.id) ? 'Testing...' : 'Test Connection'}
 									</Button>
@@ -262,6 +263,7 @@
 											size="sm"
 											onclick={() => logic.runSetup(server.id)}
 											disabled={state.runningSetup.has(server.id)}
+											icon={state.runningSetup.has(server.id) ? '🔄' : '⚙️'}
 										>
 											{state.runningSetup.has(server.id) ? 'Setting Up...' : 'Run Setup'}
 										</Button>
@@ -272,6 +274,7 @@
 											size="sm"
 											onclick={() => logic.applySecurity(server.id)}
 											disabled={state.applyingSecurity.has(server.id)}
+											icon={state.applyingSecurity.has(server.id) ? '🔄' : '🔒'}
 										>
 											{state.applyingSecurity.has(server.id) ? 'Securing...' : 'Secure (Optional)'}
 										</Button>
@@ -284,6 +287,7 @@
 										onclick={() => logic.deleteServer(server.id)}
 										disabled={state.runningSetup.has(server.id) ||
 											state.applyingSecurity.has(server.id)}
+										icon="🗑️"
 									>
 										Delete
 									</Button>

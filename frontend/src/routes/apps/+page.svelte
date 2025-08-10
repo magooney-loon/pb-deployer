@@ -3,7 +3,7 @@
 </script>
 
 <svelte:head>
-	<title>Applications - PB Deployer</title>
+	<title>Applications - pb-deployer</title>
 	<meta name="description" content="Manage your PocketBase applications" />
 </svelte:head>
 

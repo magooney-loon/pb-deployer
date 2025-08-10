@@ -25,14 +25,14 @@
 </script>
 
 <nav class="border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
-	<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+	<div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
 		<div class="flex h-16 items-center justify-between">
 			<!-- Logo and brand -->
 			<div class="flex items-center">
 				<div class="flex-shrink-0">
 					<h1 class="flex items-center text-xl font-semibold text-gray-900 dark:text-gray-100">
-						<span class="mr-2 text-2xl">⚡</span>
-						PB Deployer
+						<img alt="Icon" src="/favicon.svg" class="mr-2 h-6 w-6" />
+						pb-deployer
 					</h1>
 				</div>
 
