@@ -1,8 +1,11 @@
 package version
 
 import (
+	"archive/zip"
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -315,7 +318,7 @@ func deleteVersion(app core.App, e *core.RequestEvent) error {
 	})
 }
 
-// uploadVersionZip handles uploading a deployment zip for a version
+// uploadVersionZip handles uploading binary and public folder files for a version
 func uploadVersionZip(app core.App, e *core.RequestEvent) error {
 	versionID := e.Request.PathValue("id")
 	if versionID == "" {
@@ -340,50 +343,147 @@ func uploadVersionZip(app core.App, e *core.RequestEvent) error {
 		})
 	}
 
-	// Get uploaded file
-	file, header, err := e.Request.FormFile("deployment_zip")
+	// Get uploaded binary file
+	binaryFile, binaryHeader, err := e.Request.FormFile("pocketbase_binary")
 	if err != nil {
 		return e.JSON(http.StatusBadRequest, map[string]string{
-			"error": "No deployment zip file provided",
+			"error": "PocketBase binary file is required",
 		})
 	}
-	defer file.Close()
+	defer binaryFile.Close()
 
-	// Validate file type
-	if !strings.HasSuffix(strings.ToLower(header.Filename), ".zip") {
+	// Get uploaded public folder files
+	publicFiles := e.Request.MultipartForm.File["pb_public_files"]
+	if len(publicFiles) == 0 {
 		return e.JSON(http.StatusBadRequest, map[string]string{
-			"error": "File must be a ZIP archive",
+			"error": "pb_public folder files are required",
 		})
 	}
 
-	// Validate file size (150MB max)
-	if header.Size > 157286400 {
+	// Validate file sizes
+	if binaryHeader.Size > 104857600 { // 100MB max for binary
 		return e.JSON(http.StatusBadRequest, map[string]string{
-			"error": "File size exceeds 150MB limit",
+			"error": "Binary file size exceeds 100MB limit",
 		})
 	}
 
-	// Save file to record
-	record.Set("deployment_zip", header)
+	// Calculate total size of public files and validate
+	var totalPublicSize int64
+	for _, fileHeader := range publicFiles {
+		totalPublicSize += fileHeader.Size
+	}
+
+	if totalPublicSize > 52428800 { // 50MB max for public folder
+		return e.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Public folder total size exceeds 50MB limit",
+		})
+	}
+
+	// Create deployment ZIP in memory
+	var zipBuffer bytes.Buffer
+	zipWriter := zip.NewWriter(&zipBuffer)
+
+	// Add binary file to ZIP
+	binaryWriter, err := zipWriter.Create("pocketbase")
+	if err != nil {
+		return e.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to create deployment package",
+		})
+	}
+
+	if _, err := io.Copy(binaryWriter, binaryFile); err != nil {
+		return e.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to add binary to deployment package",
+		})
+	}
+
+	// Add public folder files to ZIP
+	for _, fileHeader := range publicFiles {
+		// Open the uploaded file
+		file, err := fileHeader.Open()
+		if err != nil {
+			return e.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Failed to read uploaded public file",
+			})
+		}
+
+		// Create file in deployment ZIP under pb_public/
+		// The filename may contain path separators for folder structure
+		deploymentPath := fmt.Sprintf("pb_public/%s", fileHeader.Filename)
+		writer, err := zipWriter.Create(deploymentPath)
+		if err != nil {
+			file.Close()
+			return e.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Failed to create deployment package",
+			})
+		}
+
+		// Copy file content
+		if _, err := io.Copy(writer, file); err != nil {
+			file.Close()
+			return e.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Failed to create deployment package",
+			})
+		}
+		file.Close()
+	}
+
+	// Close ZIP writer
+	if err := zipWriter.Close(); err != nil {
+		return e.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to finalize deployment package",
+		})
+	}
+
+	// Create a multipart file header for the deployment ZIP
+	deploymentFilename := fmt.Sprintf("deployment_%s_%d.zip", record.GetString("version_number"), time.Now().Unix())
+
+	record.Set("deployment_zip", deploymentFilename)
 
 	if err := app.Save(record); err != nil {
-		app.Logger().Error("Failed to save deployment zip", "version_id", versionID, "error", err)
+		app.Logger().Error("Failed to save version record", "version_id", versionID, "error", err)
 		return e.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Failed to save deployment zip",
+			"error": "Failed to save deployment package",
 		})
 	}
 
-	app.Logger().Info("Deployment zip uploaded successfully",
+	// Save the actual file content using PocketBase filesystem
+	filesystem, err := app.NewFilesystem()
+	if err != nil {
+		app.Logger().Error("Failed to get filesystem", "error", err)
+		return e.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to save deployment package",
+		})
+	}
+	defer filesystem.Close()
+
+	// Save ZIP content to filesystem
+	fileKey := record.BaseFilesPath() + "/" + deploymentFilename
+	if err := filesystem.Upload(zipBuffer.Bytes(), fileKey); err != nil {
+		app.Logger().Error("Failed to save deployment zip to filesystem", "version_id", versionID, "error", err)
+		return e.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to save deployment package",
+		})
+	}
+
+	app.Logger().Info("Version files uploaded successfully",
 		"version_id", versionID,
-		"filename", header.Filename,
-		"size", header.Size)
+		"binary_file", binaryHeader.Filename,
+		"binary_size", binaryHeader.Size,
+		"public_files_count", len(publicFiles),
+		"public_total_size", totalPublicSize,
+		"deployment_size", zipBuffer.Len())
 
 	return e.JSON(http.StatusOK, map[string]interface{}{
-		"message":     "Deployment zip uploaded successfully",
-		"version_id":  versionID,
-		"filename":    header.Filename,
-		"size":        header.Size,
-		"uploaded_at": time.Now().UTC(),
+		"message":            "Version files uploaded successfully",
+		"version_id":         versionID,
+		"binary_file":        binaryHeader.Filename,
+		"binary_size":        binaryHeader.Size,
+		"public_files_count": len(publicFiles),
+		"public_total_size":  totalPublicSize,
+		"deployment_file":    deploymentFilename,
+		"deployment_size":    zipBuffer.Len(),
+		"uploaded_at":        time.Now().UTC(),
 	})
 }
 

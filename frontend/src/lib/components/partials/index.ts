@@ -7,5 +7,7 @@ export { default as StatusBadge } from './StatusBadge.svelte';
 export { default as Card } from './Card.svelte';
 export { default as RecentItemsCard } from './RecentItemsCard.svelte';
 export { default as FormField } from './FormField.svelte';
+export { default as FileUpload } from './FileUpload.svelte';
+export { default as ProgressBar } from './ProgressBar.svelte';
 export { default as EmptyState } from './EmptyState.svelte';
 export { default as DataTable } from './DataTable.svelte';

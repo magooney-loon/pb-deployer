@@ -6,6 +6,12 @@ export interface AppFormData {
 	domain: string;
 	remote_path: string;
 	service_name: string;
+	// Version info for first-time creation
+	version_number: string;
+	version_notes: string;
+	// File uploads
+	pocketbase_binary: File | null;
+	pb_public_folder: File[] | null;
 }
 
 export interface AppListState {
@@ -16,6 +22,9 @@ export interface AppListState {
 	showCreateForm: boolean;
 	checkingHealth: Set<string>;
 	newApp: AppFormData;
+	creating: boolean;
+	uploadProgress: number;
+	currentStep: string;
 }
 
 export class AppListLogic {
@@ -39,8 +48,15 @@ export class AppListLogic {
 				server_id: '',
 				domain: '',
 				remote_path: '',
-				service_name: ''
-			}
+				service_name: '',
+				version_number: '1.0.0',
+				version_notes: 'Initial version',
+				pocketbase_binary: null,
+				pb_public_folder: null
+			},
+			creating: false,
+			uploadProgress: 0,
+			currentStep: ''
 		};
 	}
 
@@ -55,6 +71,10 @@ export class AppListLogic {
 	private updateState(updates: Partial<AppListState>): void {
 		this.state = { ...this.state, ...updates };
 		this.stateUpdateCallback?.(this.state);
+	}
+
+	public setError(error: string): void {
+		this.updateState({ error });
 	}
 
 	public async initialize(): Promise<void> {
@@ -86,24 +106,74 @@ export class AppListLogic {
 		}
 	}
 
-	public async createApp(): Promise<void> {
+	public async createApp(): Promise<boolean> {
 		try {
+			this.updateState({
+				creating: true,
+				error: null,
+				currentStep: 'Creating app...',
+				uploadProgress: 0
+			});
+
+			// Step 1: Create the app
 			const appData = {
-				...this.state.newApp,
+				name: this.state.newApp.name,
+				server_id: this.state.newApp.server_id,
+				domain: this.state.newApp.domain,
 				remote_path:
 					this.state.newApp.remote_path || `/opt/pocketbase/apps/${this.state.newApp.name}`,
 				service_name: this.state.newApp.service_name || `pocketbase-${this.state.newApp.name}`
 			};
+
 			const app = await api.createApp(appData);
+			this.updateState({
+				currentStep: 'Creating initial version...',
+				uploadProgress: 25
+			});
+
+			// Step 2: Create initial version
+			const version = await api.createVersion(app.id, {
+				version_number: this.state.newApp.version_number,
+				notes: this.state.newApp.version_notes
+			});
+
+			this.updateState({
+				currentStep: 'Uploading files...',
+				uploadProgress: 50
+			});
+
+			// Step 3: Upload files
+			await api.uploadVersionWithFolder(
+				version.id,
+				this.state.newApp.pocketbase_binary!,
+				this.state.newApp.pb_public_folder!
+			);
+
+			this.updateState({
+				currentStep: 'Finalizing...',
+				uploadProgress: 100
+			});
+
+			// Update apps list
 			const apps = [...this.state.apps, app];
 			this.updateState({
 				apps,
-				showCreateForm: false
+				showCreateForm: false,
+				creating: false,
+				currentStep: '',
+				uploadProgress: 0
 			});
 			this.resetForm();
+			return true;
 		} catch (err) {
 			const error = err instanceof Error ? err.message : 'Failed to create app';
-			this.updateState({ error });
+			this.updateState({
+				error,
+				creating: false,
+				currentStep: '',
+				uploadProgress: 0
+			});
+			return false;
 		}
 	}
 
@@ -146,8 +216,15 @@ export class AppListLogic {
 				server_id: '',
 				domain: '',
 				remote_path: '',
-				service_name: ''
-			}
+				service_name: '',
+				version_number: '1.0.0',
+				version_notes: 'Initial version',
+				pocketbase_binary: null,
+				pb_public_folder: null
+			},
+			creating: false,
+			uploadProgress: 0,
+			currentStep: ''
 		});
 	}
 
@@ -196,5 +273,63 @@ export class AppListLogic {
 
 	public getStatusIcon(status: string): string {
 		return getStatusIcon(status);
+	}
+
+	// File handling methods
+	public updateBinaryFile(file: File | File[] | null): void {
+		const singleFile = Array.isArray(file) ? file[0] : file;
+		this.updateState({
+			newApp: { ...this.state.newApp, pocketbase_binary: singleFile }
+		});
+	}
+
+	public updatePublicFolder(files: File | File[] | null): void {
+		const fileArray = Array.isArray(files) ? files : files ? [files] : null;
+		this.updateState({
+			newApp: { ...this.state.newApp, pb_public_folder: fileArray }
+		});
+	}
+
+	public updateVersionNumber(version: string): void {
+		this.updateState({
+			newApp: { ...this.state.newApp, version_number: version }
+		});
+	}
+
+	public updateVersionNotes(notes: string): void {
+		this.updateState({
+			newApp: { ...this.state.newApp, version_notes: notes }
+		});
+	}
+
+	// App service management
+	public async startApp(id: string): Promise<void> {
+		try {
+			await api.startApp(id);
+			await this.loadApps(); // Refresh to get updated status
+		} catch (err) {
+			const error = err instanceof Error ? err.message : 'Failed to start app';
+			this.updateState({ error });
+		}
+	}
+
+	public async stopApp(id: string): Promise<void> {
+		try {
+			await api.stopApp(id);
+			await this.loadApps(); // Refresh to get updated status
+		} catch (err) {
+			const error = err instanceof Error ? err.message : 'Failed to stop app';
+			this.updateState({ error });
+		}
+	}
+
+	public async restartApp(id: string): Promise<void> {
+		try {
+			await api.restartApp(id);
+			await this.loadApps(); // Refresh to get updated status
+		} catch (err) {
+			const error = err instanceof Error ? err.message : 'Failed to restart app';
+			this.updateState({ error });
+		}
 	}
 }

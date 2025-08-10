@@ -5,7 +5,6 @@ import type {
 	Server,
 	App,
 	Version,
-	Deployment,
 	ServerResponse,
 	AppResponse,
 	ServerStatus,
@@ -165,19 +164,17 @@ export class ApiClient extends BaseClient {
 		}
 	}
 
-	// App CRUD operations using PocketBase SDK
+	// App CRUD operations using REST API
 	async getApps() {
-		console.log('Getting apps via PocketBase...');
+		console.log('Getting apps via REST API...');
 		try {
-			const records = await this.pb.collection('apps').getFullList<App>({
-				sort: '-created'
-			});
-			console.log('PocketBase apps response:', records);
-
-			// Transform to match expected format
-			const result = { apps: records || [] };
-			console.log('getApps result:', result);
-			return result;
+			const response = await fetch(`${this.baseURL}/api/apps`);
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			const data = await response.json();
+			console.log('Apps API response:', data);
+			return data;
 		} catch (error) {
 			console.error('Failed to get apps:', error);
 			throw error;
@@ -187,20 +184,13 @@ export class ApiClient extends BaseClient {
 	async getApp(id: string): Promise<AppResponse> {
 		console.log('Getting app:', id);
 		try {
-			const app = await this.pb.collection('apps').getOne<App>(id);
-			console.log('PocketBase app response:', app);
-
-			const response: AppResponse = { ...app };
-
-			// Optionally include server, versions, and deployments
-			try {
-				const server = await this.pb.collection('servers').getOne<Server>(app.server_id);
-				response.server = server;
-			} catch (serverError) {
-				console.warn('Failed to load server for app:', serverError);
+			const response = await fetch(`${this.baseURL}/api/apps/${id}`);
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
 			}
-
-			return response;
+			const data = await response.json();
+			console.log('App API response:', data);
+			return data;
 		} catch (error) {
 			console.error('Failed to get app:', error);
 			throw error;
@@ -210,7 +200,18 @@ export class ApiClient extends BaseClient {
 	async createApp(data: AppRequest): Promise<App> {
 		console.log('Creating app:', data);
 		try {
-			const app = await this.pb.collection('apps').create<App>(data);
+			const response = await fetch(`${this.baseURL}/api/apps`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(data)
+			});
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+			}
+			const app = await response.json();
 			console.log('App created:', app);
 			return app;
 		} catch (error) {
@@ -222,7 +223,18 @@ export class ApiClient extends BaseClient {
 	async updateApp(id: string, data: Partial<AppRequest>): Promise<App> {
 		console.log('Updating app:', id, data);
 		try {
-			const app = await this.pb.collection('apps').update<App>(id, data);
+			const response = await fetch(`${this.baseURL}/api/apps/${id}`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(data)
+			});
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+			}
+			const app = await response.json();
 			console.log('App updated:', app);
 			return app;
 		} catch (error) {
@@ -234,9 +246,16 @@ export class ApiClient extends BaseClient {
 	async deleteApp(id: string) {
 		console.log('Deleting app:', id);
 		try {
-			await this.pb.collection('apps').delete(id);
+			const response = await fetch(`${this.baseURL}/api/apps/${id}`, {
+				method: 'DELETE'
+			});
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+			}
+			const data = await response.json();
 			console.log('App deleted:', id);
-			return { message: 'App deleted successfully' };
+			return data;
 		} catch (error) {
 			console.error('Failed to delete app:', error);
 			throw error;
@@ -246,14 +265,15 @@ export class ApiClient extends BaseClient {
 	async getAppsByServer(serverId: string) {
 		console.log('Getting apps by server:', serverId);
 		try {
-			const apps = await this.pb.collection('apps').getFullList<App>({
-				filter: `server_id = "${serverId}"`,
-				sort: '-created'
-			});
-			console.log('Apps by server response:', apps);
+			const response = await fetch(`${this.baseURL}/api/apps?server_id=${serverId}`);
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			const data = await response.json();
+			console.log('Apps by server response:', data);
 			return {
 				server_id: serverId,
-				apps: apps || []
+				apps: data.apps || []
 			};
 		} catch (error) {
 			console.error('Failed to get apps by server:', error);
@@ -264,7 +284,10 @@ export class ApiClient extends BaseClient {
 	async checkAppHealth(id: string): Promise<HealthCheckResponse> {
 		console.log('Checking app health:', id);
 		try {
-			const response = await fetch(`${this.baseURL}/api/apps/${id}/health`);
+			const response = await fetch(`${this.baseURL}/api/apps/${id}/status`);
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
 			const data = await response.json();
 			console.log('App health response:', data);
 			return data;
@@ -295,15 +318,13 @@ export class ApiClient extends BaseClient {
 	async getAppVersions(id: string) {
 		console.log('Getting app versions:', id);
 		try {
-			const versions = await this.pb.collection('versions').getFullList<Version>({
-				filter: `app_id = "${id}"`,
-				sort: '-created'
-			});
-			console.log('App versions response:', versions);
-			return {
-				app_id: id,
-				versions: versions || []
-			};
+			const response = await fetch(`${this.baseURL}/api/apps/${id}/versions`);
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			const data = await response.json();
+			console.log('App versions response:', data);
+			return data;
 		} catch (error) {
 			console.error('Failed to get app versions:', error);
 			throw error;
@@ -313,15 +334,13 @@ export class ApiClient extends BaseClient {
 	async getAppDeployments(id: string) {
 		console.log('Getting app deployments:', id);
 		try {
-			const deployments = await this.pb.collection('deployments').getFullList<Deployment>({
-				filter: `app_id = "${id}"`,
-				sort: '-created'
-			});
-			console.log('App deployments response:', deployments);
-			return {
-				app_id: id,
-				deployments: deployments || []
-			};
+			const response = await fetch(`${this.baseURL}/api/deployments?app_id=${id}`);
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			const data = await response.json();
+			console.log('App deployments response:', data);
+			return data;
 		} catch (error) {
 			console.error('Failed to get app deployments:', error);
 			throw error;
@@ -384,5 +403,246 @@ export class ApiClient extends BaseClient {
 	// Unsubscribe from all realtime subscriptions
 	async unsubscribeFromAll(): Promise<void> {
 		await this.pb.realtime.unsubscribe();
+	}
+
+	// Version management
+	async createVersion(
+		appId: string,
+		data: { version_number: string; notes?: string }
+	): Promise<Version> {
+		console.log('Creating version for app:', appId, data);
+		try {
+			const response = await fetch(`${this.baseURL}/api/apps/${appId}/versions`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					app_id: appId,
+					...data
+				})
+			});
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+			}
+			const version = await response.json();
+			console.log('Version created:', version);
+			return version;
+		} catch (error) {
+			console.error('Failed to create version:', error);
+			throw error;
+		}
+	}
+
+	async uploadVersionFiles(
+		versionId: string,
+		binaryFile: File,
+		publicFiles: File[]
+	): Promise<{
+		message: string;
+		version_id: string;
+		binary_file: string;
+		binary_size: number;
+		public_files_count: number;
+		public_total_size: number;
+		deployment_file: string;
+		deployment_size: number;
+		uploaded_at: string;
+	}> {
+		console.log('Uploading version files:', versionId);
+		try {
+			const formData = new FormData();
+			formData.append('pocketbase_binary', binaryFile);
+
+			// Append all public files
+			for (const file of publicFiles) {
+				formData.append('pb_public_files', file);
+			}
+
+			const response = await fetch(`${this.baseURL}/api/versions/${versionId}/upload`, {
+				method: 'POST',
+				body: formData
+			});
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+			}
+			const data = await response.json();
+			console.log('Version files uploaded:', data);
+			return data;
+		} catch (error) {
+			console.error('Failed to upload version files:', error);
+			throw error;
+		}
+	}
+
+	// Convenience method for uploading version with folder structure
+	async uploadVersionWithFolder(
+		versionId: string,
+		binaryFile: File,
+		folderFiles: FileList | File[]
+	): Promise<{
+		message: string;
+		version_id: string;
+		binary_file: string;
+		binary_size: number;
+		public_files_count: number;
+		public_total_size: number;
+		deployment_file: string;
+		deployment_size: number;
+		uploaded_at: string;
+	}> {
+		console.log('Uploading version with folder structure:', versionId);
+
+		// Convert FileList to Array if needed
+		const publicFiles = Array.isArray(folderFiles) ? folderFiles : Array.from(folderFiles);
+
+		// Validate that we have files
+		if (publicFiles.length === 0) {
+			throw new Error('No public folder files provided');
+		}
+
+		// Use the existing uploadVersionFiles method
+		return await this.uploadVersionFiles(versionId, binaryFile, publicFiles);
+	}
+
+	// Helper method to validate folder structure for pb_public
+	validatePublicFolderStructure(files: File[]): {
+		valid: boolean;
+		errors: string[];
+		warnings: string[];
+	} {
+		const errors: string[] = [];
+		const warnings: string[] = [];
+
+		// Check for common required files
+		const hasIndexHtml = files.some(
+			(f) => f.webkitRelativePath?.endsWith('index.html') || f.name === 'index.html'
+		);
+		if (!hasIndexHtml) {
+			warnings.push('No index.html found - make sure your app has a main entry point');
+		}
+
+		// Check for suspicious files that shouldn't be in public folder
+		const suspiciousFiles = files.filter((f) => {
+			const name = f.name.toLowerCase();
+			return name.includes('.env') || name.includes('config') || name.includes('secret');
+		});
+
+		if (suspiciousFiles.length > 0) {
+			warnings.push(
+				`Found potentially sensitive files: ${suspiciousFiles.map((f) => f.name).join(', ')}`
+			);
+		}
+
+		// Check total size
+		const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+		if (totalSize > 50 * 1024 * 1024) {
+			// 50MB
+			errors.push(
+				`Total folder size (${Math.round(totalSize / (1024 * 1024))}MB) exceeds 50MB limit`
+			);
+		}
+
+		return {
+			valid: errors.length === 0,
+			errors,
+			warnings
+		};
+	}
+
+	// App service management
+	async startApp(id: string): Promise<{
+		app_id: string;
+		service_name: string;
+		action: string;
+		success: boolean;
+		status: string;
+		message: string;
+		error?: string;
+		timestamp: string;
+	}> {
+		console.log('Starting app service:', id);
+		try {
+			const response = await fetch(`${this.baseURL}/api/apps/${id}/start`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+			}
+			const data = await response.json();
+			console.log('App service started:', data);
+			return data;
+		} catch (error) {
+			console.error('Failed to start app service:', error);
+			throw error;
+		}
+	}
+
+	async stopApp(id: string): Promise<{
+		app_id: string;
+		service_name: string;
+		action: string;
+		success: boolean;
+		status: string;
+		message: string;
+		error?: string;
+		timestamp: string;
+	}> {
+		console.log('Stopping app service:', id);
+		try {
+			const response = await fetch(`${this.baseURL}/api/apps/${id}/stop`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+			}
+			const data = await response.json();
+			console.log('App service stopped:', data);
+			return data;
+		} catch (error) {
+			console.error('Failed to stop app service:', error);
+			throw error;
+		}
+	}
+
+	async restartApp(id: string): Promise<{
+		app_id: string;
+		service_name: string;
+		action: string;
+		success: boolean;
+		status: string;
+		message: string;
+		error?: string;
+		timestamp: string;
+	}> {
+		console.log('Restarting app service:', id);
+		try {
+			const response = await fetch(`${this.baseURL}/api/apps/${id}/restart`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+			}
+			const data = await response.json();
+			console.log('App service restarted:', data);
+			return data;
+		} catch (error) {
+			console.error('Failed to restart app service:', error);
+			throw error;
+		}
 	}
 }
