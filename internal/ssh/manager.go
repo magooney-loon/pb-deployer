@@ -34,8 +34,8 @@ type SetupStep struct {
 	ProgressPct int    `json:"progress_pct"`
 }
 
-// sendProgressUpdate is a helper to send progress updates with logging
-func (sm *SSHManager) sendProgressUpdate(progressChan chan<- SetupStep, step, status, message string, progressPct int, details ...string) {
+// SendProgressUpdate is a helper to send progress updates with logging
+func (sm *SSHManager) SendProgressUpdate(progressChan chan<- SetupStep, step, status, message string, progressPct int, details ...string) {
 	if progressChan == nil {
 		return
 	}

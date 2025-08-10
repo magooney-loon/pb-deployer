@@ -17,7 +17,7 @@ export interface DashboardMetrics {
 	serverStatusCounts: {
 		ready: number;
 		setupRequired: number;
-		securityPending: number;
+		securityOptional: number;
 	};
 	appStatusCounts: {
 		online: number;
@@ -91,7 +91,7 @@ export class DashboardLogic {
 		const { servers, apps } = this.state;
 
 		// Calculate ready servers
-		const readyServers = servers?.filter((s) => s.setup_complete && s.security_locked) || [];
+		const readyServers = servers?.filter((s) => s.setup_complete) || [];
 
 		// Calculate online apps
 		const onlineApps = apps?.filter((a) => a.status === 'online') || [];
@@ -104,7 +104,7 @@ export class DashboardLogic {
 		const serverStatusCounts = {
 			ready: readyServers.length,
 			setupRequired: servers?.filter((s) => !s.setup_complete).length || 0,
-			securityPending: servers?.filter((s) => s.setup_complete && !s.security_locked).length || 0
+			securityOptional: servers?.filter((s) => s.setup_complete && !s.security_locked).length || 0
 		};
 
 		// App status counts

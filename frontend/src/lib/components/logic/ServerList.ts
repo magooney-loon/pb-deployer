@@ -480,8 +480,8 @@ export class ServerListLogic {
 
 		if (!server.setup_complete) {
 			return { text: 'Not Setup', color: 'bg-red-100 text-red-800' };
-		} else if (!server.security_locked) {
-			return { text: 'Setup Complete', color: 'bg-yellow-100 text-yellow-800' };
+		} else if (server.security_locked) {
+			return { text: 'Ready + Secured', color: 'bg-green-100 text-green-800' };
 		} else {
 			return { text: 'Ready', color: 'bg-green-100 text-green-800' };
 		}

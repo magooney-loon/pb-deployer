@@ -84,10 +84,12 @@
 							<span class="text-sm font-medium text-gray-900 dark:text-gray-100">
 								{server.name}
 							</span>
-							{#if server.setup_complete && server.security_locked}
-								<StatusBadge status="Ready" variant="success" class="ml-2" />
-							{:else if server.setup_complete}
-								<StatusBadge status="Setup" variant="warning" class="ml-2" />
+							{#if server.setup_complete}
+								{#if server.security_locked}
+									<StatusBadge status="Ready + Secured" variant="success" class="ml-2" />
+								{:else}
+									<StatusBadge status="Ready" variant="success" class="ml-2" />
+								{/if}
 							{:else}
 								<StatusBadge status="New" variant="error" class="ml-2" />
 							{/if}
@@ -171,9 +173,9 @@
 								</span>
 							</div>
 							<div class="flex justify-between text-sm">
-								<span class="text-gray-600 dark:text-gray-400">Security pending:</span>
-								<span class="font-semibold text-amber-600 dark:text-amber-400">
-									{metrics.serverStatusCounts.securityPending}
+								<span class="text-gray-600 dark:text-gray-400">Security available:</span>
+								<span class="font-semibold text-blue-600 dark:text-blue-400">
+									{metrics.serverStatusCounts.securityOptional}
 								</span>
 							</div>
 						</div>

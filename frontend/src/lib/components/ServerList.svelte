@@ -273,7 +273,7 @@
 											onclick={() => logic.applySecurity(server.id)}
 											disabled={state.applyingSecurity.has(server.id)}
 										>
-											{state.applyingSecurity.has(server.id) ? 'Securing...' : 'Apply Security'}
+											{state.applyingSecurity.has(server.id) ? 'Securing...' : 'Secure (Optional)'}
 										</Button>
 									{/if}
 

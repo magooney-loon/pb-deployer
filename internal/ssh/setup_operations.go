@@ -11,7 +11,7 @@ func (sm *SSHManager) RunServerSetup(progressChan chan<- SetupStep) error {
 		return fmt.Errorf("server setup requires root access")
 	}
 
-	sm.sendProgressUpdate(progressChan, "server_setup", "running", "Starting server setup process", 0)
+	sm.SendProgressUpdate(progressChan, "server_setup", "running", "Starting server setup process", 0)
 
 	steps := []struct {
 		name string
@@ -27,19 +27,19 @@ func (sm *SSHManager) RunServerSetup(progressChan chan<- SetupStep) error {
 
 	for i, step := range steps {
 		// Send running status
-		sm.sendProgressUpdate(progressChan, step.name, "running", fmt.Sprintf("Executing %s", step.name), (i*100)/totalSteps)
+		sm.SendProgressUpdate(progressChan, step.name, "running", fmt.Sprintf("Executing %s", step.name), (i*100)/totalSteps)
 
 		if err := step.fn(progressChan); err != nil {
 			// Send failure status
-			sm.sendProgressUpdate(progressChan, step.name, "failed", fmt.Sprintf("Failed to execute %s", step.name), (i*100)/totalSteps, err.Error())
+			sm.SendProgressUpdate(progressChan, step.name, "failed", fmt.Sprintf("Failed to execute %s", step.name), (i*100)/totalSteps, err.Error())
 			return fmt.Errorf("setup step %s failed: %w", step.name, err)
 		}
 
 		// Send success status
-		sm.sendProgressUpdate(progressChan, step.name, "success", fmt.Sprintf("Successfully completed %s", step.name), ((i+1)*100)/totalSteps)
+		sm.SendProgressUpdate(progressChan, step.name, "success", fmt.Sprintf("Successfully completed %s", step.name), ((i+1)*100)/totalSteps)
 	}
 
-	sm.sendProgressUpdate(progressChan, "server_setup", "success", "Server setup completed successfully", 100)
+	sm.SendProgressUpdate(progressChan, "server_setup", "success", "Server setup completed successfully", 100)
 	return nil
 }
 
@@ -53,7 +53,7 @@ func (sm *SSHManager) createPocketbaseUserWithProgress(progressChan chan<- Setup
 	username := sm.server.AppUsername
 
 	if progressChan != nil {
-		sm.sendProgressUpdate(progressChan, "create_user", "running", fmt.Sprintf("Checking if user %s exists", username), 10)
+		sm.SendProgressUpdate(progressChan, "create_user", "running", fmt.Sprintf("Checking if user %s exists", username), 10)
 	}
 
 	// Check if user already exists
@@ -63,14 +63,14 @@ func (sm *SSHManager) createPocketbaseUserWithProgress(progressChan chan<- Setup
 		// User already exists, check if it's properly configured
 		if strings.Contains(output, "uid=") {
 			if progressChan != nil {
-				sm.sendProgressUpdate(progressChan, "create_user", "running", fmt.Sprintf("User %s already exists, skipping creation", username), 100)
+				sm.SendProgressUpdate(progressChan, "create_user", "running", fmt.Sprintf("User %s already exists, skipping creation", username), 100)
 			}
 			return nil // User exists and is valid
 		}
 	}
 
 	if progressChan != nil {
-		sm.sendProgressUpdate(progressChan, "create_user", "running", fmt.Sprintf("Creating user %s with home directory", username), 30)
+		sm.SendProgressUpdate(progressChan, "create_user", "running", fmt.Sprintf("Creating user %s with home directory", username), 30)
 	}
 
 	// Create the user with home directory
@@ -80,7 +80,7 @@ func (sm *SSHManager) createPocketbaseUserWithProgress(progressChan chan<- Setup
 	}
 
 	if progressChan != nil {
-		sm.sendProgressUpdate(progressChan, "create_user", "running", fmt.Sprintf("Adding user %s to sudo group", username), 60)
+		sm.SendProgressUpdate(progressChan, "create_user", "running", fmt.Sprintf("Adding user %s to sudo group", username), 60)
 	}
 
 	// Add user to sudo group for deployment operations
@@ -90,7 +90,7 @@ func (sm *SSHManager) createPocketbaseUserWithProgress(progressChan chan<- Setup
 	}
 
 	if progressChan != nil {
-		sm.sendProgressUpdate(progressChan, "create_user", "running", "Configuring passwordless sudo access", 80)
+		sm.SendProgressUpdate(progressChan, "create_user", "running", "Configuring passwordless sudo access", 80)
 	}
 
 	// Configure sudo access for specific commands without password
@@ -113,7 +113,7 @@ func (sm *SSHManager) setupSSHKeysWithProgress(progressChan chan<- SetupStep) er
 	username := sm.server.AppUsername
 
 	if progressChan != nil {
-		sm.sendProgressUpdate(progressChan, "setup_ssh_keys", "running", fmt.Sprintf("Creating .ssh directory for user %s", username), 20)
+		sm.SendProgressUpdate(progressChan, "setup_ssh_keys", "running", fmt.Sprintf("Creating .ssh directory for user %s", username), 20)
 	}
 
 	// Create .ssh directory for the user
@@ -123,7 +123,7 @@ func (sm *SSHManager) setupSSHKeysWithProgress(progressChan chan<- SetupStep) er
 	}
 
 	if progressChan != nil {
-		sm.sendProgressUpdate(progressChan, "setup_ssh_keys", "running", "Copying SSH keys from root user", 40)
+		sm.SendProgressUpdate(progressChan, "setup_ssh_keys", "running", "Copying SSH keys from root user", 40)
 	}
 
 	// Copy root's authorized_keys to the new user (assuming root has the keys we need)
@@ -134,7 +134,7 @@ func (sm *SSHManager) setupSSHKeysWithProgress(progressChan chan<- SetupStep) er
 	}
 
 	if progressChan != nil {
-		sm.sendProgressUpdate(progressChan, "setup_ssh_keys", "running", "Setting SSH directory ownership", 60)
+		sm.SendProgressUpdate(progressChan, "setup_ssh_keys", "running", "Setting SSH directory ownership", 60)
 	}
 
 	// Set proper permissions
@@ -144,7 +144,7 @@ func (sm *SSHManager) setupSSHKeysWithProgress(progressChan chan<- SetupStep) er
 	}
 
 	if progressChan != nil {
-		sm.sendProgressUpdate(progressChan, "setup_ssh_keys", "running", "Setting SSH directory permissions", 80)
+		sm.SendProgressUpdate(progressChan, "setup_ssh_keys", "running", "Setting SSH directory permissions", 80)
 	}
 
 	chmodDirCmd := fmt.Sprintf("chmod 700 /home/%s/.ssh", username)
@@ -177,7 +177,7 @@ func (sm *SSHManager) createDirectoriesWithProgress(progressChan chan<- SetupSte
 
 	for i, dir := range directories {
 		if progressChan != nil {
-			sm.sendProgressUpdate(progressChan, "create_directories", "running", fmt.Sprintf("Creating directory %s", dir), (i*100)/totalDirs)
+			sm.SendProgressUpdate(progressChan, "create_directories", "running", fmt.Sprintf("Creating directory %s", dir), (i*100)/totalDirs)
 		}
 
 		// Create directory
@@ -187,7 +187,7 @@ func (sm *SSHManager) createDirectoriesWithProgress(progressChan chan<- SetupSte
 		}
 
 		if progressChan != nil {
-			sm.sendProgressUpdate(progressChan, "create_directories", "running", fmt.Sprintf("Setting ownership for %s", dir), (i*100)/totalDirs)
+			sm.SendProgressUpdate(progressChan, "create_directories", "running", fmt.Sprintf("Setting ownership for %s", dir), (i*100)/totalDirs)
 		}
 
 		// Set ownership to pocketbase user
@@ -197,7 +197,7 @@ func (sm *SSHManager) createDirectoriesWithProgress(progressChan chan<- SetupSte
 		}
 
 		if progressChan != nil {
-			sm.sendProgressUpdate(progressChan, "create_directories", "running", fmt.Sprintf("Setting permissions for %s", dir), (i*100)/totalDirs)
+			sm.SendProgressUpdate(progressChan, "create_directories", "running", fmt.Sprintf("Setting permissions for %s", dir), (i*100)/totalDirs)
 		}
 
 		// Set appropriate permissions
@@ -218,7 +218,7 @@ func (sm *SSHManager) testUserConnection() error {
 // testUserConnectionWithProgress tests SSH connection with detailed progress reporting
 func (sm *SSHManager) testUserConnectionWithProgress(progressChan chan<- SetupStep) error {
 	if progressChan != nil {
-		sm.sendProgressUpdate(progressChan, "test_connection", "running", fmt.Sprintf("Creating test SSH connection as %s", sm.server.AppUsername), 20)
+		sm.SendProgressUpdate(progressChan, "test_connection", "running", fmt.Sprintf("Creating test SSH connection as %s", sm.server.AppUsername), 20)
 	}
 
 	// We need to create a new SSH connection as the pocketbase user to test
@@ -229,7 +229,7 @@ func (sm *SSHManager) testUserConnectionWithProgress(progressChan chan<- SetupSt
 	defer testManager.Close()
 
 	if progressChan != nil {
-		sm.sendProgressUpdate(progressChan, "test_connection", "running", "Testing basic SSH connectivity", 40)
+		sm.SendProgressUpdate(progressChan, "test_connection", "running", "Testing basic SSH connectivity", 40)
 	}
 
 	// Test basic command execution
@@ -238,7 +238,7 @@ func (sm *SSHManager) testUserConnectionWithProgress(progressChan chan<- SetupSt
 	}
 
 	if progressChan != nil {
-		sm.sendProgressUpdate(progressChan, "test_connection", "running", "Testing sudo access for deployment commands", 70)
+		sm.SendProgressUpdate(progressChan, "test_connection", "running", "Testing sudo access for deployment commands", 70)
 	}
 
 	// Test sudo access for required commands
@@ -248,7 +248,7 @@ func (sm *SSHManager) testUserConnectionWithProgress(progressChan chan<- SetupSt
 	}
 
 	if progressChan != nil {
-		sm.sendProgressUpdate(progressChan, "test_connection", "running", "Testing directory access permissions", 90)
+		sm.SendProgressUpdate(progressChan, "test_connection", "running", "Testing directory access permissions", 90)
 	}
 
 	// Test directory access

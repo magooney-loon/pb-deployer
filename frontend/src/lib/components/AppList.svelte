@@ -20,9 +20,7 @@
 	});
 
 	// Make available servers reactive to state changes
-	let availableServers = $derived(
-		state.servers.filter((s) => s.setup_complete && s.security_locked)
-	);
+	let availableServers = $derived(state.servers.filter((s) => s.setup_complete));
 
 	onMount(async () => {
 		await logic.initialize();
@@ -46,7 +44,7 @@
 		<ErrorAlert
 			type="warning"
 			title="No Ready Servers"
-			message="You need at least one server with setup and security lockdown completed before you can create apps."
+			message="You need at least one server with setup completed before you can create apps."
 			dismissible={false}
 		/>
 	{/if}

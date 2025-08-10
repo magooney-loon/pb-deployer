@@ -171,7 +171,7 @@ export class AppListLogic {
 	}
 
 	public getAvailableServers(): Server[] {
-		return this.state.servers.filter((s) => s.setup_complete && s.security_locked);
+		return this.state.servers.filter((s) => s.setup_complete);
 	}
 
 	public getAppStatusBadge(app: App): { text: string; color: string } {

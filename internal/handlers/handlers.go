@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"github.com/pocketbase/pocketbase/core"
+
+	"pb-deployer/internal/handlers/server"
 )
 
 // RegisterHandlers registers all API handlers with the application
@@ -11,9 +13,9 @@ func RegisterHandlers(app core.App) {
 		apiGroup := e.Router.Group("/api")
 
 		// Register server handlers
-		RegisterServerHandlers(app, apiGroup)
+		server.RegisterServerHandlers(app, apiGroup)
 
-		// TODO: Register other handlers (apps, deployments, etc.) here as needed
+		// TODO: Register other handlers here as needed
 
 		return e.Next()
 	})
