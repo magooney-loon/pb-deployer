@@ -755,7 +755,7 @@
 
 <!-- Setup Progress Modal -->
 <ProgressModal
-	show={showSetupProgressModal}
+	bind:show={showSetupProgressModal}
 	title="Server Setup Progress - {currentProgressServerName}"
 	progress={currentProgressServerId ? setupProgress[currentProgressServerId] || [] : []}
 	onClose={closeSetupProgressModal}
@@ -765,7 +765,7 @@
 
 <!-- Security Progress Modal -->
 <ProgressModal
-	show={showSecurityProgressModal}
+	bind:show={showSecurityProgressModal}
 	title="Security Lockdown Progress - {currentProgressServerName}"
 	progress={currentProgressServerId ? securityProgress[currentProgressServerId] || [] : []}
 	onClose={closeSecurityProgressModal}
