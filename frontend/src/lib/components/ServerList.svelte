@@ -334,9 +334,7 @@
 		: []}
 	onClose={() => logic.closeSetupProgressModal()}
 	loading={state.runningSetup.has(state.currentProgressServerId || '')}
-	operationInProgress={state.currentProgressServerId
-		? state.runningSetup.has(state.currentProgressServerId)
-		: false}
+	operationInProgress={logic.isSetupInProgress(state.currentProgressServerId)}
 />
 
 <!-- Security Progress Modal -->
@@ -348,7 +346,5 @@
 		: []}
 	onClose={() => logic.closeSecurityProgressModal()}
 	loading={state.applyingSecurity.has(state.currentProgressServerId || '')}
-	operationInProgress={state.currentProgressServerId
-		? state.applyingSecurity.has(state.currentProgressServerId)
-		: false}
+	operationInProgress={logic.isSecurityInProgress(state.currentProgressServerId)}
 />

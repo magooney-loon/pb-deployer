@@ -248,12 +248,12 @@ export class ServerListLogic {
 				this.updateState({ setupProgress: newSetupProgress });
 				console.log('Setup progress updated:', updatedProgress.length, 'steps');
 
-				// If setup is complete, clean up after delay
+				// If setup is complete, remove from running state and refresh servers
 				if (step.step === 'complete') {
-					setTimeout(() => {
-						this.cleanupSetupProgress(id);
-						this.loadServers(); // Refresh the list
-					}, 3000);
+					const runningSetup = new Set(this.state.runningSetup);
+					runningSetup.delete(id);
+					this.updateState({ runningSetup });
+					this.loadServers(); // Refresh the list
 				}
 			});
 
@@ -304,12 +304,12 @@ export class ServerListLogic {
 				this.updateState({ securityProgress: newSecurityProgress });
 				console.log('Security progress updated:', updatedProgress.length, 'steps');
 
-				// If security is complete, clean up after delay
+				// If security is complete, remove from running state and refresh servers
 				if (step.step === 'complete') {
-					setTimeout(() => {
-						this.cleanupSecurityProgress(id);
-						this.loadServers(); // Refresh the list
-					}, 3000);
+					const applyingSecurity = new Set(this.state.applyingSecurity);
+					applyingSecurity.delete(id);
+					this.updateState({ applyingSecurity });
+					this.loadServers(); // Refresh the list
 				}
 			});
 
@@ -374,7 +374,7 @@ export class ServerListLogic {
 			}
 		}
 
-		// Clean up state when closing
+		// Clean up state when closing - now safe to clean up progress data
 		if (currentProgressServerId) {
 			this.cleanupSetupProgress(currentProgressServerId);
 		}
@@ -401,7 +401,7 @@ export class ServerListLogic {
 			}
 		}
 
-		// Clean up state when closing
+		// Clean up state when closing - now safe to clean up progress data
 		if (currentProgressServerId) {
 			this.cleanupSecurityProgress(currentProgressServerId);
 		}
@@ -523,6 +523,36 @@ export class ServerListLogic {
 		}
 
 		return false;
+	}
+
+	public isSetupInProgress(serverId: string | null): boolean {
+		if (!serverId) return false;
+
+		// Check if setup is marked as running
+		if (!this.state.runningSetup.has(serverId)) return false;
+
+		// Check actual progress to see if it's really still running
+		const currentProgress = this.state.setupProgress[serverId] || [];
+		if (currentProgress.length === 0) return true; // Just started, no progress yet
+
+		const latestStep = currentProgress[currentProgress.length - 1];
+		// If completed or failed, not in progress anymore
+		return latestStep.step !== 'complete' && latestStep.status !== 'failed';
+	}
+
+	public isSecurityInProgress(serverId: string | null): boolean {
+		if (!serverId) return false;
+
+		// Check if security is marked as running
+		if (!this.state.applyingSecurity.has(serverId)) return false;
+
+		// Check actual progress to see if it's really still running
+		const currentProgress = this.state.securityProgress[serverId] || [];
+		if (currentProgress.length === 0) return true; // Just started, no progress yet
+
+		const latestStep = currentProgress[currentProgress.length - 1];
+		// If completed or failed, not in progress anymore
+		return latestStep.step !== 'complete' && latestStep.status !== 'failed';
 	}
 
 	public async cleanup(): Promise<void> {

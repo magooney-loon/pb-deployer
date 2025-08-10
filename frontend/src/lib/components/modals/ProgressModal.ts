@@ -134,14 +134,20 @@ export class ProgressModalLogic {
 	}
 
 	public isInProgress(): boolean {
-		// If operation has failed or completed, it's not in progress
-		if (this.isFailed() || this.isComplete()) return false;
-
 		// Use explicit operation status if provided
 		if (this.state.operationInProgress) return true;
 		if (this.state.loading) return true;
+
+		// If no progress data and not explicitly loading, not in progress
 		if (this.state.progress.length === 0) return false;
+
 		const latestStep = this.state.progress[this.state.progress.length - 1];
+
+		// If operation has failed or completed successfully, it's not in progress
+		if (latestStep.step === 'complete') return false;
+		if (latestStep.status === 'failed') return false;
+
+		// If latest step is running, it's in progress
 		return latestStep.status === 'running';
 	}
 
@@ -152,6 +158,10 @@ export class ProgressModalLogic {
 	}
 
 	public isCloseable(): boolean {
+		// Always allow closing if operation has completed (success or failure)
+		if (this.isComplete() || this.isFailed()) return true;
+
+		// Otherwise, only closeable if not in progress
 		return !this.isInProgress();
 	}
 
