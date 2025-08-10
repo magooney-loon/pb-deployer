@@ -57,13 +57,15 @@
 >
 	<!-- Warning message when operation is in progress -->
 	{#if state.operationInProgress || state.loading || (state.progress.length > 0 && state.progress[state.progress.length - 1]?.status === 'running')}
-		<div class="mb-4 rounded-md bg-yellow-50 p-3 dark:bg-yellow-900/20">
+		<div
+			class="mb-4 rounded-lg bg-amber-50 p-4 ring-1 ring-amber-200 dark:bg-amber-950 dark:ring-amber-800"
+		>
 			<div class="flex">
 				<div class="flex-shrink-0">
-					<span class="text-yellow-400">⚠️</span>
+					<span class="text-amber-500">⚠️</span>
 				</div>
 				<div class="ml-3">
-					<p class="text-sm text-yellow-700 dark:text-yellow-300">
+					<p class="text-sm text-amber-700 dark:text-amber-300">
 						Operation in progress. Please do not close this window until the process completes.
 					</p>
 				</div>
@@ -73,15 +75,15 @@
 
 	<!-- Overall Progress Bar -->
 	<div class="mb-6">
-		<div class="mb-2 flex justify-between text-sm">
-			<span class="text-gray-600 dark:text-gray-400">Progress</span>
-			<span class="text-gray-600 dark:text-gray-400"
+		<div class="mb-3 flex justify-between text-sm">
+			<span class="text-gray-700 dark:text-gray-300">Progress</span>
+			<span class="font-medium text-gray-900 dark:text-gray-100"
 				>{state.progress.length > 0
 					? state.progress[state.progress.length - 1]?.progress_pct || 0
 					: 0}%</span
 			>
 		</div>
-		<div class="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
+		<div class="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-800">
 			<div
 				class="h-2 rounded-full transition-all duration-300 {state.progress.length > 0 &&
 				state.progress[state.progress.length - 1]?.status === 'failed'
@@ -89,8 +91,8 @@
 					: state.progress.length > 0 &&
 						  state.progress[state.progress.length - 1]?.step === 'complete' &&
 						  state.progress[state.progress.length - 1]?.status === 'success'
-						? 'bg-green-500'
-						: 'bg-blue-500'}"
+						? 'bg-emerald-500'
+						: 'bg-gray-900 dark:bg-gray-100'}"
 				style="width: {state.progress.length > 0
 					? state.progress[state.progress.length - 1]?.progress_pct || 0
 					: 0}%"
@@ -101,22 +103,24 @@
 	<!-- Progress Steps -->
 	<div class="progress-steps max-h-96 space-y-3 overflow-y-auto">
 		{#if state.progress.length === 0 && state.loading}
-			<div class="flex items-center space-x-3 py-3">
-				<div class="h-6 w-6 animate-spin rounded-full border-b-2 border-blue-600"></div>
-				<span class="text-gray-600 dark:text-gray-400">Initializing...</span>
+			<div class="flex items-center space-x-3 py-4">
+				<div
+					class="h-6 w-6 animate-spin rounded-full border-b-2 border-gray-900 dark:border-gray-100"
+				></div>
+				<span class="text-gray-700 dark:text-gray-300">Initializing...</span>
 			</div>
 		{:else if state.progress.length === 0}
-			<div class="py-6 text-center text-gray-500 dark:text-gray-400">
+			<div class="py-8 text-center text-gray-600 dark:text-gray-400">
 				No progress data available
 			</div>
 		{:else}
 			{#each state.progress as step, index (step.timestamp + index)}
 				<div
-					class="rounded-lg border p-3 {step.status === 'failed'
-						? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
+					class="rounded-lg p-4 {step.status === 'failed'
+						? 'bg-red-50 ring-1 ring-red-200 dark:bg-red-950 dark:ring-red-800'
 						: step.status === 'success'
-							? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20'
-							: 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20'}"
+							? 'bg-emerald-50 ring-1 ring-emerald-200 dark:bg-emerald-950 dark:ring-emerald-800'
+							: 'bg-gray-50 ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-800'}"
 				>
 					<div class="flex items-start space-x-3">
 						<span class="text-lg">
@@ -131,13 +135,13 @@
 						<div class="min-w-0 flex-1">
 							<div class="flex items-center justify-between">
 								<h4
-									class="text-sm font-medium {step.status === 'running'
-										? 'text-blue-600 dark:text-blue-400'
+									class="text-sm font-semibold {step.status === 'running'
+										? 'text-gray-900 dark:text-gray-100'
 										: step.status === 'success'
-											? 'text-green-600 dark:text-green-400'
+											? 'text-emerald-700 dark:text-emerald-300'
 											: step.status === 'failed'
-												? 'text-red-600 dark:text-red-400'
-												: 'text-gray-600 dark:text-gray-400'}"
+												? 'text-red-700 dark:text-red-300'
+												: 'text-gray-700 dark:text-gray-300'}"
 								>
 									{step.message}
 								</h4>
@@ -168,12 +172,12 @@
 					state.loading ||
 					(state.progress.length > 0 &&
 						state.progress[state.progress.length - 1]?.status === 'running')}
-				class="rounded-md px-4 py-2 text-sm font-medium {state.progress.length > 0 &&
-				state.progress[state.progress.length - 1]?.step === 'complete'
+				class="rounded-lg px-4 py-2 text-sm font-medium transition-colors {state.progress.length >
+					0 && state.progress[state.progress.length - 1]?.step === 'complete'
 					? state.progress[state.progress.length - 1]?.status === 'success'
-						? 'bg-green-600 text-white hover:bg-green-700'
-						: 'bg-red-600 text-white hover:bg-red-700'
-					: 'border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
+						? 'border border-emerald-500 bg-emerald-500 text-white shadow-sm hover:border-emerald-600 hover:bg-emerald-600'
+						: 'border border-red-500 bg-red-500 text-white shadow-sm hover:border-red-600 hover:bg-red-600'
+					: 'border border-gray-200 bg-white text-gray-900 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-100 dark:hover:bg-gray-900'} disabled:opacity-50"
 			>
 				{state.progress.length > 0 && state.progress[state.progress.length - 1]?.step === 'complete'
 					? state.progress[state.progress.length - 1]?.status === 'success'

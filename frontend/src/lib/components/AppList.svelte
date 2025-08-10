@@ -30,8 +30,13 @@
 </script>
 
 <div class="p-6">
-	<div class="mb-6 flex items-center justify-between">
-		<h1 class="text-3xl font-bold text-gray-900 dark:text-white">Applications</h1>
+	<div class="mb-8 flex items-center justify-between">
+		<div>
+			<h1 class="text-3xl font-semibold text-gray-900 dark:text-gray-100">Applications</h1>
+			<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+				Manage your deployed PocketBase applications
+			</p>
+		</div>
 		<Button onclick={() => logic.toggleCreateForm()} disabled={availableServers.length === 0}>
 			{state.showCreateForm ? 'Cancel' : 'Add App'}
 		</Button>
@@ -135,53 +140,53 @@
 		/>
 	{:else}
 		<div
-			class="overflow-hidden bg-white shadow sm:rounded-lg dark:bg-gray-800 dark:shadow-gray-700"
+			class="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950"
 		>
 			<div class="overflow-x-auto">
-				<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-					<thead class="bg-gray-50 dark:bg-gray-700">
+				<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
+					<thead class="bg-gray-50 dark:bg-gray-900">
 						<tr>
 							<th
-								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+								class="px-6 py-3 text-left text-xs font-semibold tracking-wider text-gray-600 uppercase dark:text-gray-400"
 								>Application</th
 							>
 							<th
-								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+								class="px-6 py-3 text-left text-xs font-semibold tracking-wider text-gray-600 uppercase dark:text-gray-400"
 								>Server</th
 							>
 							<th
-								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+								class="px-6 py-3 text-left text-xs font-semibold tracking-wider text-gray-600 uppercase dark:text-gray-400"
 								>Status</th
 							>
 							<th
-								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+								class="px-6 py-3 text-left text-xs font-semibold tracking-wider text-gray-600 uppercase dark:text-gray-400"
 								>Version</th
 							>
 							<th
-								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+								class="px-6 py-3 text-left text-xs font-semibold tracking-wider text-gray-600 uppercase dark:text-gray-400"
 								>Created</th
 							>
 							<th
-								class="px-6 py-3 text-right text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+								class="px-6 py-3 text-right text-xs font-semibold tracking-wider text-gray-600 uppercase dark:text-gray-400"
 								>Actions</th
 							>
 						</tr>
 					</thead>
-					<tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+					<tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-800 dark:bg-gray-950">
 						{#each state.apps as app (app.id)}
 							{@const statusBadge = logic.getAppStatusBadge(app)}
-							<tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+							<tr class="hover:bg-gray-50 dark:hover:bg-gray-900">
 								<td class="px-6 py-4 whitespace-nowrap">
 									<div class="flex items-center">
 										<div>
-											<div class="text-sm font-medium text-gray-900 dark:text-white">
+											<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
 												{app.name}
 											</div>
 											<div class="text-sm text-gray-500 dark:text-gray-400">
 												<a
 													href="https://{app.domain}"
 													target="_blank"
-													class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+													class="text-gray-600 underline-offset-4 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-100"
 												>
 													{app.domain} 🔗
 												</a>
@@ -191,7 +196,7 @@
 									</div>
 								</td>
 								<td class="px-6 py-4 whitespace-nowrap">
-									<div class="text-sm text-gray-900 dark:text-white">
+									<div class="text-sm text-gray-900 dark:text-gray-100">
 										{logic.getServerName(app.server_id)}
 									</div>
 									<div class="text-xs text-gray-500 dark:text-gray-400">{app.remote_path}</div>
@@ -212,7 +217,7 @@
 								</td>
 								<td class="space-x-2 px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
 									<Button
-										variant="link"
+										variant="ghost"
 										color="green"
 										size="sm"
 										onclick={() => logic.checkHealth(app.id)}
@@ -223,7 +228,7 @@
 									</Button>
 
 									<Button
-										variant="link"
+										variant="ghost"
 										size="sm"
 										onclick={() => logic.openApp(app.domain)}
 										icon="🔗"
@@ -232,7 +237,7 @@
 									</Button>
 
 									<Button
-										variant="link"
+										variant="ghost"
 										color="red"
 										size="sm"
 										onclick={() => logic.deleteApp(app.id)}
@@ -248,11 +253,11 @@
 			</div>
 		</div>
 
-		<div class="mt-4 flex items-center justify-between">
-			<p class="text-sm text-gray-700 dark:text-gray-300">
+		<div class="mt-6 flex items-center justify-between">
+			<p class="text-sm text-gray-600 dark:text-gray-400">
 				Showing {state.apps.length} application{state.apps.length !== 1 ? 's' : ''}
 			</p>
-			<Button variant="secondary" size="sm" icon="🔄" onclick={() => logic.loadApps()}>
+			<Button variant="outline" size="sm" icon="🔄" onclick={() => logic.loadApps()}>
 				Refresh
 			</Button>
 		</div>

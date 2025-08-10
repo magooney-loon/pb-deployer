@@ -49,20 +49,20 @@
 		labelClass?: string;
 	} = $props();
 
-	// Base input styles
+	// Base input styles - Vercel-inspired clean design
 	const baseInputStyles =
-		'block w-full rounded-md border-gray-300 shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800';
+		'block w-full rounded-lg border-gray-200 bg-white shadow-sm transition-all duration-200 focus:border-gray-900 focus:ring-2 focus:ring-gray-900 focus:ring-offset-0 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-100 dark:focus:border-gray-100 dark:focus:ring-gray-100 dark:disabled:bg-gray-900 dark:disabled:text-gray-500';
 
-	// Checkbox styles
+	// Checkbox styles - Vercel-style
 	const checkboxStyles =
-		'h-4 w-4 rounded border-gray-300 text-blue-600 transition-colors focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700';
+		'h-4 w-4 rounded border-gray-200 bg-white text-gray-900 transition-all duration-200 focus:ring-2 focus:ring-gray-900 focus:ring-offset-0 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-100 dark:focus:ring-gray-100';
 
-	// Label styles
-	const baseLabelStyles = 'block text-sm font-medium text-gray-700 dark:text-gray-300';
+	// Label styles - Vercel-style typography
+	const baseLabelStyles = 'block text-sm font-medium text-gray-900 dark:text-gray-100';
 
-	// Error state styles
+	// Error state styles - Vercel-style error handling
 	const errorInputStyles = errorText
-		? 'border-red-300 focus:border-red-500 focus:ring-red-500 dark:border-red-600'
+		? 'border-red-300 focus:border-red-500 focus:ring-red-500 bg-red-50 dark:border-red-700 dark:focus:border-red-500 dark:focus:ring-red-500 dark:bg-red-950'
 		: '';
 
 	let inputClasses = $derived(
@@ -98,7 +98,7 @@
 		<label for={id} class={labelClasses}>
 			{label}
 			{#if required}
-				<span class="text-red-500">*</span>
+				<span class="text-red-500 dark:text-red-400">*</span>
 			{/if}
 		</label>
 
@@ -134,6 +134,6 @@
 	{#if hasError}
 		<p class="text-sm text-red-600 dark:text-red-400">{errorText}</p>
 	{:else if helperText}
-		<p class="text-xs text-gray-500 dark:text-gray-400">{helperText}</p>
+		<p class="text-xs text-gray-500 dark:text-gray-500">{helperText}</p>
 	{/if}
 </div>

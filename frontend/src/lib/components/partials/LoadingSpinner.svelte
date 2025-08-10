@@ -20,13 +20,13 @@
 		lg: 'h-12 w-12'
 	};
 
-	// Color variants
+	// Color variants - Vercel-style muted colors
 	const colorClasses = {
-		blue: 'border-blue-600',
-		gray: 'border-gray-600',
-		green: 'border-green-600',
-		red: 'border-red-600',
-		yellow: 'border-yellow-600'
+		blue: 'border-gray-900 dark:border-gray-100',
+		gray: 'border-gray-400 dark:border-gray-600',
+		green: 'border-emerald-600 dark:border-emerald-400',
+		red: 'border-red-500 dark:border-red-400',
+		yellow: 'border-amber-500 dark:border-amber-400'
 	};
 
 	let spinnerClasses = $derived(
@@ -40,6 +40,6 @@
 <div class="{containerClasses} {className}">
 	<div class={spinnerClasses}></div>
 	{#if text}
-		<span class="ml-2 text-gray-600 dark:text-gray-400">{text}</span>
+		<span class="ml-2 text-gray-700 dark:text-gray-300">{text}</span>
 	{/if}
 </div>

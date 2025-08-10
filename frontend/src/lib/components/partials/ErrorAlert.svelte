@@ -17,39 +17,39 @@
 		class?: string;
 	} = $props();
 
-	// Type-specific styles
+	// Type-specific styles - Vercel-inspired minimal design
 	const typeStyles = {
 		error: {
-			container: 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900',
-			icon: 'text-red-400',
-			title: 'text-red-800 dark:text-red-200',
-			message: 'text-red-700 dark:text-red-300',
+			container: 'bg-red-50 ring-1 ring-red-200 dark:bg-red-950 dark:ring-red-800',
+			icon: 'text-red-500',
+			title: 'text-red-700 dark:text-red-300',
+			message: 'text-red-600 dark:text-red-400',
 			button:
-				'bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-800 dark:text-red-200 dark:hover:bg-red-700'
+				'bg-red-100 text-red-700 hover:bg-red-200 ring-1 ring-red-200 hover:ring-red-300 dark:bg-red-900 dark:text-red-300 dark:hover:bg-red-800 dark:ring-red-700 dark:hover:ring-red-600'
 		},
 		warning: {
-			container: 'border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-900',
-			icon: 'text-yellow-400',
-			title: 'text-yellow-800 dark:text-yellow-200',
-			message: 'text-yellow-700 dark:text-yellow-300',
+			container: 'bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-950 dark:ring-amber-800',
+			icon: 'text-amber-500',
+			title: 'text-amber-700 dark:text-amber-300',
+			message: 'text-amber-600 dark:text-amber-400',
 			button:
-				'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-800 dark:text-yellow-200 dark:hover:bg-yellow-700'
+				'bg-amber-100 text-amber-700 hover:bg-amber-200 ring-1 ring-amber-200 hover:ring-amber-300 dark:bg-amber-900 dark:text-amber-300 dark:hover:bg-amber-800 dark:ring-amber-700 dark:hover:ring-amber-600'
 		},
 		info: {
-			container: 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900',
-			icon: 'text-blue-400',
-			title: 'text-blue-800 dark:text-blue-200',
-			message: 'text-blue-700 dark:text-blue-300',
+			container: 'bg-gray-50 ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-700',
+			icon: 'text-gray-500',
+			title: 'text-gray-700 dark:text-gray-300',
+			message: 'text-gray-600 dark:text-gray-400',
 			button:
-				'bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-800 dark:text-blue-200 dark:hover:bg-blue-700'
+				'bg-gray-100 text-gray-700 hover:bg-gray-200 ring-1 ring-gray-200 hover:ring-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 dark:ring-gray-600 dark:hover:ring-gray-500'
 		},
 		success: {
-			container: 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900',
-			icon: 'text-green-400',
-			title: 'text-green-800 dark:text-green-200',
-			message: 'text-green-700 dark:text-green-300',
+			container: 'bg-emerald-50 ring-1 ring-emerald-200 dark:bg-emerald-950 dark:ring-emerald-800',
+			icon: 'text-emerald-500',
+			title: 'text-emerald-700 dark:text-emerald-300',
+			message: 'text-emerald-600 dark:text-emerald-400',
 			button:
-				'bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-800 dark:text-green-200 dark:hover:bg-green-700'
+				'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 ring-1 ring-emerald-200 hover:ring-emerald-300 dark:bg-emerald-900 dark:text-emerald-300 dark:hover:bg-emerald-800 dark:ring-emerald-700 dark:hover:ring-emerald-600'
 		}
 	};
 
@@ -64,7 +64,7 @@
 	let styles = $derived(typeStyles[type]);
 </script>
 
-<div class="mb-6 rounded-lg border p-4 {styles.container} {className}">
+<div class="mb-6 rounded-lg p-4 {styles.container} {className}">
 	<div class="flex">
 		<div class="flex-shrink-0">
 			<span class={styles.icon}>{currentIcon}</span>
@@ -76,7 +76,10 @@
 			</div>
 			{#if dismissible && onDismiss}
 				<div class="mt-4">
-					<button onclick={onDismiss} class="rounded px-3 py-1 text-sm {styles.button}">
+					<button
+						onclick={onDismiss}
+						class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors {styles.button}"
+					>
 						Dismiss
 					</button>
 				</div>

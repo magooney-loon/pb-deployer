@@ -31,7 +31,7 @@
 
 <div class="px-4 sm:px-0">
 	<div class="mb-8">
-		<h1 class="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+		<h1 class="text-3xl font-semibold text-gray-900 dark:text-gray-100">Dashboard</h1>
 		<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
 			Overview of your PocketBase deployment infrastructure
 		</p>
@@ -59,9 +59,9 @@
 
 		<!-- Quick Actions -->
 		<Card title="Quick Actions" class="mb-8">
-			<div class="flex flex-col gap-4 sm:flex-row">
-				<Button href="/servers" icon="🖥️" color="blue">Manage Servers</Button>
-				<Button href="/apps" icon="📱" color="green">Manage Apps</Button>
+			<div class="flex flex-col gap-3 sm:flex-row">
+				<Button href="/servers" icon="🖥️" variant="secondary">Manage Servers</Button>
+				<Button href="/apps" icon="📱" variant="secondary" color="green">Manage Apps</Button>
 				<Button variant="outline" icon="🔄" onclick={() => logic.loadData()}>Refresh Data</Button>
 			</div>
 		</Card>
@@ -81,7 +81,7 @@
 				{#snippet children(server: Server)}
 					<div class="flex-1">
 						<div class="flex items-center">
-							<span class="text-sm font-medium text-gray-900 dark:text-white">
+							<span class="text-sm font-medium text-gray-900 dark:text-gray-100">
 								{server.name}
 							</span>
 							{#if server.setup_complete && server.security_locked}
@@ -114,7 +114,7 @@
 				{#snippet children(app: App)}
 					<div class="flex-1">
 						<div class="flex items-center">
-							<span class="text-sm font-medium text-gray-900 dark:text-white">
+							<span class="text-sm font-medium text-gray-900 dark:text-gray-100">
 								{app.name}
 							</span>
 							<span class="ml-2 text-xs">
@@ -125,7 +125,7 @@
 							<a
 								href="https://{app.domain}"
 								target="_blank"
-								class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+								class="text-gray-600 underline-offset-4 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-100"
 							>
 								{app.domain}
 							</a>
@@ -140,7 +140,7 @@
 						<a
 							href="https://{app.domain}"
 							target="_blank"
-							class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+							class="text-xs text-gray-600 underline-offset-4 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-100"
 						>
 							Open →
 						</a>
@@ -154,73 +154,75 @@
 			<Card title="System Status" class="mt-8">
 				<div class="grid grid-cols-1 gap-6 md:grid-cols-3">
 					<div>
-						<h4 class="mb-2 text-sm font-medium text-gray-500 dark:text-gray-400">Server Status</h4>
-						<div class="space-y-1">
+						<h4 class="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
+							Server Status
+						</h4>
+						<div class="space-y-2">
 							<div class="flex justify-between text-sm">
-								<span class="text-gray-700 dark:text-gray-300">Ready for deployment:</span>
-								<span class="font-medium text-green-600 dark:text-green-400">
+								<span class="text-gray-600 dark:text-gray-400">Ready for deployment:</span>
+								<span class="font-semibold text-emerald-600 dark:text-emerald-400">
 									{metrics.serverStatusCounts.ready}
 								</span>
 							</div>
 							<div class="flex justify-between text-sm">
-								<span class="text-gray-700 dark:text-gray-300">Setup required:</span>
-								<span class="font-medium text-yellow-600 dark:text-yellow-400">
+								<span class="text-gray-600 dark:text-gray-400">Setup required:</span>
+								<span class="font-semibold text-amber-600 dark:text-amber-400">
 									{metrics.serverStatusCounts.setupRequired}
 								</span>
 							</div>
 							<div class="flex justify-between text-sm">
-								<span class="text-gray-700 dark:text-gray-300">Security pending:</span>
-								<span class="font-medium text-orange-600 dark:text-orange-400">
+								<span class="text-gray-600 dark:text-gray-400">Security pending:</span>
+								<span class="font-semibold text-amber-600 dark:text-amber-400">
 									{metrics.serverStatusCounts.securityPending}
 								</span>
 							</div>
 						</div>
 					</div>
 					<div>
-						<h4 class="mb-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+						<h4 class="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
 							Application Status
 						</h4>
-						<div class="space-y-1">
+						<div class="space-y-2">
 							<div class="flex justify-between text-sm">
-								<span class="text-gray-700 dark:text-gray-300">Online:</span>
-								<span class="font-medium text-green-600 dark:text-green-400">
+								<span class="text-gray-600 dark:text-gray-400">Online:</span>
+								<span class="font-semibold text-emerald-600 dark:text-emerald-400">
 									{metrics.appStatusCounts.online}
 								</span>
 							</div>
 							<div class="flex justify-between text-sm">
-								<span class="text-gray-700 dark:text-gray-300">Offline:</span>
-								<span class="font-medium text-red-600 dark:text-red-400">
+								<span class="text-gray-600 dark:text-gray-400">Offline:</span>
+								<span class="font-semibold text-red-600 dark:text-red-400">
 									{metrics.appStatusCounts.offline}
 								</span>
 							</div>
 							<div class="flex justify-between text-sm">
-								<span class="text-gray-700 dark:text-gray-300">Unknown:</span>
-								<span class="font-medium text-gray-600 dark:text-gray-400">
+								<span class="text-gray-600 dark:text-gray-400">Unknown:</span>
+								<span class="font-semibold text-gray-600 dark:text-gray-400">
 									{metrics.appStatusCounts.unknown}
 								</span>
 							</div>
 						</div>
 					</div>
 					<div>
-						<h4 class="mb-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+						<h4 class="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
 							Deployment Info
 						</h4>
-						<div class="space-y-1">
+						<div class="space-y-2">
 							<div class="flex justify-between text-sm">
-								<span class="text-gray-700 dark:text-gray-300">Apps deployed:</span>
-								<span class="font-medium text-gray-900 dark:text-gray-100">
+								<span class="text-gray-600 dark:text-gray-400">Apps deployed:</span>
+								<span class="font-semibold text-gray-900 dark:text-gray-100">
 									{metrics.deploymentInfo.appsDeployed}
 								</span>
 							</div>
 							<div class="flex justify-between text-sm">
-								<span class="text-gray-700 dark:text-gray-300">Pending deployment:</span>
-								<span class="font-medium text-gray-900 dark:text-gray-100">
+								<span class="text-gray-600 dark:text-gray-400">Pending deployment:</span>
+								<span class="font-semibold text-gray-900 dark:text-gray-100">
 									{metrics.deploymentInfo.pendingDeployment}
 								</span>
 							</div>
 							<div class="flex justify-between text-sm">
-								<span class="text-gray-700 dark:text-gray-300">Avg. uptime:</span>
-								<span class="font-medium text-green-600 dark:text-green-400">
+								<span class="text-gray-600 dark:text-gray-400">Avg. uptime:</span>
+								<span class="font-semibold text-emerald-600 dark:text-emerald-400">
 									{metrics.deploymentInfo.averageUptime}%
 								</span>
 							</div>

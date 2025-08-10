@@ -55,18 +55,18 @@
 
 <div class="text-center {sizeConfig.container} {className}">
 	{#if icon}
-		<div class="text-gray-400 dark:text-gray-500 {sizeConfig.icon}">
+		<div class="text-gray-500 dark:text-gray-400 {sizeConfig.icon}">
 			{icon}
 		</div>
 	{/if}
 
 	<div class={sizeConfig.spacing}>
-		<h3 class="font-medium text-gray-500 dark:text-gray-400 {sizeConfig.title}">
+		<h3 class="font-semibold text-gray-900 dark:text-gray-100 {sizeConfig.title}">
 			{title}
 		</h3>
 
 		{#if description}
-			<p class="text-gray-400 dark:text-gray-500 {sizeConfig.description}">
+			<p class="text-gray-600 dark:text-gray-400 {sizeConfig.description}">
 				{description}
 			</p>
 		{/if}
@@ -86,7 +86,7 @@
 		{/if}
 
 		{#if secondaryText}
-			<p class="mt-3 text-xs text-gray-400 dark:text-gray-500">
+			<p class="mt-3 text-xs text-gray-500 dark:text-gray-500">
 				{secondaryText}
 			</p>
 		{/if}

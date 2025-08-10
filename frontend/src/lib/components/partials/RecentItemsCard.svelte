@@ -14,7 +14,7 @@
 		viewAllHref,
 		viewAllText = 'View all →',
 		emptyState,
-		itemClass = 'flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-700',
+		itemClass = 'flex items-center justify-between rounded-lg bg-gray-50 p-3 ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-800',
 		class: className = '',
 		children
 	}: {
@@ -33,11 +33,11 @@
 
 <Card class={className}>
 	<div class="mb-4 flex items-center justify-between">
-		<h3 class="text-lg font-medium text-gray-900 dark:text-white">{title}</h3>
+		<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
 		{#if viewAllHref}
 			<a
 				href={viewAllHref}
-				class="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+				class="text-sm text-gray-600 underline-offset-4 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-100"
 			>
 				{viewAllText}
 			</a>
@@ -46,17 +46,17 @@
 
 	{#if !hasItems}
 		<div class="py-6 text-center">
-			<p class="text-gray-500 dark:text-gray-400">{emptyState.message}</p>
+			<p class="text-gray-600 dark:text-gray-400">{emptyState.message}</p>
 			{#if emptyState.ctaText && emptyState.ctaHref}
 				<a
 					href={emptyState.ctaHref}
-					class="mt-2 inline-flex items-center text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+					class="mt-2 inline-flex items-center text-sm text-gray-700 underline-offset-4 hover:text-gray-900 hover:underline dark:text-gray-300 dark:hover:text-gray-100"
 				>
 					{emptyState.ctaText}
 				</a>
 			{/if}
 			{#if emptyState.secondaryText}
-				<p class="mt-2 text-xs text-gray-400 dark:text-gray-500">{emptyState.secondaryText}</p>
+				<p class="mt-2 text-xs text-gray-500 dark:text-gray-500">{emptyState.secondaryText}</p>
 			{/if}
 		</div>
 	{:else}

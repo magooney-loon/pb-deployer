@@ -28,24 +28,27 @@
 		lg: 'px-3 py-2 text-sm'
 	};
 
-	// Color variants
+	// Color variants - Vercel-style muted colors
 	const colorVariants = {
-		success: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-		warning: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-		error: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-		info: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-		gray: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+		success:
+			'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:ring-emerald-800',
+		warning:
+			'bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:ring-amber-800',
+		error:
+			'bg-red-50 text-red-700 ring-1 ring-red-200 dark:bg-red-950 dark:text-red-300 dark:ring-red-800',
+		info: 'bg-gray-50 text-gray-700 ring-1 ring-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:ring-gray-700',
+		gray: 'bg-gray-50 text-gray-600 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:ring-gray-700',
 		custom: customColors
 			? `${customColors.bg} ${customColors.text}`
-			: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+			: 'bg-gray-50 text-gray-600 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:ring-gray-700'
 	};
 
-	// Dot variants (for status indicators with dots)
+	// Dot variants (for status indicators with dots) - Vercel-style
 	const dotVariants = {
-		success: 'bg-green-400',
-		warning: 'bg-yellow-400',
-		error: 'bg-red-400',
-		info: 'bg-blue-400',
+		success: 'bg-emerald-500',
+		warning: 'bg-amber-500',
+		error: 'bg-red-500',
+		info: 'bg-gray-500',
 		gray: 'bg-gray-400',
 		custom: customColors?.bg || 'bg-gray-400'
 	};

@@ -33,7 +33,7 @@
 
 	// Base styles that apply to all buttons
 	const baseStyles =
-		'inline-flex items-center justify-center font-medium rounded-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
+		'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed border';
 
 	// Size variants
 	const sizeVariants = {
@@ -44,72 +44,72 @@
 		xl: 'px-8 py-4 text-lg'
 	};
 
-	// Color and variant combinations
+	// Color and variant combinations - Vercel-inspired
 	const variantStyles = {
 		primary: {
-			blue: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 disabled:hover:bg-blue-600',
+			blue: 'border-black bg-black text-white hover:bg-gray-800 hover:border-gray-800 focus:ring-gray-500 disabled:hover:bg-black shadow-sm',
 			green:
-				'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500 disabled:hover:bg-green-600',
-			red: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 disabled:hover:bg-red-600',
+				'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:border-emerald-700 focus:ring-emerald-500 disabled:hover:bg-emerald-600 shadow-sm',
+			red: 'border-red-500 bg-red-500 text-white hover:bg-red-600 hover:border-red-600 focus:ring-red-500 disabled:hover:bg-red-500 shadow-sm',
 			yellow:
-				'bg-yellow-600 text-white hover:bg-yellow-700 focus:ring-yellow-500 disabled:hover:bg-yellow-600',
-			gray: 'bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500 disabled:hover:bg-gray-600',
+				'border-amber-500 bg-amber-500 text-white hover:bg-amber-600 hover:border-amber-600 focus:ring-amber-500 disabled:hover:bg-amber-500 shadow-sm',
+			gray: 'border-gray-600 bg-gray-600 text-white hover:bg-gray-700 hover:border-gray-700 focus:ring-gray-500 disabled:hover:bg-gray-600 shadow-sm',
 			white:
-				'bg-white text-gray-900 hover:bg-gray-50 focus:ring-gray-500 border border-gray-300 disabled:hover:bg-white',
+				'border-gray-200 bg-white text-gray-900 hover:bg-gray-50 hover:border-gray-300 focus:ring-gray-500 disabled:hover:bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950 dark:text-white dark:hover:bg-gray-900',
 			purple:
-				'bg-purple-600 text-white hover:bg-purple-700 focus:ring-purple-500 disabled:hover:bg-purple-600'
+				'border-violet-600 bg-violet-600 text-white hover:bg-violet-700 hover:border-violet-700 focus:ring-violet-500 disabled:hover:bg-violet-600 shadow-sm'
 		},
 		secondary: {
-			blue: 'bg-blue-100 text-blue-700 hover:bg-blue-200 focus:ring-blue-500 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-800',
+			blue: 'border-gray-200 bg-gray-50 text-gray-900 hover:bg-gray-100 hover:border-gray-300 focus:ring-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800',
 			green:
-				'bg-green-100 text-green-700 hover:bg-green-200 focus:ring-green-500 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800',
-			red: 'bg-red-100 text-red-700 hover:bg-red-200 focus:ring-red-500 dark:bg-red-900 dark:text-red-200 dark:hover:bg-red-800',
+				'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 focus:ring-emerald-500 shadow-sm dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100 dark:hover:bg-emerald-900',
+			red: 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:border-red-300 focus:ring-red-500 shadow-sm dark:border-red-800 dark:bg-red-950 dark:text-red-100 dark:hover:bg-red-900',
 			yellow:
-				'bg-yellow-100 text-yellow-700 hover:bg-yellow-200 focus:ring-yellow-500 dark:bg-yellow-900 dark:text-yellow-200 dark:hover:bg-yellow-800',
-			gray: 'bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-500 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600',
+				'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:border-amber-300 focus:ring-amber-500 shadow-sm dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100 dark:hover:bg-amber-900',
+			gray: 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 hover:border-gray-300 focus:ring-gray-500 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700',
 			white:
-				'bg-white text-gray-700 hover:bg-gray-50 focus:ring-gray-500 border border-gray-300 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:border-gray-600',
+				'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300 focus:ring-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-900',
 			purple:
-				'bg-purple-100 text-purple-700 hover:bg-purple-200 focus:ring-purple-500 dark:bg-purple-900 dark:text-purple-200 dark:hover:bg-purple-800'
+				'border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 hover:border-violet-300 focus:ring-violet-500 shadow-sm dark:border-violet-800 dark:bg-violet-950 dark:text-violet-100 dark:hover:bg-violet-900'
 		},
 		outline: {
-			blue: 'border border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-500 dark:text-blue-400 dark:border-blue-400 dark:hover:bg-blue-900',
+			blue: 'border-gray-300 bg-transparent text-gray-700 hover:bg-gray-50 hover:border-gray-400 focus:ring-gray-500 shadow-sm dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-900',
 			green:
-				'border border-green-600 text-green-600 hover:bg-green-50 focus:ring-green-500 dark:text-green-400 dark:border-green-400 dark:hover:bg-green-900',
-			red: 'border border-red-600 text-red-600 hover:bg-red-50 focus:ring-red-500 dark:text-red-400 dark:border-red-400 dark:hover:bg-red-900',
+				'border-emerald-300 bg-transparent text-emerald-700 hover:bg-emerald-50 hover:border-emerald-400 focus:ring-emerald-500 shadow-sm dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-950',
+			red: 'border-red-300 bg-transparent text-red-700 hover:bg-red-50 hover:border-red-400 focus:ring-red-500 shadow-sm dark:border-red-700 dark:text-red-300 dark:hover:bg-red-950',
 			yellow:
-				'border border-yellow-600 text-yellow-600 hover:bg-yellow-50 focus:ring-yellow-500 dark:text-yellow-400 dark:border-yellow-400 dark:hover:bg-yellow-900',
-			gray: 'border border-gray-600 text-gray-600 hover:bg-gray-50 focus:ring-gray-500 dark:text-gray-400 dark:border-gray-400 dark:hover:bg-gray-700',
+				'border-amber-300 bg-transparent text-amber-700 hover:bg-amber-50 hover:border-amber-400 focus:ring-amber-500 shadow-sm dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-950',
+			gray: 'border-gray-300 bg-transparent text-gray-700 hover:bg-gray-50 hover:border-gray-400 focus:ring-gray-500 shadow-sm dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-900',
 			white:
-				'border border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-500 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700',
+				'border-gray-300 bg-transparent text-gray-700 hover:bg-gray-50 hover:border-gray-400 focus:ring-gray-500 shadow-sm dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-900',
 			purple:
-				'border border-purple-600 text-purple-600 hover:bg-purple-50 focus:ring-purple-500 dark:text-purple-400 dark:border-purple-400 dark:hover:bg-purple-900'
+				'border-violet-300 bg-transparent text-violet-700 hover:bg-violet-50 hover:border-violet-400 focus:ring-violet-500 shadow-sm dark:border-violet-700 dark:text-violet-300 dark:hover:bg-violet-950'
 		},
 		ghost: {
-			blue: 'text-blue-600 hover:bg-blue-50 focus:ring-blue-500 dark:text-blue-400 dark:hover:bg-blue-900',
+			blue: 'border-transparent bg-transparent text-gray-700 hover:bg-gray-100 focus:ring-gray-500 dark:text-gray-300 dark:hover:bg-gray-800',
 			green:
-				'text-green-600 hover:bg-green-50 focus:ring-green-500 dark:text-green-400 dark:hover:bg-green-900',
-			red: 'text-red-600 hover:bg-red-50 focus:ring-red-500 dark:text-red-400 dark:hover:bg-red-900',
+				'border-transparent bg-transparent text-emerald-700 hover:bg-emerald-100 focus:ring-emerald-500 dark:text-emerald-300 dark:hover:bg-emerald-950',
+			red: 'border-transparent bg-transparent text-red-700 hover:bg-red-100 focus:ring-red-500 dark:text-red-300 dark:hover:bg-red-950',
 			yellow:
-				'text-yellow-600 hover:bg-yellow-50 focus:ring-yellow-500 dark:text-yellow-400 dark:hover:bg-yellow-900',
-			gray: 'text-gray-600 hover:bg-gray-50 focus:ring-gray-500 dark:text-gray-400 dark:hover:bg-gray-700',
+				'border-transparent bg-transparent text-amber-700 hover:bg-amber-100 focus:ring-amber-500 dark:text-amber-300 dark:hover:bg-amber-950',
+			gray: 'border-transparent bg-transparent text-gray-700 hover:bg-gray-100 focus:ring-gray-500 dark:text-gray-300 dark:hover:bg-gray-800',
 			white:
-				'text-gray-700 hover:bg-gray-50 focus:ring-gray-500 dark:text-gray-200 dark:hover:bg-gray-700',
+				'border-transparent bg-transparent text-gray-700 hover:bg-gray-100 focus:ring-gray-500 dark:text-gray-200 dark:hover:bg-gray-800',
 			purple:
-				'text-purple-600 hover:bg-purple-50 focus:ring-purple-500 dark:text-purple-400 dark:hover:bg-purple-900'
+				'border-transparent bg-transparent text-violet-700 hover:bg-violet-100 focus:ring-violet-500 dark:text-violet-300 dark:hover:bg-violet-950'
 		},
 		link: {
-			blue: 'text-blue-600 hover:text-blue-800 focus:ring-blue-500 dark:text-blue-400 dark:hover:text-blue-300',
+			blue: 'border-transparent bg-transparent text-gray-700 hover:text-gray-900 focus:ring-gray-500 underline-offset-4 hover:underline dark:text-gray-300 dark:hover:text-gray-100',
 			green:
-				'text-green-600 hover:text-green-800 focus:ring-green-500 dark:text-green-400 dark:hover:text-green-300',
-			red: 'text-red-600 hover:text-red-800 focus:ring-red-500 dark:text-red-400 dark:hover:text-red-300',
+				'border-transparent bg-transparent text-emerald-700 hover:text-emerald-900 focus:ring-emerald-500 underline-offset-4 hover:underline dark:text-emerald-300 dark:hover:text-emerald-100',
+			red: 'border-transparent bg-transparent text-red-700 hover:text-red-900 focus:ring-red-500 underline-offset-4 hover:underline dark:text-red-300 dark:hover:text-red-100',
 			yellow:
-				'text-yellow-600 hover:text-yellow-800 focus:ring-yellow-500 dark:text-yellow-400 dark:hover:text-yellow-300',
-			gray: 'text-gray-600 hover:text-gray-800 focus:ring-gray-500 dark:text-gray-400 dark:hover:text-gray-200',
+				'border-transparent bg-transparent text-amber-700 hover:text-amber-900 focus:ring-amber-500 underline-offset-4 hover:underline dark:text-amber-300 dark:hover:text-amber-100',
+			gray: 'border-transparent bg-transparent text-gray-700 hover:text-gray-900 focus:ring-gray-500 underline-offset-4 hover:underline dark:text-gray-300 dark:hover:text-gray-100',
 			white:
-				'text-gray-700 hover:text-gray-900 focus:ring-gray-500 dark:text-gray-200 dark:hover:text-white',
+				'border-transparent bg-transparent text-gray-700 hover:text-gray-900 focus:ring-gray-500 underline-offset-4 hover:underline dark:text-gray-200 dark:hover:text-white',
 			purple:
-				'text-purple-600 hover:text-purple-800 focus:ring-purple-500 dark:text-purple-400 dark:hover:text-purple-300'
+				'border-transparent bg-transparent text-violet-700 hover:text-violet-900 focus:ring-violet-500 underline-offset-4 hover:underline dark:text-violet-300 dark:hover:text-violet-100'
 		}
 	};
 

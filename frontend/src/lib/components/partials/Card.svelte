@@ -40,13 +40,13 @@
 		xl: 'p-8 sm:p-10'
 	};
 
-	// Shadow variants
+	// Shadow variants - Vercel-style subtle shadows
 	const shadowVariants = {
 		none: '',
-		sm: 'shadow-sm dark:shadow-gray-800',
-		md: 'shadow dark:shadow-gray-700',
-		lg: 'shadow-lg dark:shadow-gray-600',
-		xl: 'shadow-xl dark:shadow-gray-500'
+		sm: 'shadow-sm',
+		md: 'shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_1px_2px_0_rgba(0,0,0,0.05)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_1px_2px_0_rgba(0,0,0,0.3)]',
+		lg: 'shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_4px_6px_-1px_rgba(0,0,0,0.1)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_4px_6px_-1px_rgba(0,0,0,0.4)]',
+		xl: 'shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_10px_15px_-3px_rgba(0,0,0,0.1)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_10px_15px_-3px_rgba(0,0,0,0.4)]'
 	};
 
 	// Rounded variants
@@ -59,18 +59,18 @@
 		full: 'rounded-full'
 	};
 
-	// Base card styles
-	const baseStyles = 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700';
+	// Base card styles - Vercel-inspired
+	const baseStyles = 'bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800';
 
-	// Interactive styles
+	// Interactive styles - Vercel-style focus and interaction
 	const interactiveStyles =
 		clickable || href || onclick
-			? 'transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
+			? 'transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 dark:focus:ring-gray-100'
 			: '';
 
-	// Hover styles
+	// Hover styles - Subtle Vercel-style hover
 	const hoverStyles = hover
-		? 'hover:shadow-lg dark:hover:shadow-gray-600 hover:-translate-y-0.5'
+		? 'hover:shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_8px_12px_-2px_rgba(0,0,0,0.1)] dark:hover:shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_8px_12px_-2px_rgba(0,0,0,0.4)] hover:border-gray-300 dark:hover:border-gray-700'
 		: '';
 
 	let cardClasses = $derived(
@@ -109,10 +109,10 @@
 		{#if hasHeader}
 			<div class="mb-4 {headerClass}">
 				{#if title}
-					<h3 class="text-lg font-medium text-gray-900 dark:text-white">{title}</h3>
+					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
 				{/if}
 				{#if subtitle}
-					<p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{subtitle}</p>
+					<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>
 				{/if}
 			</div>
 		{/if}
@@ -134,10 +134,10 @@
 		{#if hasHeader}
 			<div class="mb-4 {headerClass}">
 				{#if title}
-					<h3 class="text-lg font-medium text-gray-900 dark:text-white">{title}</h3>
+					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
 				{/if}
 				{#if subtitle}
-					<p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{subtitle}</p>
+					<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>
 				{/if}
 			</div>
 		{/if}

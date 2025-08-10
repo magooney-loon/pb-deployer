@@ -24,15 +24,13 @@
 	}
 </script>
 
-<nav
-	class="border-b border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:shadow-gray-700"
->
+<nav class="border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
 	<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 		<div class="flex h-16 items-center justify-between">
 			<!-- Logo and brand -->
 			<div class="flex items-center">
 				<div class="flex-shrink-0">
-					<h1 class="flex items-center text-xl font-bold text-gray-900 dark:text-white">
+					<h1 class="flex items-center text-xl font-semibold text-gray-900 dark:text-gray-100">
 						<span class="mr-2 text-2xl">⚡</span>
 						PB Deployer
 					</h1>
@@ -46,15 +44,15 @@
 							onclick={() => logic.handleNavItemClick(item.href)}
 							class="group inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ease-in-out
 							{isActive(item.href)
-								? 'bg-blue-50 text-blue-700 shadow-sm dark:bg-blue-900/50 dark:text-blue-300'
-								: 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700/50 dark:hover:text-white'}"
+								? 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100'
+								: 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100'}"
 						>
 							<span class="mr-2 text-sm transition-transform duration-200 group-hover:scale-110">
 								{item.icon}
 							</span>
 							{item.label}
 							{#if isActive(item.href)}
-								<div class="ml-2 h-1.5 w-1.5 rounded-full bg-blue-500 dark:bg-blue-400"></div>
+								<div class="ml-2 h-1.5 w-1.5 rounded-full bg-gray-900 dark:bg-gray-100"></div>
 							{/if}
 						</a>
 					{/each}
@@ -66,9 +64,9 @@
 				<!-- API Status -->
 				<div class="hidden items-center sm:flex">
 					<span
-						class="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700 ring-1 ring-green-600/20 dark:bg-green-500/10 dark:text-green-400 dark:ring-green-500/20"
+						class="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:ring-emerald-800"
 					>
-						<div class="mr-1.5 h-2 w-2 animate-pulse rounded-full bg-green-500"></div>
+						<div class="mr-1.5 h-2 w-2 animate-pulse rounded-full bg-emerald-500"></div>
 						API Online
 					</span>
 				</div>
@@ -76,7 +74,7 @@
 				<!-- Theme toggle -->
 				<button
 					onclick={() => logic.toggleTheme()}
-					class="rounded-lg p-2.5 text-gray-500 transition-all duration-200 hover:bg-gray-100 hover:text-gray-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 dark:focus:ring-offset-gray-800"
+					class="rounded-lg p-2.5 text-gray-500 transition-all duration-200 hover:bg-gray-100 hover:text-gray-700 focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 focus:outline-none dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200 dark:focus:ring-gray-100 dark:focus:ring-offset-gray-950"
 					title="Toggle theme"
 					aria-label="Toggle dark mode"
 				>
@@ -88,7 +86,7 @@
 				<!-- Mobile menu button -->
 				<button
 					onclick={() => logic.toggleMobileMenu()}
-					class="rounded-lg p-2.5 text-gray-500 transition-all duration-200 hover:bg-gray-100 hover:text-gray-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none sm:hidden dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 dark:focus:ring-offset-gray-800"
+					class="rounded-lg p-2.5 text-gray-500 transition-all duration-200 hover:bg-gray-100 hover:text-gray-700 focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 focus:outline-none sm:hidden dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200 dark:focus:ring-gray-100 dark:focus:ring-offset-gray-950"
 					aria-expanded={state.mobileMenuOpen}
 					aria-label="Toggle mobile menu"
 				>
@@ -103,17 +101,17 @@
 	<!-- Mobile menu -->
 	{#if state.mobileMenuOpen}
 		<div
-			class="border-t border-gray-200 bg-gray-50 sm:hidden dark:border-gray-700 dark:bg-gray-800/50"
+			class="border-t border-gray-200 bg-gray-50 sm:hidden dark:border-gray-800 dark:bg-gray-900"
 		>
 			<div class="space-y-1 px-4 py-3">
 				<!-- Mobile API Status -->
 				<div
-					class="mb-3 flex items-center justify-between border-b border-gray-200 pb-3 dark:border-gray-600"
+					class="mb-3 flex items-center justify-between border-b border-gray-200 pb-3 dark:border-gray-700"
 				>
 					<span
-						class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 ring-1 ring-green-600/20 dark:bg-green-500/10 dark:text-green-400 dark:ring-green-500/20"
+						class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:ring-emerald-800"
 					>
-						<div class="mr-1.5 h-2 w-2 animate-pulse rounded-full bg-green-500"></div>
+						<div class="mr-1.5 h-2 w-2 animate-pulse rounded-full bg-emerald-500"></div>
 						API Online
 					</span>
 				</div>
@@ -124,15 +122,15 @@
 						onclick={() => logic.handleNavItemClick(item.href)}
 						class="group flex items-center rounded-lg px-3 py-3 text-base font-medium transition-all duration-200
 						{isActive(item.href)
-							? 'bg-blue-50 text-blue-700 shadow-sm dark:bg-blue-900/50 dark:text-blue-300'
-							: 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700/50 dark:hover:text-white'}"
+							? 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100'
+							: 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100'}"
 					>
 						<span class="mr-3 text-lg transition-transform duration-200 group-hover:scale-110">
 							{item.icon}
 						</span>
 						{item.label}
 						{#if isActive(item.href)}
-							<div class="ml-auto h-2 w-2 rounded-full bg-blue-500 dark:bg-blue-400"></div>
+							<div class="ml-auto h-2 w-2 rounded-full bg-gray-900 dark:bg-gray-100"></div>
 						{/if}
 					</a>
 				{/each}

@@ -57,33 +57,33 @@
 	let hasData = $derived(data && data.length > 0);
 	let showEmptyState = $derived(!loading && !hasData);
 
-	// Table styling
+	// Table styling - Vercel-inspired
 	let containerClasses = $derived(
-		`overflow-hidden bg-white shadow sm:rounded-lg dark:bg-gray-800 dark:shadow-gray-700 ${className}`
+		`overflow-hidden bg-white border border-gray-200 rounded-lg dark:bg-gray-950 dark:border-gray-800 ${className}`
 	);
 
 	let scrollClasses = 'overflow-x-auto';
 
-	let baseTableClasses = 'min-w-full divide-y divide-gray-200 dark:divide-gray-700';
+	let baseTableClasses = 'min-w-full divide-y divide-gray-200 dark:divide-gray-800';
 
-	let headerRowClasses = $derived(`bg-gray-50 dark:bg-gray-700 ${headerClass}`);
+	let headerRowClasses = $derived(`bg-gray-50 dark:bg-gray-900 ${headerClass}`);
 
 	let headerCellClasses =
-		'px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400';
+		'px-6 py-3 text-left text-xs font-semibold tracking-wider text-gray-600 uppercase dark:text-gray-400';
 
 	let bodyClasses = $derived(
-		`divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800 ${bodyClass}`
+		`divide-y divide-gray-200 bg-white dark:divide-gray-800 dark:bg-gray-950 ${bodyClass}`
 	);
 
 	let getRowClasses = (index: number) => {
 		let classes = '';
 
 		if (hoverable) {
-			classes += 'hover:bg-gray-50 dark:hover:bg-gray-700 ';
+			classes += 'hover:bg-gray-50 dark:hover:bg-gray-900 ';
 		}
 
 		if (striped && index % 2 !== 0) {
-			classes += 'bg-gray-50 dark:bg-gray-750 ';
+			classes += 'bg-gray-50 dark:bg-gray-900 ';
 		}
 
 		return `${classes}${rowClass}`.trim();

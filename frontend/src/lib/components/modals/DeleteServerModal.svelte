@@ -46,10 +46,10 @@
 	{#if state.server !== null}
 		<div class="space-y-6">
 			<!-- Warning -->
-			<div class="rounded-lg bg-red-50 p-4 dark:bg-red-900/20">
+			<div class="rounded-lg bg-red-50 p-4 ring-1 ring-red-200 dark:bg-red-950 dark:ring-red-800">
 				<div class="flex">
 					<div class="flex-shrink-0">
-						<svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+						<svg class="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
 							<path
 								fill-rule="evenodd"
 								d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
@@ -58,10 +58,10 @@
 						</svg>
 					</div>
 					<div class="ml-3">
-						<h3 class="text-sm font-medium text-red-800 dark:text-red-200">
+						<h3 class="text-sm font-semibold text-red-700 dark:text-red-300">
 							This action cannot be undone
 						</h3>
-						<div class="mt-2 text-sm text-red-700 dark:text-red-300">
+						<div class="mt-2 text-sm text-red-600 dark:text-red-400">
 							<p>
 								This will permanently delete the server configuration. The actual VPS server will
 								not be affected.
@@ -72,44 +72,46 @@
 			</div>
 
 			<!-- Server Details -->
-			<div class="rounded-lg bg-gray-50 p-4 dark:bg-gray-700">
-				<h4 class="mb-3 font-medium text-gray-900 dark:text-white">Server Details</h4>
+			<div
+				class="rounded-lg bg-gray-50 p-4 ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-800"
+			>
+				<h4 class="mb-3 font-semibold text-gray-900 dark:text-gray-100">Server Details</h4>
 				<div class="space-y-2 text-sm">
 					<div class="flex justify-between">
 						<span class="text-gray-600 dark:text-gray-400">Name:</span>
-						<span class="font-medium text-gray-900 dark:text-white">{state.server?.name}</span>
+						<span class="font-medium text-gray-900 dark:text-gray-100">{state.server?.name}</span>
 					</div>
 					<div class="flex justify-between">
 						<span class="text-gray-600 dark:text-gray-400">Host:</span>
-						<span class="font-mono text-gray-900 dark:text-white"
+						<span class="font-mono text-gray-900 dark:text-gray-100"
 							>{state.server?.host}:{state.server?.port}</span
 						>
 					</div>
 					<div class="flex justify-between">
 						<span class="text-gray-600 dark:text-gray-400">Setup Status:</span>
-						<span class="text-gray-900 dark:text-white">
+						<span class="text-gray-900 dark:text-gray-100">
 							{#if state.server}
 								{#if state.server.setup_complete && state.server.security_locked}
 									<span
-										class="rounded bg-green-100 px-2 py-1 text-xs text-green-800 dark:bg-green-900 dark:text-green-200"
+										class="rounded bg-emerald-50 px-2 py-1 text-xs text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:ring-emerald-800"
 									>
 										Ready
 									</span>
 								{:else if state.server.setup_complete}
 									<span
-										class="rounded bg-yellow-100 px-2 py-1 text-xs text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+										class="rounded bg-amber-50 px-2 py-1 text-xs text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:ring-amber-800"
 									>
 										Setup Complete
 									</span>
 								{:else}
 									<span
-										class="rounded bg-red-100 px-2 py-1 text-xs text-red-800 dark:bg-red-900 dark:text-red-200"
+										class="rounded bg-red-50 px-2 py-1 text-xs text-red-700 ring-1 ring-red-200 dark:bg-red-950 dark:text-red-300 dark:ring-red-800"
 									>
 										Not Setup
 									</span>
 								{/if}
 							{:else}
-								<span class="bg-gray-100 text-gray-800">Unknown</span>
+								<span class="bg-gray-50 text-gray-600 ring-1 ring-gray-200">Unknown</span>
 							{/if}
 						</span>
 					</div>
@@ -118,10 +120,12 @@
 
 			<!-- Associated Apps Warning -->
 			{#if state.server && state.apps.filter((app) => app.server_id === state.server!.id).length > 0}
-				<div class="rounded-lg bg-orange-50 p-4 dark:bg-orange-900/20">
+				<div
+					class="rounded-lg bg-amber-50 p-4 ring-1 ring-amber-200 dark:bg-amber-950 dark:ring-amber-800"
+				>
 					<div class="flex">
 						<div class="flex-shrink-0">
-							<svg class="h-5 w-5 text-orange-400" viewBox="0 0 20 20" fill="currentColor">
+							<svg class="h-5 w-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
 								<path
 									fill-rule="evenodd"
 									d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
@@ -130,11 +134,11 @@
 							</svg>
 						</div>
 						<div class="ml-3">
-							<h3 class="text-sm font-medium text-orange-800 dark:text-orange-200">
+							<h3 class="text-sm font-semibold text-amber-700 dark:text-amber-300">
 								Warning: Apps Deployed on This Server
 							</h3>
 							<div class="mt-2">
-								<p class="text-sm text-orange-700 dark:text-orange-300">
+								<p class="text-sm text-amber-600 dark:text-amber-400">
 									This server has {state.apps.filter((app) => app.server_id === state.server!.id)
 										.length} app{state.apps.filter((app) => app.server_id === state.server!.id)
 										.length !== 1
@@ -142,7 +146,7 @@
 										: ''} deployed on it:
 								</p>
 								<ul
-									class="mt-2 list-inside list-disc space-y-1 text-sm text-orange-700 dark:text-orange-300"
+									class="mt-2 list-inside list-disc space-y-1 text-sm text-amber-600 dark:text-amber-400"
 								>
 									{#each state.apps.filter((app) => app.server_id === state.server!.id) as app (app.id)}
 										<li>
@@ -153,7 +157,7 @@
 										</li>
 									{/each}
 								</ul>
-								<p class="mt-2 text-sm text-orange-700 dark:text-orange-300">
+								<p class="mt-2 text-sm text-amber-600 dark:text-amber-400">
 									You should delete or migrate these apps before deleting the server.
 								</p>
 							</div>
@@ -163,7 +167,9 @@
 			{/if}
 
 			<!-- Confirmation Input -->
-			<div class="rounded-lg bg-gray-50 p-4 dark:bg-gray-700">
+			<div
+				class="rounded-lg bg-gray-50 p-4 ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-800"
+			>
 				<p class="mb-2 text-sm text-gray-700 dark:text-gray-300">
 					To confirm deletion, type the server name: <strong class="font-mono"
 						>{state.server?.name}</strong
@@ -172,7 +178,7 @@
 				<input
 					type="text"
 					placeholder="Enter server name to confirm"
-					class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+					class="mt-1 block w-full rounded-lg border-gray-200 bg-white shadow-sm transition-all duration-200 focus:border-red-500 focus:ring-2 focus:ring-red-500 focus:ring-offset-0 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-100"
 					value={state.confirmationText}
 					oninput={(e) => logic.updateConfirmationText(e.currentTarget.value)}
 					disabled={state.loading}
@@ -181,7 +187,7 @@
 		</div>
 	{:else}
 		<div class="py-8 text-center">
-			<div class="text-gray-500 dark:text-gray-400">No server selected for deletion</div>
+			<div class="text-gray-600 dark:text-gray-400">No server selected for deletion</div>
 		</div>
 	{/if}
 
@@ -190,14 +196,14 @@
 			<button
 				onclick={() => logic.handleClose()}
 				disabled={state.loading}
-				class="rounded-lg bg-gray-600 px-4 py-2 font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50 dark:bg-gray-500 dark:hover:bg-gray-600"
+				class="rounded-lg border border-gray-200 bg-white px-4 py-2 font-medium text-gray-900 transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-100 dark:hover:bg-gray-900"
 			>
 				Cancel
 			</button>
 			<button
 				onclick={() => logic.handleConfirm()}
 				disabled={state.loading || !state.server || state.confirmationText !== state.server!.name}
-				class="rounded-lg bg-red-600 px-4 py-2 font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+				class="rounded-lg border border-red-500 bg-red-500 px-4 py-2 font-medium text-white shadow-sm transition-colors hover:border-red-600 hover:bg-red-600 disabled:opacity-50"
 			>
 				{#if state.loading}
 					<div class="flex items-center">
