@@ -6,7 +6,6 @@
 		ErrorAlert,
 		LoadingSpinner,
 		MetricCard,
-		Button,
 		StatusBadge,
 		Card,
 		RecentItemsCard
@@ -56,15 +55,6 @@
 			<MetricCard title="Total Apps" value={metrics.totalApps} icon="📱" />
 			<MetricCard title="Online Apps" value={metrics.onlineApps.length} icon="🟢" color="green" />
 		</div>
-
-		<!-- Quick Actions -->
-		<Card title="Quick Actions" class="mb-8">
-			<div class="flex flex-col gap-3 sm:flex-row">
-				<Button href="/servers" icon="🖥️" variant="secondary">Manage Servers</Button>
-				<Button href="/apps" icon="📱" variant="secondary" color="green">Manage Apps</Button>
-				<Button variant="outline" icon="🔄" onclick={() => logic.loadData()}>Refresh Data</Button>
-			</div>
-		</Card>
 
 		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 			<!-- Recent Servers -->
