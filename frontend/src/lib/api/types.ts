@@ -48,6 +48,42 @@ export interface Deployment {
 	completed_at?: string;
 }
 
+export interface ConnectionDiagnostic {
+	step: string;
+	status: 'success' | 'warning' | 'error';
+	message: string;
+	details?: string;
+	suggestion?: string;
+}
+
+export interface TroubleshootResult {
+	success: boolean;
+	server_id: string;
+	server_name: string;
+	host: string;
+	port: number;
+	timestamp: string;
+	diagnostics: ConnectionDiagnostic[];
+	summary: string;
+	has_errors: boolean;
+	has_warnings: boolean;
+	error_count: number;
+	warning_count: number;
+	success_count: number;
+	suggestions: string[];
+}
+
+export interface QuickTroubleshootResult {
+	success: boolean;
+	server_id: string;
+	host: string;
+	port: number;
+	status: 'success' | 'warning' | 'error';
+	message: string;
+	suggestion: string;
+	timestamp: string;
+}
+
 export interface ServerRequest {
 	name: string;
 	host: string;

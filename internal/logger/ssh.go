@@ -186,7 +186,7 @@ func (s *SSHLogger) ServiceAction(action string, serviceName string, success boo
 		message += " failed"
 	}
 
-	entry.log(level, message)
+	entry.log(level, "%s", message)
 }
 
 // Health monitoring logging
@@ -241,7 +241,7 @@ func (s *SSHLogger) SecurityStep(step string, status string, message string, pro
 		"status":       status,
 		"progress_pct": progressPct,
 		"operation":    "security_lockdown",
-	}).log(level, message)
+	}).log(level, "%s", message)
 }
 
 // SetupStep logs individual steps in server setup process
@@ -259,7 +259,7 @@ func (s *SSHLogger) SetupStep(step string, status string, message string, progre
 		"status":       status,
 		"progress_pct": progressPct,
 		"operation":    "server_setup",
-	}).log(level, message)
+	}).log(level, "%s", message)
 }
 
 // HostKeyAccepted logs when a host key is accepted and stored
@@ -337,7 +337,7 @@ func (o *SSHOperationLogger) Progress(message string, progressPct int) {
 		allFields[k] = v
 	}
 
-	o.logger.WithFields(allFields).Info(message)
+	o.logger.WithFields(allFields).Info("%s", message)
 }
 
 // Success completes the operation successfully
@@ -357,7 +357,7 @@ func (o *SSHOperationLogger) Success(message string) {
 		allFields[k] = v
 	}
 
-	o.logger.WithFields(allFields).Info(message)
+	o.logger.WithFields(allFields).Info("%s", message)
 }
 
 // Failure completes the operation with failure
@@ -377,7 +377,7 @@ func (o *SSHOperationLogger) Failure(err error, message string) {
 		allFields[k] = v
 	}
 
-	o.logger.WithFields(allFields).WithError(err).Error(message)
+	o.logger.WithFields(allFields).WithError(err).Error("%s", message)
 }
 
 // Progress tracking methods
@@ -416,7 +416,7 @@ func (p *SSHProgressLogger) NextStep(stepName string, message string) {
 		"total_steps":  p.totalSteps,
 		"progress_pct": progressPct,
 		"elapsed":      time.Since(p.startTime).String(),
-	}).Info(message)
+	}).Info("%s", message)
 }
 
 // StepProgress updates progress within the current step
@@ -435,7 +435,7 @@ func (p *SSHProgressLogger) StepProgress(message string, subProgressPct int) {
 		"step_progress":  subProgressPct,
 		"total_progress": totalProgress,
 		"elapsed":        time.Since(p.startTime).String(),
-	}).Debug(message)
+	}).Debug("%s", message)
 }
 
 // StepFailed logs a step failure
@@ -448,7 +448,7 @@ func (p *SSHProgressLogger) StepFailed(stepName string, err error, message strin
 		"step_number": p.currentStep,
 		"total_steps": p.totalSteps,
 		"elapsed":     time.Since(p.startTime).String(),
-	}).WithError(err).Error(message)
+	}).WithError(err).Error("%s", message)
 }
 
 // Complete logs the completion of the multi-step operation
@@ -468,7 +468,7 @@ func (p *SSHProgressLogger) Complete(success bool, message string) {
 		"completed_steps": p.currentStep,
 		"duration":        duration.String(),
 		"success":         success,
-	}).log(level, message)
+	}).log(level, "%s", message)
 }
 
 // Specialized logging methods for common SSH operations

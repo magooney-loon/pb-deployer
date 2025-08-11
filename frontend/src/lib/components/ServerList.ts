@@ -1,4 +1,5 @@
 import { api, type Server, type App, type SetupStep } from './../api.js';
+import type { TroubleshootResult } from './modals/TroubleshootModal.js';
 
 export interface ServerFormData {
 	name: string;
@@ -41,6 +42,7 @@ export interface ServerListState {
 	testingConnection: Set<string>;
 	runningSetup: Set<string>;
 	applyingSecurity: Set<string>;
+	troubleshooting: Set<string>;
 
 	// Progress tracking
 	setupProgress: Record<string, SetupStep[]>;
@@ -53,6 +55,10 @@ export interface ServerListState {
 	connectionTestLoading: boolean;
 	connectionTestResult: ConnectionTestResult | null;
 	testedServerName: string;
+	showTroubleshootModal: boolean;
+	troubleshootLoading: boolean;
+	troubleshootResult: TroubleshootResult | null;
+	troubleshootServerName: string;
 	showDeleteModal: boolean;
 	serverToDelete: Server | null;
 	deleting: boolean;
@@ -83,6 +89,7 @@ export class ServerListLogic {
 			testingConnection: new Set(),
 			runningSetup: new Set(),
 			applyingSecurity: new Set(),
+			troubleshooting: new Set(),
 			setupProgress: {},
 			securityProgress: {},
 			setupUnsubscribers: {},
@@ -91,6 +98,10 @@ export class ServerListLogic {
 			connectionTestLoading: false,
 			connectionTestResult: null,
 			testedServerName: '',
+			showTroubleshootModal: false,
+			troubleshootLoading: false,
+			troubleshootResult: null,
+			troubleshootServerName: '',
 			showDeleteModal: false,
 			serverToDelete: null,
 			deleting: false,
@@ -242,6 +253,103 @@ export class ServerListLogic {
 				connectionTestLoading: false
 			});
 		}
+	}
+
+	public async troubleshootConnection(id: string): Promise<void> {
+		const server = this.state.servers.find((s) => s.id === id);
+		if (!server) return;
+
+		// Open modal immediately with loading state
+		this.updateState({
+			troubleshootResult: null,
+			troubleshootServerName: server.name,
+			troubleshootLoading: true,
+			showTroubleshootModal: true
+		});
+
+		const troubleshooting = new Set(this.state.troubleshooting);
+		troubleshooting.add(id);
+		this.updateState({ troubleshooting });
+
+		try {
+			const result = await api.troubleshootServer(id);
+			this.updateState({ troubleshootResult: result });
+		} catch (err) {
+			const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+			const troubleshootResult: TroubleshootResult = {
+				success: false,
+				server_id: id,
+				server_name: server.name,
+				host: server.host,
+				port: server.port,
+				timestamp: new Date().toISOString(),
+				diagnostics: [],
+				summary: `Failed to run diagnostics: ${errorMsg}`,
+				has_errors: true,
+				has_warnings: false,
+				error_count: 1,
+				warning_count: 0,
+				success_count: 0,
+				suggestions: ['Check network connectivity', 'Try again later']
+			};
+			this.updateState({ troubleshootResult });
+		} finally {
+			troubleshooting.delete(id);
+			this.updateState({
+				troubleshooting,
+				troubleshootLoading: false
+			});
+		}
+	}
+
+	public async retryTroubleshoot(): Promise<void> {
+		if (!this.state.troubleshootResult) return;
+		await this.troubleshootConnection(this.state.troubleshootResult.server_id);
+	}
+
+	public async quickTroubleshoot(): Promise<void> {
+		if (!this.state.troubleshootResult) return;
+
+		this.updateState({ troubleshootLoading: true });
+
+		try {
+			const result = await api.quickTroubleshootServer(this.state.troubleshootResult.server_id);
+			// Convert quick result to full result format for display
+			const quickDiagnostic = {
+				step: 'quick_connectivity',
+				status: result.status,
+				message: result.message,
+				suggestion: result.suggestion
+			};
+
+			const updatedResult: TroubleshootResult = {
+				...this.state.troubleshootResult,
+				diagnostics: [quickDiagnostic],
+				success: result.success,
+				has_errors: result.status === 'error',
+				has_warnings: result.status === 'warning',
+				error_count: result.status === 'error' ? 1 : 0,
+				warning_count: result.status === 'warning' ? 1 : 0,
+				success_count: result.status === 'success' ? 1 : 0,
+				suggestions: result.suggestion ? [result.suggestion] : [],
+				timestamp: result.timestamp
+			};
+
+			this.updateState({ troubleshootResult: updatedResult });
+		} catch (err) {
+			console.error('Quick troubleshoot failed:', err);
+		} finally {
+			this.updateState({ troubleshootLoading: false });
+		}
+	}
+
+	public closeTroubleshootModal(): void {
+		this.updateState({
+			showTroubleshootModal: false,
+			troubleshootResult: null,
+			troubleshootServerName: '',
+			troubleshootLoading: false
+		});
 	}
 
 	public async runSetup(id: string): Promise<void> {

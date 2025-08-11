@@ -357,7 +357,7 @@ func (c *ConsoleLogger) Table(headers []string, rows [][]string) {
 	if !c.interactive || len(headers) == 0 {
 		// Fallback to simple text output
 		for _, row := range rows {
-			c.Info(strings.Join(row, " | "))
+			c.Info("%s", strings.Join(row, " | "))
 		}
 		return
 	}

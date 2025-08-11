@@ -11,7 +11,10 @@ export type {
 	HealthCheckResponse,
 	SetupStep,
 	ConnectionInfo,
-	ServerStatus
+	ServerStatus,
+	ConnectionDiagnostic,
+	TroubleshootResult,
+	QuickTroubleshootResult
 } from './types.js';
 
 // Re-export utility functions

@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -108,7 +109,7 @@ func getCurrentPublicIP() (string, error) {
 }
 
 func testConnectivity(host string, port int, verbose bool) bool {
-	address := fmt.Sprintf("%s:%d", host, port)
+	address := net.JoinHostPort(host, strconv.Itoa(port))
 
 	if verbose {
 		fmt.Printf("   Attempting TCP connection to %s...\n", address)

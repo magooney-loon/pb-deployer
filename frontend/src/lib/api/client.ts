@@ -151,6 +151,42 @@ export class ApiClient extends BaseClient {
 		}
 	}
 
+	async troubleshootServer(id: string) {
+		console.log('Running server troubleshooting:', id);
+		try {
+			const response = await fetch(`${this.baseURL}/api/servers/${id}/troubleshoot`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+			const data = await response.json();
+			console.log('Troubleshoot response:', data);
+			return data;
+		} catch (error) {
+			console.error('Troubleshooting failed:', error);
+			throw error;
+		}
+	}
+
+	async quickTroubleshootServer(id: string) {
+		console.log('Running quick server troubleshoot:', id);
+		try {
+			const response = await fetch(`${this.baseURL}/api/servers/${id}/quick-troubleshoot`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+			const data = await response.json();
+			console.log('Quick troubleshoot response:', data);
+			return data;
+		} catch (error) {
+			console.error('Quick troubleshooting failed:', error);
+			throw error;
+		}
+	}
+
 	async getServerStatus(id: string): Promise<ServerStatus> {
 		console.log('Getting server status:', id);
 		try {

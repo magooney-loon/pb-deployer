@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1111,7 +1112,7 @@ func QuickFail2banCheck(host string, port int) error {
 	fmt.Printf("Your IP: %s\n\n", currentIP)
 
 	// Test connectivity
-	address := fmt.Sprintf("%s:%d", host, port)
+	address := net.JoinHostPort(host, strconv.Itoa(port))
 	conn, err := net.DialTimeout("tcp", address, 5*time.Second)
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {

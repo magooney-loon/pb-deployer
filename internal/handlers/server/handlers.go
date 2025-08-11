@@ -30,6 +30,15 @@ func RegisterServerHandlers(app core.App, group *router.RouterGroup[*core.Reques
 		return applySecurityLockdown(app, e)
 	})
 
+	// Troubleshooting endpoints
+	group.POST("/servers/{id}/troubleshoot", func(e *core.RequestEvent) error {
+		return troubleshootServerConnection(app, e)
+	})
+
+	group.POST("/servers/{id}/quick-troubleshoot", func(e *core.RequestEvent) error {
+		return quickTroubleshoot(app, e)
+	})
+
 	// WebSocket endpoints
 	group.GET("/servers/{id}/setup-ws", func(e *core.RequestEvent) error {
 		return handleSetupWebSocket(app, e)

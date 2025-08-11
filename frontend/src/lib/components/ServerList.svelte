@@ -5,6 +5,7 @@
 	import ConnectionTestModal from '$lib/components/modals/ConnectionTestModal.svelte';
 	import DeleteServerModal from '$lib/components/modals/DeleteServerModal.svelte';
 	import ProgressModal from '$lib/components/modals/ProgressModal.svelte';
+	import TroubleshootModal from '$lib/components/modals/TroubleshootModal.svelte';
 	import {
 		Button,
 		ErrorAlert,
@@ -260,6 +261,16 @@
 										{state.testingConnection.has(server.id) ? 'Testing...' : 'Test Connection'}
 									</Button>
 
+									<Button
+										variant="ghost"
+										size="sm"
+										onclick={() => logic.troubleshootConnection(server.id)}
+										disabled={state.troubleshooting.has(server.id)}
+										icon={state.troubleshooting.has(server.id) ? '🔄' : '🔍'}
+									>
+										{state.troubleshooting.has(server.id) ? 'Diagnosing...' : 'Troubleshoot'}
+									</Button>
+
 									{#if !server.setup_complete}
 										<Button
 											variant="ghost"
@@ -355,4 +366,15 @@
 	onClose={() => logic.closeSecurityProgressModal()}
 	loading={state.applyingSecurity.has(state.currentProgressServerId || '')}
 	operationInProgress={logic.isSecurityInProgress(state.currentProgressServerId)}
+/>
+
+<!-- Troubleshoot Modal -->
+<TroubleshootModal
+	open={state.showTroubleshootModal}
+	result={state.troubleshootResult}
+	serverName={state.troubleshootServerName}
+	loading={state.troubleshootLoading}
+	onclose={() => logic.closeTroubleshootModal()}
+	onretry={() => logic.retryTroubleshoot()}
+	onquicktest={() => logic.quickTroubleshoot()}
 />
