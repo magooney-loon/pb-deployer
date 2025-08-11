@@ -139,6 +139,7 @@ export class TroubleshootModalLogic {
 	}
 
 	public handleClose(): void {
+		this.updateState({ open: false });
 		this.onclose?.();
 	}
 

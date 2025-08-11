@@ -4,7 +4,8 @@
 		TroubleshootModalLogic,
 		type TroubleshootResult,
 		type EnhancedTroubleshootResult,
-		type AutoFixResult
+		type AutoFixResult,
+		type TroubleshootModalState
 	} from './TroubleshootModal.js';
 
 	interface Props {
@@ -52,7 +53,7 @@
 		onenhanced,
 		onautofix
 	});
-	let state = $state(logic.getState());
+	let state = $state<TroubleshootModalState>(logic.getState());
 
 	// Update state when logic changes
 	logic.onStateUpdate((newState) => {
@@ -707,9 +708,9 @@
 				<button
 					onclick={() => logic.handleClose()}
 					class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-100 dark:hover:bg-gray-900"
-					disabled={!logic.isCloseable()}
+					disabled={state.loading}
 				>
-					Close
+					{logic.hasResult() ? 'Done' : 'Close'}
 				</button>
 			</div>
 		</div>
