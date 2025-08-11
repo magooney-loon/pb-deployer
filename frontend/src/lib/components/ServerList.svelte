@@ -251,25 +251,27 @@
 									{formatTimestamp(server.created)}
 								</td>
 								<td class="space-x-2 px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
-									<Button
-										variant="ghost"
-										size="sm"
-										onclick={() => logic.testConnection(server.id)}
-										disabled={state.testingConnection.has(server.id)}
-										icon={state.testingConnection.has(server.id) ? '🔄' : '🔌'}
-									>
-										{state.testingConnection.has(server.id) ? 'Testing...' : 'Test Connection'}
-									</Button>
+									{#if server.setup_complete}
+										<Button
+											variant="ghost"
+											size="sm"
+											onclick={() => logic.testConnection(server.id)}
+											disabled={state.testingConnection.has(server.id)}
+											icon={state.testingConnection.has(server.id) ? '🔄' : '🔌'}
+										>
+											{state.testingConnection.has(server.id) ? 'Testing...' : 'Test Connection'}
+										</Button>
 
-									<Button
-										variant="ghost"
-										size="sm"
-										onclick={() => logic.troubleshootConnection(server.id)}
-										disabled={state.troubleshooting.has(server.id)}
-										icon={state.troubleshooting.has(server.id) ? '🔄' : '🔍'}
-									>
-										{state.troubleshooting.has(server.id) ? 'Diagnosing...' : 'Troubleshoot'}
-									</Button>
+										<Button
+											variant="ghost"
+											size="sm"
+											onclick={() => logic.troubleshootConnection(server.id)}
+											disabled={state.troubleshooting.has(server.id)}
+											icon={state.troubleshooting.has(server.id) ? '🔄' : '🔍'}
+										>
+											{state.troubleshooting.has(server.id) ? 'Diagnosing...' : 'Troubleshoot'}
+										</Button>
+									{/if}
 
 									{#if !server.setup_complete}
 										<Button

@@ -271,14 +271,14 @@ func (sm *SSHManager) setupFail2banWithProgress(progressChan chan<- SetupStep) e
 	jailConfig := `[DEFAULT]
 bantime = 3600
 findtime = 600
-maxretry = 3
+maxretry = 5
 
 [sshd]
 enabled = true
 port = ssh
 filter = sshd
 logpath = /var/log/auth.log
-maxretry = 3
+maxretry = 5
 bantime = 3600
 `
 
