@@ -20,63 +20,6 @@ type ServerConfig struct {
 	SecurityLocked bool
 }
 
-// ConnectionMetadata holds metadata about a connection
-type ConnectionMetadata struct {
-	Key          string
-	CreatedAt    time.Time
-	LastUsed     time.Time
-	UseCount     int64
-	Healthy      bool
-	State        ConnectionState
-	LastError    error
-	ResponseTime time.Duration
-	mu           sync.RWMutex
-}
-
-// UpdateLastUsed updates the last used timestamp and increments use count
-func (cm *ConnectionMetadata) UpdateLastUsed() {
-	cm.mu.Lock()
-	defer cm.mu.Unlock()
-	cm.LastUsed = time.Now()
-	cm.UseCount++
-}
-
-// SetHealthy updates the health status
-func (cm *ConnectionMetadata) SetHealthy(healthy bool) {
-	cm.mu.Lock()
-	defer cm.mu.Unlock()
-	cm.Healthy = healthy
-}
-
-// SetState updates the connection state
-func (cm *ConnectionMetadata) SetState(state ConnectionState) {
-	cm.mu.Lock()
-	defer cm.mu.Unlock()
-	cm.State = state
-}
-
-// GetStats returns a copy of the metadata stats
-func (cm *ConnectionMetadata) GetStats() map[string]interface{} {
-	cm.mu.RLock()
-	defer cm.mu.RUnlock()
-
-	return map[string]interface{}{
-		"key":           cm.Key,
-		"created_at":    cm.CreatedAt,
-		"last_used":     cm.LastUsed,
-		"use_count":     cm.UseCount,
-		"healthy":       cm.Healthy,
-		"state":         cm.State.String(),
-		"response_time": cm.ResponseTime,
-	}
-}
-
-// PoolEntry represents a connection pool entry
-type PoolEntry struct {
-	Client   SSHClient
-	Metadata *ConnectionMetadata
-}
-
 // SessionConfig holds configuration for SSH sessions
 type SessionConfig struct {
 	Timeout     time.Duration
@@ -155,74 +98,6 @@ func DefaultHealthCheckConfig() *HealthCheckConfig {
 		RecoveryRetries:     2,
 		EnableAutoRecovery:  true,
 	}
-}
-
-// ConnectionStats holds connection statistics
-type ConnectionStats struct {
-	TotalConnections    int64
-	ActiveConnections   int64
-	FailedConnections   int64
-	TotalCommands       int64
-	FailedCommands      int64
-	AverageResponseTime time.Duration
-	LastConnectionTime  time.Time
-	LastCommandTime     time.Time
-	UptimeStart         time.Time
-	mu                  sync.RWMutex
-}
-
-// IncrementConnections increments connection counters
-func (cs *ConnectionStats) IncrementConnections(success bool) {
-	cs.mu.Lock()
-	defer cs.mu.Unlock()
-
-	cs.TotalConnections++
-	if success {
-		cs.ActiveConnections++
-	} else {
-		cs.FailedConnections++
-	}
-	cs.LastConnectionTime = time.Now()
-}
-
-// IncrementCommands increments command counters
-func (cs *ConnectionStats) IncrementCommands(success bool) {
-	cs.mu.Lock()
-	defer cs.mu.Unlock()
-
-	cs.TotalCommands++
-	if !success {
-		cs.FailedCommands++
-	}
-	cs.LastCommandTime = time.Now()
-}
-
-// GetSnapshot returns a snapshot of current stats
-func (cs *ConnectionStats) GetSnapshot() map[string]interface{} {
-	cs.mu.RLock()
-	defer cs.mu.RUnlock()
-
-	uptime := time.Since(cs.UptimeStart)
-
-	return map[string]interface{}{
-		"total_connections":     cs.TotalConnections,
-		"active_connections":    cs.ActiveConnections,
-		"failed_connections":    cs.FailedConnections,
-		"total_commands":        cs.TotalCommands,
-		"failed_commands":       cs.FailedCommands,
-		"average_response_time": cs.AverageResponseTime,
-		"last_connection":       cs.LastConnectionTime,
-		"last_command":          cs.LastCommandTime,
-		"uptime":                uptime,
-		"success_rate":          cs.calculateSuccessRate(),
-	}
-}
-
-func (cs *ConnectionStats) calculateSuccessRate() float64 {
-	if cs.TotalConnections == 0 {
-		return 0
-	}
-	return float64(cs.TotalConnections-cs.FailedConnections) / float64(cs.TotalConnections) * 100
 }
 
 // DeploymentConfig holds deployment-specific configuration
@@ -326,9 +201,6 @@ const (
 	EventCommandFailed
 	EventHealthCheckPassed
 	EventHealthCheckFailed
-	EventPoolCreated
-	EventPoolClosed
-	EventPoolExhausted
 	EventSecurityViolation
 	EventConfigurationChanged
 )
@@ -349,12 +221,6 @@ func (et EventType) String() string {
 		return "health_check_passed"
 	case EventHealthCheckFailed:
 		return "health_check_failed"
-	case EventPoolCreated:
-		return "pool_created"
-	case EventPoolClosed:
-		return "pool_closed"
-	case EventPoolExhausted:
-		return "pool_exhausted"
 	case EventSecurityViolation:
 		return "security_violation"
 	case EventConfigurationChanged:
@@ -391,74 +257,6 @@ func (eb *EventBus) Publish(event Event) {
 	for _, handler := range handlers {
 		go handler.HandleEvent(event)
 	}
-}
-
-// RateLimiter provides rate limiting for operations
-type RateLimiter struct {
-	rate     int // operations per interval
-	interval time.Duration
-	tokens   chan struct{}
-	stop     chan struct{}
-}
-
-// NewRateLimiter creates a new rate limiter
-func NewRateLimiter(rate int, interval time.Duration) *RateLimiter {
-	rl := &RateLimiter{
-		rate:     rate,
-		interval: interval,
-		tokens:   make(chan struct{}, rate),
-		stop:     make(chan struct{}),
-	}
-
-	// Fill initial tokens
-	for i := 0; i < rate; i++ {
-		rl.tokens <- struct{}{}
-	}
-
-	// Start token refill goroutine
-	go rl.refill()
-
-	return rl
-}
-
-// refill periodically adds tokens
-func (rl *RateLimiter) refill() {
-	ticker := time.NewTicker(rl.interval / time.Duration(rl.rate))
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			select {
-			case rl.tokens <- struct{}{}:
-				// Token added
-			default:
-				// Bucket full
-			}
-		case <-rl.stop:
-			return
-		}
-	}
-}
-
-// Allow checks if an operation is allowed
-func (rl *RateLimiter) Allow() bool {
-	select {
-	case <-rl.tokens:
-		return true
-	default:
-		return false
-	}
-}
-
-// Wait blocks until an operation is allowed
-func (rl *RateLimiter) Wait() {
-	<-rl.tokens
-}
-
-// Stop stops the rate limiter
-func (rl *RateLimiter) Stop() {
-	close(rl.stop)
 }
 
 // ProgressReporter handles progress reporting

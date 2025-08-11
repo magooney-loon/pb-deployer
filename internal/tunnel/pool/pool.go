@@ -18,6 +18,8 @@ type connectionPool struct {
 	tracer        tracer.PoolTracer
 	config        tunnel.PoolConfig
 	connections   map[string]*poolEntry
+	stats         *ConnectionStats
+	eventBus      *EventBus
 	mu            sync.RWMutex
 	closed        bool
 	cleanupTicker *time.Ticker
@@ -26,12 +28,9 @@ type connectionPool struct {
 
 // poolEntry represents a connection in the pool
 type poolEntry struct {
-	client    tunnel.SSHClient
-	createdAt time.Time
-	lastUsed  time.Time
-	useCount  int64
-	healthy   bool
-	mu        sync.RWMutex
+	client   tunnel.SSHClient
+	metadata *ConnectionMetadata
+	mu       sync.RWMutex
 }
 
 // NewPool creates a new connection pool with dependency injection
@@ -45,6 +44,8 @@ func NewPool(factory tunnel.ConnectionFactory, config tunnel.PoolConfig, poolTra
 		tracer:      poolTracer,
 		config:      config,
 		connections: make(map[string]*poolEntry),
+		stats:       &ConnectionStats{UptimeStart: time.Now()},
+		eventBus:    &EventBus{},
 		stopCleanup: make(chan struct{}),
 	}
 
@@ -71,8 +72,8 @@ func (p *connectionPool) Get(ctx context.Context, key string) (tunnel.SSHClient,
 	// Check for existing healthy connection
 	if entry, exists := p.connections[key]; exists {
 		entry.mu.RLock()
-		isHealthy := entry.healthy
-		lastUsed := entry.lastUsed
+		isHealthy := entry.metadata.Healthy
+		lastUsed := entry.metadata.LastUsed
 		entry.mu.RUnlock()
 
 		if isHealthy && time.Since(lastUsed) < p.config.MaxIdleTime {
@@ -80,19 +81,27 @@ func (p *connectionPool) Get(ctx context.Context, key string) (tunnel.SSHClient,
 			entry.mu.Lock()
 			isConnected := entry.client.IsConnected()
 			if isConnected {
-				entry.lastUsed = time.Now()
-				entry.useCount++
-				useCount := entry.useCount
+				entry.metadata.UpdateLastUsed()
+				useCount := entry.metadata.UseCount
 				entry.mu.Unlock()
 
 				span.Event("connection_reused",
 					tracer.Int("pool.total_connections", len(p.connections)),
 					tracer.Int64("entry.use_count", useCount),
 				)
+
+				// Publish event
+				p.eventBus.Publish(Event{
+					Type:      EventConnectionAcquired,
+					Timestamp: time.Now(),
+					ConnKey:   key,
+					Message:   "Connection reused from pool",
+				})
+
 				return entry.client, nil
 			} else {
 				// Connection is dead, mark as unhealthy
-				entry.healthy = false
+				entry.metadata.SetHealthy(false)
 				entry.mu.Unlock()
 			}
 		}
@@ -135,13 +144,30 @@ func (p *connectionPool) Get(ctx context.Context, key string) (tunnel.SSHClient,
 
 	// Store in pool
 	now := time.Now()
-	p.connections[key] = &poolEntry{
-		client:    client,
-		createdAt: now,
-		lastUsed:  now,
-		useCount:  1,
-		healthy:   true,
+	metadata := &ConnectionMetadata{
+		Key:       key,
+		CreatedAt: now,
+		LastUsed:  now,
+		UseCount:  1,
+		Healthy:   true,
+		State:     tunnel.StateConnected,
 	}
+
+	p.connections[key] = &poolEntry{
+		client:   client,
+		metadata: metadata,
+	}
+
+	// Update stats
+	p.stats.IncrementConnections(true)
+
+	// Publish event
+	p.eventBus.Publish(Event{
+		Type:      EventConnectionAcquired,
+		Timestamp: time.Now(),
+		ConnKey:   key,
+		Message:   "New connection created and added to pool",
+	})
 
 	span.Event("connection_created",
 		tracer.Int("pool.total_connections", len(p.connections)),
@@ -183,27 +209,43 @@ func (p *connectionPool) Release(key string, client tunnel.SSHClient) {
 	// Check if connection is still healthy
 	isConnected := client.IsConnected()
 	if !isConnected {
-		entry.healthy = false
+		entry.metadata.SetHealthy(false)
 		span.Event("connection_marked_unhealthy", tracer.String("reason", "connection_lost"))
 	}
 
-	entry.lastUsed = time.Now()
-	useCount := entry.useCount
+	entry.metadata.LastUsed = time.Now()
+	useCount := entry.metadata.UseCount
 
 	span.Event("connection_released",
 		tracer.String("pool.key", key),
 		tracer.Int64("entry.use_count", useCount),
-		tracer.Bool("entry.healthy", entry.healthy),
+		tracer.Bool("entry.healthy", entry.metadata.Healthy),
 	)
 
+	// Publish event
+	p.eventBus.Publish(Event{
+		Type:      EventConnectionReleased,
+		Timestamp: time.Now(),
+		ConnKey:   key,
+		Message:   "Connection released back to pool",
+	})
+
 	// If connection is unhealthy, remove it from pool
-	if !entry.healthy {
+	if !entry.metadata.Healthy {
 		entry.mu.Unlock()
 		p.mu.Lock()
 		if poolEntry, stillExists := p.connections[key]; stillExists && poolEntry == entry {
 			delete(p.connections, key)
 			client.Close()
 			span.Event("unhealthy_connection_removed", tracer.String("pool.key", key))
+
+			// Publish event
+			p.eventBus.Publish(Event{
+				Type:      EventConnectionEvicted,
+				Timestamp: time.Now(),
+				ConnKey:   key,
+				Message:   "Unhealthy connection removed from pool",
+			})
 		}
 		p.mu.Unlock()
 		entry.mu.Lock() // Re-acquire lock for defer
@@ -271,17 +313,17 @@ func (p *connectionPool) HealthCheck(ctx context.Context) tunnel.HealthReport {
 
 		// Quick health check
 		isConnected := entry.client.IsConnected()
-		isIdle := time.Since(entry.lastUsed) > p.config.MaxIdleTime
-		lastUsed := entry.lastUsed
-		useCount := entry.useCount
-		healthy := entry.healthy
+		isIdle := time.Since(entry.metadata.LastUsed) > p.config.MaxIdleTime
+		lastUsed := entry.metadata.LastUsed
+		useCount := entry.metadata.UseCount
+		healthy := entry.metadata.Healthy
 
 		entry.mu.RUnlock()
 
 		// Update health status if needed
 		if !isConnected && healthy {
 			entry.mu.Lock()
-			entry.healthy = false
+			entry.metadata.SetHealthy(false)
 			healthy = false
 			entry.mu.Unlock()
 		}
@@ -291,7 +333,7 @@ func (p *connectionPool) HealthCheck(ctx context.Context) tunnel.HealthReport {
 			Healthy:      isConnected && healthy,
 			LastUsed:     lastUsed,
 			UseCount:     useCount,
-			ResponseTime: 0, // Could add ping test here if needed
+			ResponseTime: entry.metadata.ResponseTime,
 			Error:        "",
 		}
 
@@ -356,12 +398,12 @@ func (p *connectionPool) cleanup() {
 		shouldRemove := false
 
 		// Remove if idle too long
-		if now.Sub(entry.lastUsed) > p.config.MaxIdleTime {
+		if now.Sub(entry.metadata.LastUsed) > p.config.MaxIdleTime {
 			shouldRemove = true
 		}
 
 		// Remove if unhealthy or disconnected
-		if !entry.healthy || !entry.client.IsConnected() {
+		if !entry.metadata.Healthy || !entry.client.IsConnected() {
 			shouldRemove = true
 		}
 
@@ -400,7 +442,7 @@ func (p *connectionPool) evictOldest() error {
 	// Find the connection that was used longest ago
 	for key, entry := range p.connections {
 		entry.mu.RLock()
-		lastUsed := entry.lastUsed
+		lastUsed := entry.metadata.LastUsed
 		entry.mu.RUnlock()
 
 		if first || lastUsed.Before(oldestTime) {
