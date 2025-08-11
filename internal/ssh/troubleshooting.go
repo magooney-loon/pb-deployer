@@ -10,6 +10,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"pb-deployer/internal/logger"
 	"pb-deployer/internal/models"
 )
 
@@ -31,6 +32,13 @@ func TroubleshootConnection(server *models.Server, asRoot bool) ([]ConnectionDia
 		username = server.RootUsername
 	}
 
+	logger.WithFields(map[string]interface{}{
+		"host":     server.Host,
+		"port":     server.Port,
+		"username": username,
+		"as_root":  asRoot,
+	}).Info("Starting comprehensive SSH connection troubleshooting")
+
 	// Step 1: Basic connectivity test
 	diagnostics = append(diagnostics, testNetworkConnectivity(server))
 
@@ -51,6 +59,13 @@ func TroubleshootConnection(server *models.Server, asRoot bool) ([]ConnectionDia
 	permDiag := checkSSHPermissions()
 	diagnostics = append(diagnostics, permDiag...)
 
+	logger.WithFields(map[string]interface{}{
+		"host":             server.Host,
+		"port":             server.Port,
+		"username":         username,
+		"diagnostic_count": len(diagnostics),
+	}).Info("SSH connection troubleshooting completed")
+
 	return diagnostics, nil
 }
 
@@ -58,8 +73,20 @@ func TroubleshootConnection(server *models.Server, asRoot bool) ([]ConnectionDia
 func testNetworkConnectivity(server *models.Server) ConnectionDiagnostic {
 	address := net.JoinHostPort(server.Host, fmt.Sprintf("%d", server.Port))
 
+	logger.WithFields(map[string]interface{}{
+		"host":    server.Host,
+		"port":    server.Port,
+		"address": address,
+	}).Debug("Testing network connectivity")
+
 	conn, err := net.DialTimeout("tcp", address, 10*time.Second)
 	if err != nil {
+		logger.WithFields(map[string]interface{}{
+			"host":    server.Host,
+			"port":    server.Port,
+			"address": address,
+		}).WithError(err).Warn("Network connectivity test failed")
+
 		return ConnectionDiagnostic{
 			Step:       "network_connectivity",
 			Status:     "error",
@@ -69,6 +96,12 @@ func testNetworkConnectivity(server *models.Server) ConnectionDiagnostic {
 		}
 	}
 	defer conn.Close()
+
+	logger.WithFields(map[string]interface{}{
+		"host":    server.Host,
+		"port":    server.Port,
+		"address": address,
+	}).Debug("Network connectivity test successful")
 
 	return ConnectionDiagnostic{
 		Step:    "network_connectivity",
@@ -80,6 +113,12 @@ func testNetworkConnectivity(server *models.Server) ConnectionDiagnostic {
 // testSSHService tests if SSH service is responding
 func testSSHService(server *models.Server) ConnectionDiagnostic {
 	address := net.JoinHostPort(server.Host, fmt.Sprintf("%d", server.Port))
+
+	logger.WithFields(map[string]interface{}{
+		"host":    server.Host,
+		"port":    server.Port,
+		"address": address,
+	}).Debug("Testing SSH service availability")
 
 	// Try to get SSH version banner
 	conn, err := net.DialTimeout("tcp", address, 10*time.Second)
@@ -112,6 +151,12 @@ func testSSHService(server *models.Server) ConnectionDiagnostic {
 
 	banner := strings.TrimSpace(string(buffer[:n]))
 	if !strings.HasPrefix(banner, "SSH-") {
+		logger.WithFields(map[string]interface{}{
+			"host":            server.Host,
+			"port":            server.Port,
+			"received_banner": banner,
+		}).Warn("Service not responding with SSH banner")
+
 		return ConnectionDiagnostic{
 			Step:       "ssh_service",
 			Status:     "warning",
@@ -120,6 +165,12 @@ func testSSHService(server *models.Server) ConnectionDiagnostic {
 			Suggestion: "Verify that SSH daemon is running on the specified port.",
 		}
 	}
+
+	logger.WithFields(map[string]interface{}{
+		"host":   server.Host,
+		"port":   server.Port,
+		"banner": banner,
+	}).Debug("SSH service responding correctly")
 
 	return ConnectionDiagnostic{
 		Step:    "ssh_service",
@@ -394,6 +445,11 @@ func isHostInKnownHosts(knownHostsPath, hostname string) bool {
 func FixCommonIssues(server *models.Server) []ConnectionDiagnostic {
 	var results []ConnectionDiagnostic
 
+	logger.WithFields(map[string]interface{}{
+		"host": server.Host,
+		"port": server.Port,
+	}).Info("Attempting to automatically fix common SSH issues")
+
 	// Fix .ssh directory permissions
 	sshDir := filepath.Join(os.Getenv("HOME"), ".ssh")
 	if err := os.MkdirAll(sshDir, 0700); err != nil {
@@ -426,6 +482,12 @@ func FixCommonIssues(server *models.Server) []ConnectionDiagnostic {
 			Message: "Host key pre-accepted and stored",
 		})
 	}
+
+	logger.WithFields(map[string]interface{}{
+		"host":      server.Host,
+		"port":      server.Port,
+		"fix_count": len(results),
+	}).Info("Auto-fix attempt completed")
 
 	return results
 }
@@ -485,6 +547,12 @@ func GetConnectionSummary(server *models.Server, asRoot bool) (string, error) {
 func DiagnoseAppUserPostSecurity(server *models.Server) ([]ConnectionDiagnostic, error) {
 	var diagnostics []ConnectionDiagnostic
 
+	logger.WithFields(map[string]interface{}{
+		"host":     server.Host,
+		"port":     server.Port,
+		"username": server.AppUsername,
+	}).Info("Starting post-security SSH diagnostics for app user")
+
 	// Test app user SSH connection specifically
 	diagnostics = append(diagnostics, diagnoseAppUserConnection(server))
 
@@ -500,11 +568,24 @@ func DiagnoseAppUserPostSecurity(server *models.Server) ([]ConnectionDiagnostic,
 	// Check SSH daemon configuration for app user restrictions
 	diagnostics = append(diagnostics, checkSSHDaemonConfig(server))
 
+	logger.WithFields(map[string]interface{}{
+		"host":             server.Host,
+		"port":             server.Port,
+		"username":         server.AppUsername,
+		"diagnostic_count": len(diagnostics),
+	}).Info("Post-security SSH diagnostics completed")
+
 	return diagnostics, nil
 }
 
 // diagnoseAppUserConnection tests app user SSH connection with detailed diagnostics
 func diagnoseAppUserConnection(server *models.Server) ConnectionDiagnostic {
+	logger.WithFields(map[string]interface{}{
+		"host":     server.Host,
+		"port":     server.Port,
+		"username": server.AppUsername,
+	}).Debug("Diagnosing app user SSH connection")
+
 	// Try to connect as app user
 	manager, err := NewSSHManager(server, false)
 	if err != nil {
@@ -538,6 +619,12 @@ func diagnoseAppUserConnection(server *models.Server) ConnectionDiagnostic {
 
 // checkAppUserSudoAccess verifies sudo configuration for app user
 func checkAppUserSudoAccess(server *models.Server) ConnectionDiagnostic {
+	logger.WithFields(map[string]interface{}{
+		"host":     server.Host,
+		"port":     server.Port,
+		"username": server.AppUsername,
+	}).Debug("Checking app user sudo access")
+
 	manager, err := NewSSHManager(server, false)
 	if err != nil {
 		return ConnectionDiagnostic{
@@ -577,6 +664,12 @@ func checkAppUserSudoAccess(server *models.Server) ConnectionDiagnostic {
 
 // checkAppUserSSHKeys verifies SSH key configuration for app user
 func checkAppUserSSHKeys(server *models.Server) ConnectionDiagnostic {
+	logger.WithFields(map[string]interface{}{
+		"host":     server.Host,
+		"port":     server.Port,
+		"username": server.AppUsername,
+	}).Debug("Checking app user SSH keys configuration")
+
 	manager, err := NewSSHManager(server, false)
 	if err != nil {
 		return ConnectionDiagnostic{
@@ -626,6 +719,12 @@ func checkAppUserSSHKeys(server *models.Server) ConnectionDiagnostic {
 
 // verifyPostSecurityAccess checks if app user can perform post-security operations
 func verifyPostSecurityAccess(server *models.Server) ConnectionDiagnostic {
+	logger.WithFields(map[string]interface{}{
+		"host":     server.Host,
+		"port":     server.Port,
+		"username": server.AppUsername,
+	}).Debug("Verifying post-security access capabilities")
+
 	manager, err := NewSSHManager(server, false)
 	if err != nil {
 		return ConnectionDiagnostic{
@@ -669,6 +768,12 @@ func verifyPostSecurityAccess(server *models.Server) ConnectionDiagnostic {
 
 // checkSSHDaemonConfig checks SSH daemon configuration that might affect app user
 func checkSSHDaemonConfig(server *models.Server) ConnectionDiagnostic {
+	logger.WithFields(map[string]interface{}{
+		"host":     server.Host,
+		"port":     server.Port,
+		"username": server.AppUsername,
+	}).Debug("Checking SSH daemon configuration")
+
 	manager, err := NewSSHManager(server, false)
 	if err != nil {
 		return ConnectionDiagnostic{

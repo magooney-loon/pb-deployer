@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"pb-deployer/internal/logger"
 	"pb-deployer/internal/models"
 )
 
@@ -106,14 +107,31 @@ func (cp *ConnectionPool) GetOrCreateConnection(server *models.Server, asRoot bo
 		cp.mutex.RUnlock()
 	}
 
+	logger.WithFields(map[string]interface{}{
+		"host":    server.Host,
+		"port":    server.Port,
+		"as_root": asRoot,
+	}).Debug("Creating new SSH connection for pool")
+
 	// Create new connection
 	return cp.createConnection(server, asRoot)
 }
 
 // createConnection creates a new pooled connection
 func (cp *ConnectionPool) createConnection(server *models.Server, asRoot bool) (*PooledConnection, error) {
+	logger.WithFields(map[string]interface{}{
+		"host":    server.Host,
+		"port":    server.Port,
+		"as_root": asRoot,
+	}).Debug("Creating SSH manager for pooled connection")
+
 	manager, err := NewSSHManager(server, asRoot)
 	if err != nil {
+		logger.WithFields(map[string]interface{}{
+			"host":    server.Host,
+			"port":    server.Port,
+			"as_root": asRoot,
+		}).WithError(err).Error("Failed to create SSH manager for pooled connection")
 		return nil, fmt.Errorf("failed to create SSH manager: %w", err)
 	}
 
@@ -129,6 +147,11 @@ func (cp *ConnectionPool) createConnection(server *models.Server, asRoot bool) (
 
 	// Test the connection immediately
 	if err := conn.TestHealth(); err != nil {
+		logger.WithFields(map[string]interface{}{
+			"host":    server.Host,
+			"port":    server.Port,
+			"as_root": asRoot,
+		}).WithError(err).Error("Connection health test failed for new pooled connection")
 		manager.Close()
 		return nil, fmt.Errorf("connection health test failed: %w", err)
 	}
@@ -138,6 +161,13 @@ func (cp *ConnectionPool) createConnection(server *models.Server, asRoot bool) (
 	cp.mutex.Lock()
 	cp.connections[key] = conn
 	cp.mutex.Unlock()
+
+	logger.WithFields(map[string]interface{}{
+		"host":           server.Host,
+		"port":           server.Port,
+		"as_root":        asRoot,
+		"connection_key": key,
+	}).Info("Successfully created and added connection to pool")
 
 	return conn, nil
 }
@@ -226,7 +256,7 @@ func (cp *ConnectionPool) cleanupWorker() {
 		case <-staleTicker.C:
 			removed := cp.CleanupStaleConnections(15 * time.Minute)
 			if removed > 0 {
-				fmt.Printf("Connection pool: cleaned up %d stale connections\n", removed)
+				logger.WithField("removed_count", removed).Info("Connection pool cleaned up stale connections")
 			}
 		case <-cp.done:
 			return
@@ -279,6 +309,10 @@ func (pc *PooledConnection) UpdateLastUsed() {
 // TestHealth performs a health check on the connection
 func (pc *PooledConnection) TestHealth() error {
 	if pc.manager == nil {
+		logger.WithFields(map[string]interface{}{
+			"host": pc.server.Host,
+			"port": pc.server.Port,
+		}).Error("SSH manager is nil during health test")
 		pc.setHealthy(false)
 		return fmt.Errorf("SSH manager is nil")
 	}
@@ -288,6 +322,11 @@ func (pc *PooledConnection) TestHealth() error {
 	responseTime := time.Since(start)
 
 	if err != nil {
+		logger.WithFields(map[string]interface{}{
+			"host":          pc.server.Host,
+			"port":          pc.server.Port,
+			"response_time": responseTime.String(),
+		}).WithError(err).Debug("Connection health check failed")
 		pc.setHealthy(false)
 		return fmt.Errorf("health check failed (response time: %v): %w", responseTime, err)
 	}
@@ -341,6 +380,11 @@ func (pc *PooledConnection) ExecuteCommand(command string) (string, error) {
 	if err != nil {
 		// Check if the error indicates a connection problem
 		if isConnectionError(err) {
+			logger.WithFields(map[string]interface{}{
+				"host":    pc.server.Host,
+				"port":    pc.server.Port,
+				"command": command,
+			}).WithError(err).Warn("Connection error detected during command execution, marking connection as unhealthy")
 			pc.setHealthy(false)
 		}
 	}
@@ -360,6 +404,11 @@ func (pc *PooledConnection) ExecuteCommandStream(command string, output chan<- s
 	if err != nil {
 		// Check if the error indicates a connection problem
 		if isConnectionError(err) {
+			logger.WithFields(map[string]interface{}{
+				"host":    pc.server.Host,
+				"port":    pc.server.Port,
+				"command": command,
+			}).WithError(err).Warn("Connection error detected during streaming command execution, marking connection as unhealthy")
 			pc.setHealthy(false)
 		}
 	}
@@ -425,6 +474,12 @@ func NewConnectionManager() *ConnectionManager {
 func (cm *ConnectionManager) ExecuteCommand(server *models.Server, asRoot bool, command string) (string, error) {
 	conn, err := cm.pool.GetOrCreateConnection(server, asRoot)
 	if err != nil {
+		logger.WithFields(map[string]interface{}{
+			"host":    server.Host,
+			"port":    server.Port,
+			"as_root": asRoot,
+			"command": command,
+		}).WithError(err).Error("Failed to get connection from pool for command execution")
 		return "", fmt.Errorf("failed to get connection: %w", err)
 	}
 
@@ -435,6 +490,12 @@ func (cm *ConnectionManager) ExecuteCommand(server *models.Server, asRoot bool, 
 func (cm *ConnectionManager) ExecuteCommandStream(server *models.Server, asRoot bool, command string, output chan<- string) error {
 	conn, err := cm.pool.GetOrCreateConnection(server, asRoot)
 	if err != nil {
+		logger.WithFields(map[string]interface{}{
+			"host":    server.Host,
+			"port":    server.Port,
+			"as_root": asRoot,
+			"command": command,
+		}).WithError(err).Error("Failed to get connection from pool for streaming command execution")
 		return fmt.Errorf("failed to get connection: %w", err)
 	}
 
@@ -445,6 +506,11 @@ func (cm *ConnectionManager) ExecuteCommandStream(server *models.Server, asRoot 
 func (cm *ConnectionManager) TestConnection(server *models.Server, asRoot bool) error {
 	conn, err := cm.pool.GetOrCreateConnection(server, asRoot)
 	if err != nil {
+		logger.WithFields(map[string]interface{}{
+			"host":    server.Host,
+			"port":    server.Port,
+			"as_root": asRoot,
+		}).WithError(err).Error("Failed to get connection from pool for connection test")
 		return fmt.Errorf("failed to get connection: %w", err)
 	}
 
@@ -463,7 +529,9 @@ func (cm *ConnectionManager) CleanupConnections() int {
 
 // Shutdown gracefully shuts down the connection manager
 func (cm *ConnectionManager) Shutdown() {
+	logger.Info("Shutting down connection manager and connection pool")
 	cm.pool.Stop()
+	logger.Info("Connection manager shutdown complete")
 }
 
 // Global connection manager instance

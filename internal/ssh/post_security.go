@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"pb-deployer/internal/logger"
 	"pb-deployer/internal/models"
 )
 
@@ -43,7 +44,10 @@ func NewPostSecurityManager(server *models.Server, securityLocked bool) (*PostSe
 		if psm.rootManager != nil {
 			if closeErr := psm.rootManager.Close(); closeErr != nil {
 				// Log but don't override the original error
-				fmt.Printf("Warning: Failed to close root manager during cleanup: %v\n", closeErr)
+				logger.WithFields(map[string]interface{}{
+					"host": server.Host,
+					"port": server.Port,
+				}).WithError(closeErr).Warn("Failed to close root manager during cleanup")
 			}
 		}
 		return nil, fmt.Errorf("failed to create app user SSH manager: %w", err)
@@ -75,13 +79,29 @@ func (psm *PostSecurityManager) GetRootManager() *SSHManager {
 func (psm *PostSecurityManager) ExecuteCommand(command string) (string, error) {
 	manager := psm.GetActiveManager()
 	if manager == nil {
+		logger.WithFields(map[string]interface{}{
+			"host":            psm.server.Host,
+			"security_locked": psm.securityMode,
+		}).Error("No active SSH manager available for command execution")
 		return "", fmt.Errorf("no active SSH manager available")
 	}
 
 	// Validate connection before executing command
 	if !manager.IsConnected() {
+		logger.WithFields(map[string]interface{}{
+			"host":     psm.server.Host,
+			"username": manager.GetUsername(),
+			"command":  command,
+		}).Error("SSH connection is not active for command execution")
 		return "", fmt.Errorf("SSH connection is not active")
 	}
+
+	logger.WithFields(map[string]interface{}{
+		"host":            psm.server.Host,
+		"username":        manager.GetUsername(),
+		"command":         command,
+		"security_locked": psm.securityMode,
+	}).Debug("Executing command via post-security manager")
 
 	return manager.ExecuteCommand(command)
 }
@@ -107,18 +127,43 @@ func (psm *PostSecurityManager) ExecutePrivilegedCommand(command string) (string
 	if psm.securityMode || psm.rootManager == nil {
 		// Use sudo through app user
 		if psm.appManager == nil {
+			logger.WithFields(map[string]interface{}{
+				"host":    psm.server.Host,
+				"command": command,
+			}).Error("App manager not available for privileged command execution")
 			return "", fmt.Errorf("app manager not available for privileged command")
 		}
 		if !psm.appManager.IsConnected() {
+			logger.WithFields(map[string]interface{}{
+				"host":     psm.server.Host,
+				"username": psm.appManager.GetUsername(),
+				"command":  command,
+			}).Error("App SSH connection is not active for privileged command")
 			return "", fmt.Errorf("app SSH connection is not active")
 		}
 		sudoCommand := fmt.Sprintf("sudo %s", command)
+		logger.WithFields(map[string]interface{}{
+			"host":         psm.server.Host,
+			"username":     psm.appManager.GetUsername(),
+			"command":      command,
+			"sudo_command": sudoCommand,
+		}).Debug("Executing privileged command via sudo")
 		return psm.appManager.ExecuteCommand(sudoCommand)
 	} else {
 		// Use root manager directly
 		if !psm.rootManager.IsConnected() {
+			logger.WithFields(map[string]interface{}{
+				"host":     psm.server.Host,
+				"username": psm.rootManager.GetUsername(),
+				"command":  command,
+			}).Error("Root SSH connection is not active for privileged command")
 			return "", fmt.Errorf("root SSH connection is not active")
 		}
+		logger.WithFields(map[string]interface{}{
+			"host":     psm.server.Host,
+			"username": psm.rootManager.GetUsername(),
+			"command":  command,
+		}).Debug("Executing privileged command as root")
 		return psm.rootManager.ExecuteCommand(command)
 	}
 }
@@ -169,12 +214,19 @@ func (psm *PostSecurityManager) SwitchToSecurityMode() error {
 	if psm.rootManager != nil {
 		if err := psm.rootManager.Close(); err != nil {
 			// Log but don't fail the switch
-			fmt.Printf("Warning: Failed to close root manager during security mode switch: %v\n", err)
+			logger.WithFields(map[string]interface{}{
+				"host": psm.server.Host,
+				"port": psm.server.Port,
+			}).WithError(err).Warn("Failed to close root manager during security mode switch")
 		}
 		psm.rootManager = nil
 	}
 
 	psm.securityMode = true
+	logger.WithFields(map[string]interface{}{
+		"host": psm.server.Host,
+		"port": psm.server.Port,
+	}).Info("Successfully switched post-security manager to security mode")
 	return nil
 }
 
@@ -366,6 +418,10 @@ func (psm *PostSecurityManager) Close() error {
 	// Close app manager
 	if psm.appManager != nil {
 		if err := psm.appManager.Close(); err != nil {
+			logger.WithFields(map[string]interface{}{
+				"host": psm.server.Host,
+				"port": psm.server.Port,
+			}).WithError(err).Warn("Failed to close app manager during post-security manager shutdown")
 			errors = append(errors, fmt.Sprintf("app manager close error: %v", err))
 		}
 		psm.appManager = nil
@@ -374,6 +430,10 @@ func (psm *PostSecurityManager) Close() error {
 	// Close root manager
 	if psm.rootManager != nil {
 		if err := psm.rootManager.Close(); err != nil {
+			logger.WithFields(map[string]interface{}{
+				"host": psm.server.Host,
+				"port": psm.server.Port,
+			}).WithError(err).Warn("Failed to close root manager during post-security manager shutdown")
 			errors = append(errors, fmt.Sprintf("root manager close error: %v", err))
 		}
 		psm.rootManager = nil
@@ -381,6 +441,11 @@ func (psm *PostSecurityManager) Close() error {
 
 	// Reset state
 	psm.securityMode = false
+
+	logger.WithFields(map[string]interface{}{
+		"host": psm.server.Host,
+		"port": psm.server.Port,
+	}).Info("Post-security manager closed successfully")
 
 	if len(errors) > 0 {
 		return fmt.Errorf("close errors: %s", strings.Join(errors, "; "))
@@ -422,7 +487,10 @@ func (psm *PostSecurityManager) ValidateDeploymentCapabilities() error {
 	// Ensure cleanup happens even if tests fail
 	defer func() {
 		if _, cleanupErr := psm.ExecutePrivilegedCommand(fmt.Sprintf("rm -rf %s", testDir)); cleanupErr != nil {
-			fmt.Printf("Warning: Failed to cleanup test directory %s: %v\n", testDir, cleanupErr)
+			logger.WithFields(map[string]interface{}{
+				"host":     psm.server.Host,
+				"test_dir": testDir,
+			}).WithError(cleanupErr).Warn("Failed to cleanup test directory after deployment capability validation")
 		}
 	}()
 
