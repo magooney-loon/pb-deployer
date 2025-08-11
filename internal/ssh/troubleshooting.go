@@ -2,7 +2,9 @@ package ssh
 
 import (
 	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,7 +42,13 @@ func TroubleshootConnection(server *models.Server, asRoot bool) ([]ConnectionDia
 	}).Info("Starting comprehensive SSH connection troubleshooting")
 
 	// Step 1: Basic connectivity test
-	diagnostics = append(diagnostics, testNetworkConnectivity(server))
+	connectivityDiag := testNetworkConnectivity(server)
+	diagnostics = append(diagnostics, connectivityDiag)
+
+	// Step 1.5: If connectivity fails, check for fail2ban ban
+	if connectivityDiag.Status == "error" {
+		diagnostics = append(diagnostics, checkFail2banStatus(server))
+	}
 
 	// Step 2: SSH service availability
 	diagnostics = append(diagnostics, testSSHService(server))
@@ -867,8 +875,259 @@ func GetPostSecurityTroubleshootingSummary(server *models.Server) (string, error
 	} else if warningCount > 0 {
 		summary.WriteString("\n✓ App user access is working, but consider addressing warnings.\n")
 	} else {
-		summary.WriteString("\n✅ All post-security checks passed! App user access is fully functional.\n")
+		summary.WriteString("\n✅ All checks passed! App user access is fully functional.\n")
 	}
 
 	return summary.String(), nil
+}
+
+// checkFail2banStatus checks if the current IP might be banned by fail2ban
+func checkFail2banStatus(server *models.Server) ConnectionDiagnostic {
+	logger.WithFields(map[string]interface{}{
+		"host": server.Host,
+		"port": server.Port,
+	}).Debug("Checking fail2ban status for potential IP ban")
+
+	// Get our current public IP
+	currentIP, err := getCurrentPublicIP()
+	if err != nil {
+		return ConnectionDiagnostic{
+			Step:       "fail2ban_check",
+			Status:     "warning",
+			Message:    "Could not determine current public IP",
+			Details:    err.Error(),
+			Suggestion: "Unable to check if your IP is banned by fail2ban. If connection keeps failing, manually check server logs.",
+		}
+	}
+
+	// Try to connect to a different server to check fail2ban status
+	// Since we can't connect to the target server, we'll provide generic guidance
+	return ConnectionDiagnostic{
+		Step:       "fail2ban_check",
+		Status:     "warning",
+		Message:    fmt.Sprintf("Connection refused - possible fail2ban ban (your IP: %s)", currentIP),
+		Details:    "Connection refused errors often indicate that fail2ban has banned your IP address after multiple failed connection attempts.",
+		Suggestion: fmt.Sprintf("Check server logs: 'sudo fail2ban-client status sshd' and 'sudo fail2ban-client get sshd banip' on the server. To unban: 'sudo fail2ban-client set sshd unbanip %s'", currentIP),
+	}
+}
+
+// getCurrentPublicIP attempts to determine the current public IP address
+func getCurrentPublicIP() (string, error) {
+	// Try multiple services to get public IP
+	services := []string{
+		"https://ipinfo.io/ip",
+		"https://api.ipify.org",
+		"https://checkip.amazonaws.com",
+	}
+
+	client := &http.Client{Timeout: 5 * time.Second}
+
+	for _, service := range services {
+		resp, err := client.Get(service)
+		if err != nil {
+			continue
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == 200 {
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				continue
+			}
+			ip := strings.TrimSpace(string(body))
+			if net.ParseIP(ip) != nil {
+				return ip, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("could not determine public IP from any service")
+}
+
+// checkFail2banBanStatus checks if an IP is banned when we have access to the server
+func checkFail2banBanStatus(manager *SSHManager, targetIP string) ConnectionDiagnostic {
+	logger.WithFields(map[string]interface{}{
+		"host":      manager.server.Host,
+		"target_ip": targetIP,
+	}).Debug("Checking fail2ban ban status for IP")
+
+	// Check if fail2ban is running
+	statusCmd := "sudo systemctl is-active fail2ban"
+	output, err := manager.ExecuteCommand(statusCmd)
+	if err != nil || !strings.Contains(output, "active") {
+		return ConnectionDiagnostic{
+			Step:       "fail2ban_status",
+			Status:     "info",
+			Message:    "fail2ban service is not running",
+			Details:    "fail2ban is not active, so IP banning is not the issue",
+			Suggestion: "Connection issues are not related to fail2ban. Check network connectivity and SSH service status.",
+		}
+	}
+
+	// Check if IP is currently banned
+	banCheckCmd := fmt.Sprintf("sudo fail2ban-client get sshd banip | grep -q '%s'", targetIP)
+	_, err = manager.ExecuteCommand(banCheckCmd)
+	if err == nil {
+		// IP is banned
+		return ConnectionDiagnostic{
+			Step:       "fail2ban_ban_check",
+			Status:     "error",
+			Message:    fmt.Sprintf("IP %s is currently banned by fail2ban", targetIP),
+			Details:    "Your IP address has been banned by fail2ban due to multiple failed connection attempts.",
+			Suggestion: fmt.Sprintf("Unban your IP with: sudo fail2ban-client set sshd unbanip %s", targetIP),
+		}
+	}
+
+	// Check recent fail2ban logs for this IP
+	logCheckCmd := fmt.Sprintf("sudo journalctl -u fail2ban --since '1 hour ago' | grep '%s' | tail -5", targetIP)
+	logOutput, err := manager.ExecuteCommand(logCheckCmd)
+	if err == nil && strings.TrimSpace(logOutput) != "" {
+		return ConnectionDiagnostic{
+			Step:       "fail2ban_log_check",
+			Status:     "warning",
+			Message:    fmt.Sprintf("Recent fail2ban activity detected for IP %s", targetIP),
+			Details:    fmt.Sprintf("Recent fail2ban logs:\n%s", logOutput),
+			Suggestion: "IP may have been recently banned or unbanned. Check current ban status and consider reviewing authentication attempts.",
+		}
+	}
+
+	return ConnectionDiagnostic{
+		Step:    "fail2ban_ban_check",
+		Status:  "success",
+		Message: fmt.Sprintf("IP %s is not banned by fail2ban", targetIP),
+		Details: "No active ban found for your IP address",
+	}
+}
+
+// DiagnoseConnectionRefused provides specific guidance for "connection refused" errors
+func DiagnoseConnectionRefused(server *models.Server) ConnectionDiagnostic {
+	logger.WithFields(map[string]interface{}{
+		"host": server.Host,
+		"port": server.Port,
+	}).Info("Diagnosing connection refused error")
+
+	// Get current public IP for fail2ban context
+	currentIP, err := getCurrentPublicIP()
+	if err != nil {
+		currentIP = "unknown"
+	}
+
+	details := fmt.Sprintf(`Connection refused typically indicates one of these issues:
+
+1. SSH service is not running on the server
+2. Port %d is blocked by a firewall (UFW/iptables)
+3. Your IP (%s) has been banned by fail2ban
+4. The server is down or unreachable
+
+Since this was working before and suddenly stopped, fail2ban ban is most likely.
+
+To diagnose on the server (if you have alternative access):
+• Check SSH service: sudo systemctl status ssh
+• Check fail2ban status: sudo fail2ban-client status sshd
+• Check if your IP is banned: sudo fail2ban-client get sshd banip | grep %s
+• Check recent auth failures: sudo journalctl -u ssh --since "1 hour ago" | grep "Failed\|Invalid"
+
+To fix fail2ban ban:
+• Unban your IP: sudo fail2ban-client set sshd unbanip %s
+• Restart fail2ban if needed: sudo systemctl restart fail2ban`,
+		server.Port, currentIP, currentIP, currentIP)
+
+	suggestion := fmt.Sprintf("If you have console access to the server, check: 1) SSH service status 2) fail2ban status 3) Whether IP %s is banned", currentIP)
+
+	return ConnectionDiagnostic{
+		Step:       "connection_refused_analysis",
+		Status:     "error",
+		Message:    fmt.Sprintf("Connection refused to %s:%d - likely fail2ban ban", server.Host, server.Port),
+		Details:    details,
+		Suggestion: suggestion,
+	}
+}
+
+// DiagnoseConnectionRefusedImmediate provides immediate diagnostic for connection refused errors
+// This is specifically for situations like the current one where connection suddenly stopped working
+func DiagnoseConnectionRefusedImmediate(host string, port int) {
+	fmt.Printf("🚨 CONNECTION REFUSED DIAGNOSTIC\n")
+	fmt.Printf("================================\n\n")
+
+	// Get current IP
+	fmt.Printf("📍 Detecting your public IP...\n")
+	currentIP, err := getCurrentPublicIP()
+	if err != nil {
+		fmt.Printf("⚠️  Could not determine IP: %v\n", err)
+		currentIP = "unknown"
+	} else {
+		fmt.Printf("✓ Your current IP: %s\n\n", currentIP)
+	}
+
+	fmt.Printf("🎯 TARGET: %s:%d\n", host, port)
+	fmt.Printf("🕒 ISSUE: Connection suddenly stopped working\n\n")
+
+	fmt.Printf("🔥 MOST LIKELY CAUSE: FAIL2BAN IP BAN\n")
+	fmt.Printf("=====================================\n")
+	fmt.Printf("Your IP (%s) is likely banned by fail2ban because:\n", currentIP)
+	fmt.Printf("• Multiple failed authentication attempts\n")
+	fmt.Printf("• Dynamic IP changed and triggered security rules\n")
+	fmt.Printf("• Automated security system detected suspicious activity\n\n")
+
+	fmt.Printf("🛠️  IMMEDIATE SOLUTIONS\n")
+	fmt.Printf("=======================\n\n")
+
+	fmt.Printf("METHOD 1 - Console Access (Recommended):\n")
+	fmt.Printf("1. Access server via console/VNC from hosting provider\n")
+	fmt.Printf("2. Run: sudo fail2ban-client set sshd unbanip %s\n", currentIP)
+	fmt.Printf("3. Verify: sudo fail2ban-client get sshd banip | grep %s\n", currentIP)
+	fmt.Printf("4. Test connection again\n\n")
+
+	fmt.Printf("METHOD 2 - Alternative IP:\n")
+	fmt.Printf("1. Use mobile hotspot or VPN to get different IP\n")
+	fmt.Printf("2. SSH from new IP: ssh user@%s\n", host)
+	fmt.Printf("3. Unban original IP: sudo fail2ban-client set sshd unbanip %s\n", currentIP)
+	fmt.Printf("4. Switch back to original connection\n\n")
+
+	fmt.Printf("METHOD 3 - Wait it out:\n")
+	fmt.Printf("1. fail2ban bans are usually temporary (default: 10 minutes)\n")
+	fmt.Printf("2. Wait and try again later\n")
+	fmt.Printf("3. Check ban time: sudo fail2ban-client get sshd bantime\n\n")
+
+	fmt.Printf("🔍 VERIFICATION COMMANDS (run on server):\n")
+	fmt.Printf("==========================================\n")
+	fmt.Printf("• Check SSH service: sudo systemctl status ssh\n")
+	fmt.Printf("• Check fail2ban: sudo systemctl status fail2ban\n")
+	fmt.Printf("• List banned IPs: sudo fail2ban-client get sshd banip\n")
+	fmt.Printf("• Recent failed logins: sudo journalctl -u ssh --since '1 hour ago' | grep Failed\n")
+	fmt.Printf("• fail2ban logs: sudo journalctl -u fail2ban --since '1 hour ago'\n\n")
+
+	fmt.Printf("📞 If this doesn't work, the issue might be:\n")
+	fmt.Printf("• SSH service crashed: sudo systemctl restart ssh\n")
+	fmt.Printf("• Firewall blocking: sudo ufw status\n")
+	fmt.Printf("• Server is down: ping %s\n", host)
+}
+
+// QuickFail2banCheck performs a quick check for common fail2ban scenarios
+func QuickFail2banCheck(host string, port int) error {
+	currentIP, _ := getCurrentPublicIP()
+
+	fmt.Printf("🔍 Quick fail2ban diagnostic for %s:%d\n", host, port)
+	fmt.Printf("Your IP: %s\n\n", currentIP)
+
+	// Test connectivity
+	address := fmt.Sprintf("%s:%d", host, port)
+	conn, err := net.DialTimeout("tcp", address, 5*time.Second)
+	if err != nil {
+		if strings.Contains(err.Error(), "connection refused") {
+			fmt.Printf("❌ Connection refused - this is classic fail2ban behavior\n")
+			fmt.Printf("💡 Solution: sudo fail2ban-client set sshd unbanip %s\n", currentIP)
+			return fmt.Errorf("connection refused - likely fail2ban ban")
+		} else if strings.Contains(err.Error(), "timeout") {
+			fmt.Printf("⏱️  Connection timeout - could be network/firewall issue\n")
+			return fmt.Errorf("connection timeout")
+		} else {
+			fmt.Printf("❓ Connection failed: %v\n", err)
+			return err
+		}
+	}
+	defer conn.Close()
+
+	fmt.Printf("✅ Connection successful - SSH port is reachable\n")
+	return nil
 }
