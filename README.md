@@ -10,14 +10,6 @@ Automates the complete lifecycle of deploying PocketBase apps to production serv
 - **Security**: UFW firewall, fail2ban, SSH hardening
 - **Monitoring**: Health checks and service management
 
-## Architecture
-
-```
-SvelteKit 5 UI → PocketBase API → SSH Manager → Remote Servers
-                      ↓
-              SQLite (metadata) + File Storage (versions)
-```
-
 ## Core Workflow
 
 1. **Server Registration**: Add SSH credentials and connection details
