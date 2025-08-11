@@ -243,8 +243,6 @@ func (t *Troubleshooter) GenerateReport(ctx context.Context, results []Diagnosti
 ### Week 4: Service Manager & Integration
 1. **Service Operations** - Systemd service management
 2. **Service Monitoring** - Status checking, log retrieval
-3. **Integration Testing** - End-to-end workflow testing
-4. **Performance Optimization** - Connection pooling efficiency
 
 ## Testing Strategy
 
