@@ -9,7 +9,9 @@ import type {
 	AppResponse,
 	ServerStatus,
 	HealthCheckResponse,
-	SetupStep
+	SetupStep,
+	EnhancedTroubleshootResult,
+	AutoFixResult
 } from './types.js';
 
 export class ApiClient extends BaseClient {
@@ -187,10 +189,40 @@ export class ApiClient extends BaseClient {
 		}
 	}
 
-	async getServerStatus(id: string): Promise<ServerStatus> {
-		console.log('Getting server status:', id);
+	async enhancedTroubleshootServer(serverId: string): Promise<EnhancedTroubleshootResult> {
+		const response = await fetch(`${this.baseURL}/api/servers/${serverId}/troubleshoot/enhanced`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			}
+		});
+
+		if (!response.ok) {
+			throw new Error(`Enhanced troubleshooting failed: ${response.statusText}`);
+		}
+
+		return response.json();
+	}
+
+	async autoFixServerIssues(serverId: string): Promise<AutoFixResult> {
+		const response = await fetch(`${this.baseURL}/api/servers/${serverId}/auto-fix`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			}
+		});
+
+		if (!response.ok) {
+			throw new Error(`Auto-fix failed: ${response.statusText}`);
+		}
+
+		return response.json();
+	}
+
+	async getServerStatus(serverId: string): Promise<ServerStatus> {
+		console.log('Getting server status:', serverId);
 		try {
-			const response = await fetch(`${this.baseURL}/api/servers/${id}/status`);
+			const response = await fetch(`${this.baseURL}/api/servers/${serverId}/status`);
 			const data = await response.json();
 			console.log('Server status response:', data);
 			return data;

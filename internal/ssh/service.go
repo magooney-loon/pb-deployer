@@ -452,7 +452,7 @@ func (s *SSHService) PerformDiagnostics(server *models.Server, asRoot bool) ([]C
 		return DiagnoseAppUserPostSecurity(server)
 	} else {
 		// Use general troubleshooting for other cases
-		return TroubleshootConnection(server, asRoot)
+		return TroubleshootConnection(server, "")
 	}
 }
 

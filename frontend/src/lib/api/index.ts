@@ -14,7 +14,11 @@ export type {
 	ServerStatus,
 	ConnectionDiagnostic,
 	TroubleshootResult,
-	QuickTroubleshootResult
+	QuickTroubleshootResult,
+	EnhancedTroubleshootResult,
+	RecoveryStep,
+	ActionableSuggestion,
+	AutoFixResult
 } from './types.js';
 
 // Re-export utility functions

@@ -1,28 +1,50 @@
 import type {
 	ConnectionDiagnostic,
 	TroubleshootResult,
-	QuickTroubleshootResult
+	QuickTroubleshootResult,
+	EnhancedTroubleshootResult,
+	RecoveryStep,
+	ActionableSuggestion,
+	AutoFixResult
 } from '../../api.js';
 
-export type { ConnectionDiagnostic, TroubleshootResult, QuickTroubleshootResult };
+export type {
+	ConnectionDiagnostic,
+	TroubleshootResult,
+	QuickTroubleshootResult,
+	EnhancedTroubleshootResult,
+	RecoveryStep,
+	ActionableSuggestion,
+	AutoFixResult
+};
 
 export interface TroubleshootModalProps {
 	open?: boolean;
 	result?: TroubleshootResult | null;
+	enhancedResult?: EnhancedTroubleshootResult | null;
+	autoFixResult?: AutoFixResult | null;
 	serverName?: string;
 	loading?: boolean;
+	mode?: 'basic' | 'enhanced' | 'auto-fix';
 	onclose?: () => void;
 	onretry?: () => void;
 	onquicktest?: () => void;
+	onenhanced?: () => void;
+	onautofix?: () => void;
 }
 
 export interface TroubleshootModalState {
 	open: boolean;
 	result: TroubleshootResult | null;
+	enhancedResult: EnhancedTroubleshootResult | null;
+	autoFixResult: AutoFixResult | null;
 	serverName: string;
 	loading: boolean;
+	mode: 'basic' | 'enhanced' | 'auto-fix';
 	testStartTime?: number;
 	lastError?: string;
+	currentView: 'diagnostics' | 'analysis' | 'recovery' | 'suggestions';
+	showAdvanced: boolean;
 }
 
 export class TroubleshootModalLogic {
@@ -31,17 +53,26 @@ export class TroubleshootModalLogic {
 	private onclose?: () => void;
 	private onretry?: () => void;
 	private onquicktest?: () => void;
+	private onenhanced?: () => void;
+	private onautofix?: () => void;
 
 	constructor(props: TroubleshootModalProps = {}) {
 		this.state = {
 			open: props.open ?? false,
 			result: props.result ?? null,
+			enhancedResult: props.enhancedResult ?? null,
+			autoFixResult: props.autoFixResult ?? null,
 			serverName: props.serverName ?? '',
-			loading: props.loading ?? false
+			loading: props.loading ?? false,
+			mode: props.mode ?? 'basic',
+			currentView: 'diagnostics',
+			showAdvanced: false
 		};
 		this.onclose = props.onclose;
 		this.onretry = props.onretry;
 		this.onquicktest = props.onquicktest;
+		this.onenhanced = props.onenhanced;
+		this.onautofix = props.onautofix;
 	}
 
 	public getState(): TroubleshootModalState {
@@ -72,8 +103,21 @@ export class TroubleshootModalLogic {
 				updates.lastError = 'Connection issues detected';
 			}
 		}
+		if (props.enhancedResult !== undefined) {
+			updates.enhancedResult = props.enhancedResult;
+			if (props.enhancedResult) {
+				updates.mode = 'enhanced';
+			}
+		}
+		if (props.autoFixResult !== undefined) {
+			updates.autoFixResult = props.autoFixResult;
+			if (props.autoFixResult) {
+				updates.mode = 'auto-fix';
+			}
+		}
 		if (props.serverName !== undefined) updates.serverName = props.serverName;
 		if (props.loading !== undefined) updates.loading = props.loading;
+		if (props.mode !== undefined) updates.mode = props.mode;
 
 		if (props.onclose !== undefined) {
 			this.onclose = props.onclose;
@@ -83,6 +127,12 @@ export class TroubleshootModalLogic {
 		}
 		if (props.onquicktest !== undefined) {
 			this.onquicktest = props.onquicktest;
+		}
+		if (props.onenhanced !== undefined) {
+			this.onenhanced = props.onenhanced;
+		}
+		if (props.onautofix !== undefined) {
+			this.onautofix = props.onautofix;
 		}
 
 		this.updateState(updates);
@@ -102,12 +152,34 @@ export class TroubleshootModalLogic {
 		this.onquicktest?.();
 	}
 
+	public handleEnhancedTroubleshoot(): void {
+		this.updateState({ loading: true, mode: 'enhanced' });
+		this.onenhanced?.();
+	}
+
+	public handleAutoFix(): void {
+		this.updateState({ loading: true, mode: 'auto-fix' });
+		this.onautofix?.();
+	}
+
+	public setCurrentView(view: 'diagnostics' | 'analysis' | 'recovery' | 'suggestions'): void {
+		this.updateState({ currentView: view });
+	}
+
+	public toggleAdvanced(): void {
+		this.updateState({ showAdvanced: !this.state.showAdvanced });
+	}
+
 	public isOpen(): boolean {
 		return this.state.open;
 	}
 
 	public hasResult(): boolean {
-		return this.state.result !== null;
+		return (
+			this.state.result !== null ||
+			this.state.enhancedResult !== null ||
+			this.state.autoFixResult !== null
+		);
 	}
 
 	public isLoading(): boolean {
@@ -115,18 +187,51 @@ export class TroubleshootModalLogic {
 	}
 
 	public isSuccess(): boolean {
+		if (this.state.mode === 'enhanced' && this.state.enhancedResult) {
+			return this.state.enhancedResult.success;
+		}
+		if (this.state.mode === 'auto-fix' && this.state.autoFixResult) {
+			return this.state.autoFixResult.success;
+		}
 		return this.state.result?.success === true;
 	}
 
 	public hasErrors(): boolean {
+		if (this.state.mode === 'enhanced' && this.state.enhancedResult) {
+			return this.state.enhancedResult.has_errors;
+		}
+		if (this.state.mode === 'auto-fix' && this.state.autoFixResult) {
+			return !this.state.autoFixResult.success;
+		}
 		return this.state.result?.has_errors === true;
 	}
 
 	public hasWarnings(): boolean {
+		if (this.state.mode === 'enhanced' && this.state.enhancedResult) {
+			return this.state.enhancedResult.has_warnings;
+		}
 		return this.state.result?.has_warnings === true;
 	}
 
 	public getResult(): TroubleshootResult | null {
+		return this.state.result;
+	}
+
+	public getEnhancedResult(): EnhancedTroubleshootResult | null {
+		return this.state.enhancedResult;
+	}
+
+	public getAutoFixResult(): AutoFixResult | null {
+		return this.state.autoFixResult;
+	}
+
+	public getCurrentResult():
+		| TroubleshootResult
+		| EnhancedTroubleshootResult
+		| AutoFixResult
+		| null {
+		if (this.state.mode === 'enhanced') return this.state.enhancedResult;
+		if (this.state.mode === 'auto-fix') return this.state.autoFixResult;
 		return this.state.result;
 	}
 
@@ -135,7 +240,25 @@ export class TroubleshootModalLogic {
 	}
 
 	public getTitle(): string {
-		return this.state.loading ? 'Running Diagnostics...' : 'SSH Connection Troubleshooting';
+		if (this.state.loading) {
+			switch (this.state.mode) {
+				case 'enhanced':
+					return 'Running Enhanced Diagnostics...';
+				case 'auto-fix':
+					return 'Auto-Fixing Issues...';
+				default:
+					return 'Running Diagnostics...';
+			}
+		}
+
+		switch (this.state.mode) {
+			case 'enhanced':
+				return 'Enhanced SSH Troubleshooting';
+			case 'auto-fix':
+				return 'SSH Auto-Fix Results';
+			default:
+				return 'SSH Connection Troubleshooting';
+		}
 	}
 
 	public getDisplayServerName(): string {
@@ -151,34 +274,38 @@ export class TroubleshootModalLogic {
 	}
 
 	public getTestDuration(): number {
-		if (!this.state.testStartTime || !this.state.result?.timestamp) return 0;
-		const endTime = new Date(this.state.result.timestamp).getTime();
+		const currentResult = this.getCurrentResult();
+		if (!this.state.testStartTime || !currentResult?.timestamp) return 0;
+		const endTime = new Date(currentResult.timestamp).getTime();
 		return Math.round((endTime - this.state.testStartTime) / 1000);
 	}
 
 	public getFormattedTimestamp(): string {
-		if (!this.state.result?.timestamp) return '';
-		return new Date(this.state.result.timestamp).toLocaleTimeString();
+		const currentResult = this.getCurrentResult();
+		if (!currentResult?.timestamp) return '';
+		return new Date(currentResult.timestamp).toLocaleTimeString();
 	}
 
 	public isConnectionRefusedDetected(): boolean {
-		if (!this.state.result) return false;
+		const currentResult = this.getCurrentResult();
+		if (!currentResult || !('diagnostics' in currentResult)) return false;
 
 		return (
-			this.state.result.diagnostics.some(
+			currentResult.diagnostics.some(
 				(diag) =>
 					diag.step === 'network_connectivity' &&
 					diag.status === 'error' &&
 					(diag.details?.includes('connection refused') ||
 						diag.message?.includes('connection refused'))
-			) || this.state.result.diagnostics.some((diag) => diag.step === 'connection_refused_analysis')
+			) || currentResult.diagnostics.some((diag) => diag.step === 'connection_refused_analysis')
 		);
 	}
 
 	public isFail2banIssueDetected(): boolean {
-		if (!this.state.result) return false;
+		const currentResult = this.getCurrentResult();
+		if (!currentResult || !('diagnostics' in currentResult)) return false;
 
-		return this.state.result.diagnostics.some(
+		return currentResult.diagnostics.some(
 			(diag) =>
 				diag.step === 'fail2ban_check' ||
 				diag.step === 'fail2ban_ban_check' ||
@@ -194,7 +321,8 @@ export class TroubleshootModalLogic {
 		permission: boolean;
 		fail2ban: boolean;
 	} {
-		if (!this.state.result) {
+		const currentResult = this.getCurrentResult();
+		if (!currentResult || !('diagnostics' in currentResult)) {
 			return { network: false, auth: false, permission: false, fail2ban: false };
 		}
 
@@ -205,7 +333,7 @@ export class TroubleshootModalLogic {
 			fail2ban: false
 		};
 
-		for (const diag of this.state.result.diagnostics) {
+		for (const diag of currentResult.diagnostics) {
 			if (diag.status === 'error') {
 				const step = diag.step.toLowerCase();
 				const message = diag.message?.toLowerCase() || '';
@@ -280,9 +408,19 @@ export class TroubleshootModalLogic {
 	}
 
 	public getStatusSummary(): string {
-		if (!this.state.result) return '';
+		const currentResult = this.getCurrentResult();
 
-		const { success_count, warning_count, error_count } = this.state.result;
+		if (this.state.mode === 'auto-fix' && this.state.autoFixResult) {
+			const { fixes_applied } = this.state.autoFixResult;
+			const successCount = this.state.autoFixResult.fixes.filter(
+				(f) => f.status === 'success'
+			).length;
+			return `${successCount}/${fixes_applied} fixes applied successfully`;
+		}
+
+		if (!currentResult || !('success_count' in currentResult)) return '';
+
+		const { success_count, warning_count, error_count } = currentResult;
 		const total = success_count + warning_count + error_count;
 
 		if (total === 0) return 'No diagnostics run';
@@ -303,8 +441,9 @@ export class TroubleshootModalLogic {
 	}
 
 	public getDiagnosticsByStatus(status: 'success' | 'warning' | 'error'): ConnectionDiagnostic[] {
-		if (!this.state.result) return [];
-		return this.state.result.diagnostics.filter((diag) => diag.status === status);
+		const currentResult = this.getCurrentResult();
+		if (!currentResult || !('diagnostics' in currentResult)) return [];
+		return currentResult.diagnostics.filter((diag) => diag.status === status);
 	}
 
 	public getErrorDiagnostics(): ConnectionDiagnostic[] {
@@ -338,7 +477,12 @@ export class TroubleshootModalLogic {
 	}
 
 	public getMainErrorMessage(): string {
-		if (!this.state.result || this.state.result.success) return '';
+		if (this.isSuccess()) return '';
+
+		// For auto-fix mode, show fix-specific message
+		if (this.state.mode === 'auto-fix' && this.state.autoFixResult) {
+			return this.state.autoFixResult.summary;
+		}
 
 		// Look for the most critical error
 		const errors = this.getErrorDiagnostics();
@@ -364,18 +508,204 @@ export class TroubleshootModalLogic {
 	}
 
 	public shouldShowQuickTest(): boolean {
-		return this.state.result !== null && !this.state.loading;
+		return this.hasResult() && !this.state.loading && this.state.mode !== 'auto-fix';
 	}
 
 	public shouldShowRetry(): boolean {
+		return this.hasResult() && (this.hasErrors() || this.hasWarnings()) && !this.state.loading;
+	}
+
+	public shouldShowEnhanced(): boolean {
+		return !this.state.loading && this.state.mode === 'basic';
+	}
+
+	public shouldShowAutoFix(): boolean {
 		return (
-			this.state.result !== null &&
-			(this.state.result.has_errors || this.state.result.has_warnings) &&
-			!this.state.loading
+			!this.state.loading &&
+			this.hasResult() &&
+			this.hasErrors() &&
+			this.state.mode !== 'auto-fix' &&
+			this.getCanAutoFix()
 		);
 	}
 
 	public isCloseable(): boolean {
 		return !this.state.loading;
+	}
+
+	// Enhanced features
+
+	public getMode(): 'basic' | 'enhanced' | 'auto-fix' {
+		return this.state.mode;
+	}
+
+	public getCurrentView(): 'diagnostics' | 'analysis' | 'recovery' | 'suggestions' {
+		return this.state.currentView;
+	}
+
+	public getShowAdvanced(): boolean {
+		return this.state.showAdvanced;
+	}
+
+	public getAnalysis(): EnhancedTroubleshootResult['analysis'] | null {
+		return this.state.enhancedResult?.analysis || null;
+	}
+
+	public getRecoveryPlan(): EnhancedTroubleshootResult['recovery_plan'] | null {
+		return this.state.enhancedResult?.recovery_plan || null;
+	}
+
+	public getActionableSuggestions(): ActionableSuggestion[] {
+		return this.state.enhancedResult?.actionable_suggestions || [];
+	}
+
+	public getEstimatedDuration(): string {
+		return this.state.enhancedResult?.estimated_duration || '';
+	}
+
+	public getRequiredAccess(): string[] {
+		return this.state.enhancedResult?.requires_access || [];
+	}
+
+	public getCanAutoFix(): boolean {
+		if (this.state.enhancedResult) {
+			return this.state.enhancedResult.auto_fix_available;
+		}
+		return this.state.result?.can_auto_fix === true;
+	}
+
+	public getSeverity(): string {
+		const currentResult = this.getCurrentResult();
+		if ('severity' in currentResult!) {
+			return currentResult.severity || 'medium';
+		}
+		return 'medium';
+	}
+
+	public getClientIP(): string {
+		const currentResult = this.getCurrentResult();
+		if ('client_ip' in currentResult!) {
+			return currentResult.client_ip || 'unknown';
+		}
+		return 'unknown';
+	}
+
+	public getConnectionTime(): number | null {
+		const currentResult = this.getCurrentResult();
+		if ('connection_time' in currentResult!) {
+			return currentResult.connection_time || null;
+		}
+		return null;
+	}
+
+	public getPrioritySteps(): RecoveryStep[] {
+		const plan = this.getRecoveryPlan();
+		return plan?.steps?.filter((step: RecoveryStep) => step.required) || [];
+	}
+
+	public getOptionalSteps(): RecoveryStep[] {
+		const plan = this.getRecoveryPlan();
+		return plan?.steps?.filter((step: RecoveryStep) => !step.required) || [];
+	}
+
+	public getCriticalIssues(): string[] {
+		const plan = this.getRecoveryPlan();
+		return plan?.critical_issues || [];
+	}
+
+	public getSuccessProbability(): number {
+		const plan = this.getRecoveryPlan();
+		return plan?.success_probability || 0.5;
+	}
+
+	public formatDuration(ms?: number | null): string {
+		if (!ms) return '';
+		if (ms < 1000) return `${ms}ms`;
+		const seconds = Math.round(ms / 1000);
+		if (seconds < 60) return `${seconds}s`;
+		const minutes = Math.floor(seconds / 60);
+		const remainingSeconds = seconds % 60;
+		return `${minutes}m ${remainingSeconds}s`;
+	}
+
+	public getPatternDescription(): string {
+		const analysis = this.getAnalysis();
+		return analysis?.description || 'No specific pattern detected';
+	}
+
+	public getImmediateAction(): string | null {
+		const analysis = this.getAnalysis();
+		return analysis?.immediate_action || null;
+	}
+
+	public getSuggestionsByPriority(
+		priority: 'critical' | 'high' | 'medium' | 'low'
+	): ActionableSuggestion[] {
+		return this.getActionableSuggestions().filter((s) => s.priority === priority);
+	}
+
+	public getAutomatedSuggestions(): ActionableSuggestion[] {
+		return this.getActionableSuggestions().filter((s) => s.automated);
+	}
+
+	public getManualSuggestions(): ActionableSuggestion[] {
+		return this.getActionableSuggestions().filter((s) => !s.automated);
+	}
+
+	// Type guard methods
+	private hasBasicSuggestions(
+		result:
+			| TroubleshootResult
+			| EnhancedTroubleshootResult
+			| AutoFixResult
+			| QuickTroubleshootResult
+			| null
+	): result is TroubleshootResult & { suggestions: string[] } {
+		return !!(result && 'suggestions' in result && Array.isArray(result.suggestions));
+	}
+
+	private hasDiagnostics(
+		result:
+			| TroubleshootResult
+			| EnhancedTroubleshootResult
+			| AutoFixResult
+			| QuickTroubleshootResult
+			| null
+	): result is TroubleshootResult & { diagnostics: ConnectionDiagnostic[] } {
+		return !!(result && 'diagnostics' in result && Array.isArray(result.diagnostics));
+	}
+
+	public getBasicSuggestions(): string[] {
+		const result = this.getCurrentResult();
+		return this.hasBasicSuggestions(result) ? result.suggestions : [];
+	}
+
+	public getDiagnostics(): ConnectionDiagnostic[] {
+		const result = this.getCurrentResult();
+		if (this.getMode() === 'auto-fix') {
+			return this.getAutoFixResult()?.fixes || [];
+		}
+		return this.hasDiagnostics(result) ? result.diagnostics : [];
+	}
+
+	// Null-safe accessor methods
+	public getAnalysisConfidence(): number {
+		const analysis = this.getAnalysis();
+		return analysis?.confidence ?? 0;
+	}
+
+	public getAnalysisCategory(): string {
+		const analysis = this.getAnalysis();
+		return analysis?.category ?? '';
+	}
+
+	public getAnalysisAutoFixable(): boolean {
+		const analysis = this.getAnalysis();
+		return analysis?.auto_fixable ?? false;
+	}
+
+	public getRecoveryPlanEstimatedTime(): string {
+		const plan = this.getRecoveryPlan();
+		return plan?.estimated_time ?? '';
 	}
 }

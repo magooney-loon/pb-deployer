@@ -39,6 +39,14 @@ func RegisterServerHandlers(app core.App, group *router.RouterGroup[*core.Reques
 		return quickTroubleshoot(app, e)
 	})
 
+	group.POST("/servers/{id}/troubleshoot/enhanced", func(e *core.RequestEvent) error {
+		return enhancedTroubleshoot(app, e)
+	})
+
+	group.POST("/servers/{id}/auto-fix", func(e *core.RequestEvent) error {
+		return autoFixIssues(app, e)
+	})
+
 	// WebSocket endpoints
 	group.GET("/servers/{id}/setup-ws", func(e *core.RequestEvent) error {
 		return handleSetupWebSocket(app, e)

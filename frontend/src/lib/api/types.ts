@@ -50,10 +50,13 @@ export interface Deployment {
 
 export interface ConnectionDiagnostic {
 	step: string;
-	status: 'success' | 'warning' | 'error';
+	status: 'success' | 'warning' | 'error' | 'info';
 	message: string;
 	details?: string;
 	suggestion?: string;
+	duration_ms?: number;
+	timestamp?: string;
+	metadata?: Record<string, unknown>;
 }
 
 export interface TroubleshootResult {
@@ -71,16 +74,86 @@ export interface TroubleshootResult {
 	warning_count: number;
 	success_count: number;
 	suggestions: string[];
+	client_ip?: string;
+	connection_time?: number;
+	can_auto_fix?: boolean;
+	next_steps?: string[];
+	severity?: 'critical' | 'high' | 'medium' | 'low' | 'info';
 }
 
 export interface QuickTroubleshootResult {
 	success: boolean;
 	server_id: string;
+	server_name?: string;
 	host: string;
 	port: number;
 	status: 'success' | 'warning' | 'error';
 	message: string;
 	suggestion: string;
+	timestamp: string;
+	client_ip?: string;
+	connection_time?: number;
+	attempts?: number;
+	can_auto_fix?: boolean;
+	next_steps?: string[];
+	severity?: 'critical' | 'high' | 'medium' | 'low' | 'info';
+}
+
+export interface EnhancedTroubleshootResult extends TroubleshootResult {
+	analysis: {
+		pattern_detected: string;
+		confidence: number;
+		auto_fixable: boolean;
+		priority: string;
+		category: string;
+		description?: string;
+		immediate_action?: string;
+		error_count: number;
+		warning_count: number;
+		total_issues: number;
+	};
+	recovery_plan: {
+		has_critical_issues: boolean;
+		critical_issues: string[];
+		estimated_time: string;
+		success_probability: number;
+		requires_access: string[];
+		steps: RecoveryStep[];
+	};
+	actionable_suggestions: ActionableSuggestion[];
+	estimated_duration: string;
+	requires_access: string[];
+	auto_fix_available: boolean;
+}
+
+export interface RecoveryStep {
+	step: number;
+	title: string;
+	description: string;
+	command?: string;
+	required: boolean;
+	automated: boolean;
+}
+
+export interface ActionableSuggestion {
+	category: string;
+	action: string;
+	description: string;
+	automated: boolean;
+	requires: string;
+	priority: string;
+	command?: string;
+}
+
+export interface AutoFixResult {
+	success: boolean;
+	server_id: string;
+	server_name: string;
+	host: string;
+	port: number;
+	fixes_applied: number;
+	fixes: ConnectionDiagnostic[];
+	summary: string;
 	timestamp: string;
 }
 
