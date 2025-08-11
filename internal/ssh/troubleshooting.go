@@ -152,7 +152,7 @@ func testNetworkConnectivityWithContext(ctx *DiagnosticContext) ConnectionDiagno
 		"port": server.Port,
 	}).Debug("Testing network connectivity")
 
-	address := fmt.Sprintf("%s:%d", server.Host, server.Port)
+	address := net.JoinHostPort(server.Host, fmt.Sprintf("%d", server.Port))
 	conn, err := net.DialTimeout("tcp", address, 10*time.Second)
 
 	duration := time.Since(start)
@@ -190,7 +190,7 @@ func testNetworkConnectivityEnhanced(ctx *DiagnosticContext) ConnectionDiagnosti
 		"port": server.Port,
 	}).Debug("Testing enhanced network connectivity")
 
-	address := fmt.Sprintf("%s:%d", server.Host, server.Port)
+	address := net.JoinHostPort(server.Host, fmt.Sprintf("%d", server.Port))
 
 	// Test with different timeouts
 	timeouts := []time.Duration{5 * time.Second, 10 * time.Second, 30 * time.Second}
@@ -234,7 +234,7 @@ func testSSHService(server *models.Server) ConnectionDiagnostic {
 		"port": server.Port,
 	}).Debug("Testing SSH service availability")
 
-	address := fmt.Sprintf("%s:%d", server.Host, server.Port)
+	address := net.JoinHostPort(server.Host, fmt.Sprintf("%d", server.Port))
 	conn, err := net.DialTimeout("tcp", address, 30*time.Second)
 
 	duration := time.Since(start)
@@ -361,7 +361,7 @@ func testSSHServiceEnhanced(ctx *DiagnosticContext) ConnectionDiagnostic {
 		"port": server.Port,
 	}).Debug("Testing SSH service availability (enhanced)")
 
-	address := fmt.Sprintf("%s:%d", server.Host, server.Port)
+	address := net.JoinHostPort(server.Host, fmt.Sprintf("%d", server.Port))
 	conn, err := net.DialTimeout("tcp", address, 30*time.Second)
 
 	if err != nil {
@@ -454,7 +454,7 @@ func testActualSSHConnectionPooled(ctx *DiagnosticContext) ConnectionDiagnostic 
 		return ConnectionDiagnostic{
 			Step:       "ssh_connection",
 			Status:     "error",
-			Message:    fmt.Sprintf("SSH connection established but health check failed"),
+			Message:    "SSH connection established but health check failed",
 			Details:    err.Error(),
 			Suggestion: "Connection might be unstable. Check server resources and SSH daemon status.",
 			Duration:   time.Since(start),
@@ -1338,7 +1338,7 @@ func checkAppUserSSHKeysPooled(ctx *DiagnosticContext) ConnectionDiagnostic {
 	}
 
 	// Check authorized_keys file
-	authKeysPath := fmt.Sprintf(".ssh/authorized_keys")
+	authKeysPath := ".ssh/authorized_keys"
 	checkCmd := fmt.Sprintf("test -f %s && wc -l %s", authKeysPath, authKeysPath)
 	output, err := conn.ExecuteCommand(checkCmd)
 	if err != nil {
@@ -1346,7 +1346,7 @@ func checkAppUserSSHKeysPooled(ctx *DiagnosticContext) ConnectionDiagnostic {
 			Step:       "ssh_keys",
 			Status:     "error",
 			Message:    fmt.Sprintf("SSH authorized_keys file missing for %s", server.AppUsername),
-			Details:    fmt.Sprintf("File ~/.ssh/authorized_keys does not exist or is not accessible"),
+			Details:    "File ~/.ssh/authorized_keys does not exist or is not accessible",
 			Suggestion: "Ensure authorized_keys file exists and contains valid SSH public keys",
 			Duration:   time.Since(start),
 			Timestamp:  start,
@@ -1717,7 +1717,7 @@ func QuickFail2banCheck(host string, port int) error {
 	}
 
 	// Test connectivity
-	address := fmt.Sprintf("%s:%d", host, port)
+	address := net.JoinHostPort(host, fmt.Sprintf("%d", port))
 	conn, err := net.DialTimeout("tcp", address, 8*time.Second)
 
 	if err != nil {
