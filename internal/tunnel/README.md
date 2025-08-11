@@ -64,10 +64,11 @@ health := ssh.GetHealthMonitor()
 ### After (Tunnel Package)
 ```go
 // Dependency injection with clear ownership
-logger := logger.NewSSHLogger(config)
-factory := tunnel.NewConnectionFactory(logger)
-pool := tunnel.NewPool(factory, poolConfig, logger)
-executor := tunnel.NewExecutor(pool, logger)
+tracerFactory := tracer.SetupProductionTracing(os.Stdout)
+sshTracer := tracerFactory.CreateSSHTracer()
+factory := tunnel.NewConnectionFactory(sshTracer)
+pool := tunnel.NewPool(factory, poolConfig, sshTracer)
+executor := tunnel.NewExecutor(pool, sshTracer)
 
 // No circular dependencies
 // Clear hierarchy: executor → pool → factory
@@ -91,7 +92,9 @@ config := tunnel.ConnectionConfig{
 }
 
 // Create client
-factory := tunnel.NewConnectionFactory(logger)
+tracerFactory := tracer.SetupDevelopmentTracing()
+sshTracer := tracerFactory.CreateSSHTracer()
+factory := tunnel.NewConnectionFactory(sshTracer)
 client, err := factory.Create(config)
 if err != nil {
     return err
@@ -113,7 +116,7 @@ poolConfig := tunnel.PoolConfig{
 }
 
 // Create pool
-pool := tunnel.NewPool(factory, poolConfig, logger)
+pool := tunnel.NewPool(factory, poolConfig, sshTracer)
 defer pool.Close()
 
 // Get connection
@@ -130,7 +133,7 @@ output, err := client.Execute(ctx, "uptime")
 ### High-Level Executor
 ```go
 // Create executor
-executor := tunnel.NewExecutor(pool, logger)
+executor := tunnel.NewExecutor(pool, sshTracer)
 
 // Run command with options
 cmd := tunnel.Command{
@@ -153,7 +156,8 @@ fmt.Printf("Command completed in %v\n", result.Duration)
 ### Server Setup Operations
 ```go
 // Create setup manager
-setupMgr := tunnel.NewSetupManager(executor, logger)
+setupTracer := tracerFactory.CreateServiceTracer()
+setupMgr := tunnel.NewSetupManager(executor, setupTracer)
 
 // Create user
 userConfig := tunnel.UserConfig{
@@ -181,7 +185,8 @@ err = setupMgr.SetupSSHKeys(ctx, "appuser", keys)
 ### Security Lockdown
 ```go
 // Create security manager
-securityMgr := tunnel.NewSecurityManager(executor, logger)
+securityTracer := tracerFactory.CreateSecurityTracer()
+securityMgr := tunnel.NewSecurityManager(executor, securityTracer)
 
 // Apply lockdown
 config := tunnel.SecurityConfig{
@@ -202,7 +207,8 @@ err := securityMgr.ApplyLockdown(ctx, config)
 ### Service Management
 ```go
 // Create service manager
-serviceMgr := tunnel.NewServiceManager(executor, logger)
+serviceTracer := tracerFactory.CreateServiceTracer()
+serviceMgr := tunnel.NewServiceManager(executor, serviceTracer)
 
 // Manage service
 err := serviceMgr.ManageService(ctx, tunnel.ServiceRestart, "nginx")
@@ -226,8 +232,13 @@ The package provides structured error types with classification and retry logic:
 ```go
 result, err := executor.RunCommand(ctx, cmd)
 if err != nil {
+    // Trace the error
+    span := tracer.StartSpan(ctx, "error_handling")
+    defer span.EndWithError(err)
+    
     // Check if error is retryable
     if tunnel.IsRetryable(err) {
+        span.Event("retry_attempted", tracer.Int("attempt", 1))
         // Implement retry logic
         return retryWithBackoff(func() error {
             return executor.RunCommand(ctx, cmd)
@@ -236,10 +247,12 @@ if err != nil {
 
     // Check error type
     if tunnel.IsAuthError(err) {
+        span.SetField("error.type", "authentication")
         return fmt.Errorf("authentication failed, check credentials")
     }
 
     if tunnel.IsConnectionError(err) {
+        span.SetField("error.type", "connection")
         return fmt.Errorf("connection failed, check network")
     }
 
@@ -249,44 +262,50 @@ if err != nil {
 
 ## Health Monitoring
 
-Built-in health monitoring without circular dependencies:
+Built-in health monitoring with tracing:
 
 ```go
-// Get health report
+// Get health report with tracing
+poolTracer := tracerFactory.CreatePoolTracer()
+healthSpan := poolTracer.TraceHealthCheck(ctx)
+defer healthSpan.End()
+
 report := pool.HealthCheck(ctx)
+
+// Record health metrics
+tracer.RecordPoolHealth(healthSpan, report.TotalConnections, 
+    report.HealthyConnections, report.FailedConnections)
+
+healthSpan.SetFields(tracer.Fields{
+    "pool.total": report.TotalConnections,
+    "pool.healthy": report.HealthyConnections,
+    "pool.failed": report.FailedConnections,
+})
 
 fmt.Printf("Total connections: %d\n", report.TotalConnections)
 fmt.Printf("Healthy: %d\n", report.HealthyConnections)
 fmt.Printf("Failed: %d\n", report.FailedConnections)
-
-for _, conn := range report.Connections {
-    fmt.Printf("  %s: healthy=%v, response_time=%v\n",
-        conn.Key, conn.Healthy, conn.ResponseTime)
-}
 ```
 
 ## Progress Reporting
 
-Track long-running operations with progress updates:
+Track long-running operations with tracing:
 
 ```go
-// Create progress reporter
-reporter := tunnel.NewProgressReporter(100)
-defer reporter.Close()
+// Create progress span
+setupTracer := tracerFactory.CreateServiceTracer()
+progressSpan := setupTracer.TraceDeployment(ctx, "user_setup", "v1.0")
+defer progressSpan.End()
 
-// Monitor progress
-go func() {
-    for update := range reporter.Updates() {
-        fmt.Printf("[%s] %s: %s (%d%%)\n",
-            update.Status,
-            update.Step,
-            update.Message,
-            update.ProgressPct)
-    }
-}()
+// Add progress events
+progressSpan.Event("setup_started")
+progressSpan.Event("validation_completed", tracer.Int("progress", 25))
+progressSpan.Event("user_created", tracer.Int("progress", 50))
+progressSpan.Event("keys_configured", tracer.Int("progress", 75))
+progressSpan.Event("setup_completed", tracer.Int("progress", 100))
 
-// Execute with progress
-err := setupMgr.CreateUserWithProgress(ctx, userConfig, reporter)
+// Execute with progress tracking
+err := setupMgr.CreateUserWithProgress(ctx, userConfig, progressSpan)
 ```
 
 ## Testing
@@ -304,16 +323,19 @@ func (m *mockClient) Execute(ctx context.Context, cmd string) (string, error) {
     return args.String(0), args.Error(1)
 }
 
-// Test with mock
+// Test with mock and tracer
 func TestExecutor_RunCommand(t *testing.T) {
     mockPool := &mockPool{}
     mockClient := &mockClient{}
-    logger := logger.NewTestLogger()
+    tracerFactory := tracer.SetupTestTracing(t)
+    defer tracerFactory.Shutdown(context.Background())
+    
+    sshTracer := tracerFactory.CreateSSHTracer()
 
     mockPool.On("Get", mock.Anything, "test-key").Return(mockClient, nil)
     mockClient.On("Execute", mock.Anything, "echo test").Return("test", nil)
 
-    executor := tunnel.NewExecutor(mockPool, logger)
+    executor := tunnel.NewExecutor(mockPool, sshTracer)
 
     result, err := executor.RunCommand(context.Background(), tunnel.Command{
         Cmd: "echo test",
@@ -333,12 +355,15 @@ func TestExecutor_RunCommand(t *testing.T) {
 manager := ssh.NewSSHManager(server, true)
 
 // New code
+tracerFactory := tracer.SetupProductionTracing(os.Stdout)
+sshTracer := tracerFactory.CreateSSHTracer()
 config := tunnel.ConnectionConfig{
     Host:     server.Host,
     Port:     server.Port,
     Username: server.RootUsername,
     // ... other config
 }
+factory := tunnel.NewConnectionFactory(sshTracer)
 client, err := factory.Create(config)
 ```
 
@@ -349,7 +374,7 @@ pool := ssh.GetConnectionPool()
 conn, err := pool.GetOrCreateConnection(server, asRoot)
 
 // New code
-pool := tunnel.NewPool(factory, poolConfig, logger)
+pool := tunnel.NewPool(factory, poolConfig, sshTracer)
 client, err := pool.Get(ctx, connectionKey)
 ```
 
@@ -359,6 +384,8 @@ client, err := pool.Get(ctx, connectionKey)
 err := manager.RunServerSetup(progressChan)
 
 // New code
+setupTracer := tracerFactory.CreateServiceTracer()
+setupMgr := tunnel.NewSetupManager(executor, setupTracer)
 err := setupMgr.CreateUser(ctx, userConfig)
 ```
 

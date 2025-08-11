@@ -1,7 +1,7 @@
 # SSH Package Refactor Plan
 
 ## Overview
-Complete architectural redesign to eliminate singletons, circular dependencies, and overlapping responsibilities. Focus on dependency injection, clear interfaces, and proper separation of concerns.
+Complete architectural redesign to eliminate singletons, circular dependencies, and overlapping responsibilities. Focus on dependency injection, clean interfaces, and proper separation of concerns using the modern tracer package for observability.
 
 ## Core Architecture
 
@@ -68,23 +68,53 @@ type Command struct {
 type sshClient struct {
     config     ConnectionConfig
     conn       *ssh.Client
-    logger     *logger.SSHLogger
+    tracer     tracer.SSHTracer
     mu         sync.RWMutex
     lastUsed   time.Time
 }
 
 func (c *sshClient) Connect(ctx context.Context) error {
+    span := c.tracer.TraceConnection(ctx, c.config.Host, c.config.Port, c.config.Username)
+    defer span.End()
+    
     // 1. Create SSH config
     // 2. Dial with timeout
     // 3. Store connection
-    // 4. Log with logger.SSHConnect()
+    
+    span.Event("connection_established", 
+        tracer.String("host", c.config.Host),
+        tracer.Int("port", c.config.Port),
+        tracer.String("user", c.config.Username),
+    )
+    
+    return nil
 }
 
 func (c *sshClient) Execute(ctx context.Context, cmd string) (string, error) {
+    span := c.tracer.TraceCommand(ctx, cmd, false)
+    defer span.End()
+    
     // 1. Check connection
     // 2. Create session
     // 3. Run command
-    // 4. Log with logger.SSHCommand()
+    
+    span.SetFields(tracer.Fields{
+        "command": cmd,
+        "host": c.config.Host,
+        "user": c.config.Username,
+    })
+    
+    if err != nil {
+        span.EndWithError(err)
+        return "", err
+    }
+    
+    span.Event("command_completed", 
+        tracer.String("output", output),
+        tracer.Duration("duration", time.Since(start)),
+    )
+    
+    return output, nil
 }
 ```
 
@@ -96,7 +126,7 @@ type connectionPool struct {
     factory     ConnectionFactory
     connections map[string]*poolEntry
     config      PoolConfig
-    logger      *logger.SSHLogger
+    tracer      tracer.PoolTracer
     mu          sync.RWMutex
 }
 
@@ -116,15 +146,35 @@ type PoolConfig struct {
     CleanupInterval time.Duration
 }
 
-func NewPool(factory ConnectionFactory, config PoolConfig, log *logger.SSHLogger) Pool {
-    // Create pool with injected dependencies
+func NewPool(factory ConnectionFactory, config PoolConfig, poolTracer tracer.PoolTracer) Pool {
+    return &connectionPool{
+        factory:     factory,
+        connections: make(map[string]*poolEntry),
+        config:      config,
+        tracer:      poolTracer,
+    }
 }
 
 func (p *connectionPool) Get(ctx context.Context, key string) (SSHClient, error) {
+    span := p.tracer.TraceGet(ctx, key)
+    defer span.End()
+    
     // 1. Check for existing healthy connection
     // 2. Create new if needed
     // 3. Update metrics
-    // 4. Log with logger.PoolConnection()
+    
+    span.SetFields(tracer.Fields{
+        "pool.key": key,
+        "pool.size": len(p.connections),
+    })
+    
+    if err != nil {
+        span.EndWithError(err)
+        return nil, err
+    }
+    
+    span.Event("connection_acquired")
+    return client, nil
 }
 ```
 
@@ -134,19 +184,42 @@ func (p *connectionPool) Get(ctx context.Context, key string) (SSHClient, error)
 // executor.go - High-level operations executor
 type executor struct {
     pool   Pool
-    logger *logger.SSHLogger
+    tracer tracer.SSHTracer
 }
 
-func NewExecutor(pool Pool, log *logger.SSHLogger) Executor {
-    // Create executor with injected dependencies
+func NewExecutor(pool Pool, sshTracer tracer.SSHTracer) Executor {
+    return &executor{
+        pool:   pool,
+        tracer: sshTracer,
+    }
 }
 
 func (e *executor) RunCommand(ctx context.Context, cmd Command) (*Result, error) {
+    span := e.tracer.TraceCommand(ctx, cmd.Cmd, cmd.Sudo)
+    defer span.End()
+    
     // 1. Get connection from pool
     // 2. Apply sudo if needed
     // 3. Execute command
     // 4. Process result
-    // 5. Log with logger.SSHOperation()
+    
+    span.SetFields(tracer.Fields{
+        "command.sudo": cmd.Sudo,
+        "command.timeout": cmd.Timeout,
+        "command.env_vars": len(cmd.Environment),
+    })
+    
+    if err != nil {
+        span.EndWithError(err)
+        return nil, err
+    }
+    
+    span.Event("command_executed",
+        tracer.Duration("duration", result.Duration),
+        tracer.Int("exit_code", result.ExitCode),
+    )
+    
+    return result, nil
 }
 ```
 
@@ -156,40 +229,106 @@ func (e *executor) RunCommand(ctx context.Context, cmd Command) (*Result, error)
 // setup_manager.go - Server setup operations
 type SetupManager struct {
     executor Executor
-    logger   *logger.SSHLogger
+    tracer   tracer.ServiceTracer
 }
 
 func (m *SetupManager) CreateUser(ctx context.Context, user UserConfig) error {
+    span := m.tracer.TraceDeployment(ctx, "user_setup", user.Username)
+    defer span.End()
+    
     steps := []SetupStep{
         {Name: "check_user", Fn: m.checkUserExists},
         {Name: "create_user", Fn: m.createUser},
         {Name: "setup_sudo", Fn: m.setupSudo},
     }
-    // Execute steps with progress logging
+    
+    for i, step := range steps {
+        stepSpan := span.StartChild(step.Name)
+        stepSpan.SetField("step", fmt.Sprintf("%d/%d", i+1, len(steps)))
+        
+        err := step.Fn(ctx, user)
+        if err != nil {
+            stepSpan.EndWithError(err)
+            span.EndWithError(err)
+            return err
+        }
+        
+        stepSpan.End()
+        span.Event("step_completed", tracer.String("step", step.Name))
+    }
+    
+    return nil
 }
 
 // security_manager.go - Security operations
 type SecurityManager struct {
     executor Executor
-    logger   *logger.SSHLogger
+    tracer   tracer.SecurityTracer
 }
 
 func (m *SecurityManager) ApplyLockdown(ctx context.Context, config SecurityConfig) error {
-    // 1. Setup firewall
-    // 2. Configure fail2ban
-    // 3. Harden SSH
-    // Log each step with logger.SecurityStep()
+    span := m.tracer.TraceSecurityOperation(ctx, "system_lockdown")
+    defer span.End()
+    
+    // Setup firewall
+    fwSpan := m.tracer.TraceFirewallRule(ctx, "lockdown", "apply")
+    err := m.setupFirewall(ctx, config)
+    if err != nil {
+        fwSpan.EndWithError(err)
+        return err
+    }
+    fwSpan.End()
+    
+    // Configure fail2ban
+    f2bSpan := m.tracer.TraceSecurityOperation(ctx, "fail2ban_setup")
+    err = m.setupFail2ban(ctx, config.Fail2banConfig)
+    if err != nil {
+        f2bSpan.EndWithError(err)
+        return err
+    }
+    f2bSpan.End()
+    
+    // Harden SSH
+    sshSpan := m.tracer.TraceSecurityOperation(ctx, "ssh_hardening")
+    err = m.hardenSSH(ctx, config)
+    if err != nil {
+        sshSpan.EndWithError(err)
+        return err
+    }
+    sshSpan.End()
+    
+    span.Event("lockdown_completed")
+    return nil
 }
 
 // service_manager.go - Systemd service operations
 type ServiceManager struct {
     executor Executor
-    logger   *logger.SSHLogger
+    tracer   tracer.ServiceTracer
 }
 
 func (m *ServiceManager) ManageService(ctx context.Context, action, service string) error {
-    // Execute systemctl commands
-    // Log with logger.ServiceOperation()
+    span := m.tracer.TraceServiceAction(ctx, service, action)
+    defer span.End()
+    
+    cmd := fmt.Sprintf("systemctl %s %s", action, service)
+    result, err := m.executor.RunCommand(ctx, Command{
+        Cmd:  cmd,
+        Sudo: true,
+    })
+    
+    if err != nil {
+        span.EndWithError(err)
+        return err
+    }
+    
+    span.SetFields(tracer.Fields{
+        "service.name": service,
+        "service.action": action,
+        "service.exit_code": result.ExitCode,
+    })
+    
+    return nil
 }
 ```
 
@@ -199,7 +338,7 @@ func (m *ServiceManager) ManageService(ctx context.Context, action, service stri
 // health.go - Health monitoring without circular dependencies
 type HealthMonitor struct {
     pool     Pool
-    logger   *logger.SSHLogger
+    tracer   tracer.PoolTracer
     interval time.Duration
     stopCh   chan struct{}
 }
@@ -211,8 +350,21 @@ func (h *HealthMonitor) Start(ctx context.Context) {
         case <-ctx.Done():
             return
         case <-ticker.C:
+            healthSpan := h.tracer.TraceHealthCheck(ctx)
             report := h.pool.HealthCheck(ctx)
-            h.logger.PoolHealthMetrics(report)
+            
+            tracer.RecordPoolHealth(healthSpan, 
+                report.TotalConnections,
+                report.HealthyConnections, 
+                report.FailedConnections)
+            
+            healthSpan.SetFields(tracer.Fields{
+                "pool.total": report.TotalConnections,
+                "pool.healthy": report.HealthyConnections,
+                "pool.failed": report.FailedConnections,
+            })
+            
+            healthSpan.End()
         }
     }
 }
@@ -223,7 +375,7 @@ func (h *HealthMonitor) Start(ctx context.Context) {
 ```go
 // troubleshoot.go - Diagnostic operations
 type Troubleshooter struct {
-    logger *logger.SSHLogger
+    tracer tracer.SSHTracer
 }
 
 type DiagnosticResult struct {
@@ -235,13 +387,41 @@ type DiagnosticResult struct {
 }
 
 func (t *Troubleshooter) Diagnose(ctx context.Context, config ConnectionConfig) []DiagnosticResult {
+    span := t.tracer.TraceDiagnostic(ctx, config.Host)
+    defer span.End()
+    
     checks := []DiagnosticCheck{
         t.checkNetwork,
         t.checkSSHService,
         t.checkAuthentication,
         t.checkPermissions,
     }
-    // Run checks and log with logger.DiagnosticStep()
+    
+    var results []DiagnosticResult
+    
+    for _, check := range checks {
+        checkSpan := span.StartChild(check.Name)
+        
+        start := time.Now()
+        result := check.Fn(ctx, config)
+        result.Duration = time.Since(start)
+        
+        checkSpan.SetFields(tracer.Fields{
+            "check.name": result.Step,
+            "check.status": result.Status,
+            "check.duration": result.Duration,
+        })
+        
+        if result.Status == "error" {
+            checkSpan.SetStatus(tracer.StatusError)
+            checkSpan.SetField("error.message", result.Message)
+        }
+        
+        checkSpan.End()
+        results = append(results, result)
+    }
+    
+    return results
 }
 ```
 
@@ -250,40 +430,50 @@ func (t *Troubleshooter) Diagnose(ctx context.Context, config ConnectionConfig) 
 ```go
 // main.go or service initialization
 func initializeSSH() (*SSHService, error) {
-    // 1. Create logger
-    sshLogger := logger.NewSSHLogger(server, false)
+    // 1. Setup tracing
+    tracerFactory := tracer.SetupProductionTracing(os.Stdout)
+    
+    // 2. Create specialized tracers
+    sshTracer := tracerFactory.CreateSSHTracer()
+    poolTracer := tracerFactory.CreatePoolTracer()
+    securityTracer := tracerFactory.CreateSecurityTracer()
+    serviceTracer := tracerFactory.CreateServiceTracer()
 
-    // 2. Create factory
-    factory := NewConnectionFactory(sshLogger)
+    // 3. Create factory
+    factory := NewConnectionFactory(sshTracer)
 
-    // 3. Create pool
+    // 4. Create pool
     poolConfig := PoolConfig{
         MaxConnections: 10,
         MaxIdleTime:    15 * time.Minute,
     }
-    pool := NewPool(factory, poolConfig, sshLogger)
+    pool := NewPool(factory, poolConfig, poolTracer)
 
-    // 4. Create executor
-    executor := NewExecutor(pool, sshLogger)
+    // 5. Create executor
+    executor := NewExecutor(pool, sshTracer)
 
-    // 5. Create specialized managers
-    setupMgr := NewSetupManager(executor, sshLogger)
-    securityMgr := NewSecurityManager(executor, sshLogger)
-    serviceMgr := NewServiceManager(executor, sshLogger)
+    // 6. Create specialized managers
+    setupMgr := NewSetupManager(executor, serviceTracer)
+    securityMgr := NewSecurityManager(executor, securityTracer)
+    serviceMgr := NewServiceManager(executor, serviceTracer)
 
-    // 6. Create service facade
+    // 7. Create service facade
     return &SSHService{
         pool:        pool,
         executor:    executor,
         setup:       setupMgr,
         security:    securityMgr,
         service:     serviceMgr,
-        logger:      sshLogger,
+        tracer:      sshTracer,
     }, nil
 }
 
 // Usage
 func deployApp(ctx context.Context, svc *SSHService) error {
+    // Trace the deployment
+    deploySpan := svc.tracer.TraceDeployment(ctx, "myapp", "v1.0")
+    defer deploySpan.End()
+    
     // High-level operations
     result, err := svc.executor.RunCommand(ctx, Command{
         Cmd:  "systemctl restart myapp",
@@ -291,11 +481,16 @@ func deployApp(ctx context.Context, svc *SSHService) error {
     })
 
     if err != nil {
-        svc.logger.SSHError("deployment", server.Host, "app", err)
+        deploySpan.EndWithError(err)
         return err
     }
 
-    svc.logger.DeploymentComplete("myapp", "v1.0", true, time.Since(start))
+    deploySpan.Event("deployment_completed", 
+        tracer.String("app", "myapp"),
+        tracer.String("version", "v1.0"),
+        tracer.Duration("total_time", time.Since(start)),
+    )
+    
     return nil
 }
 ```
@@ -313,10 +508,11 @@ func deployApp(ctx context.Context, svc *SSHService) error {
 - Executor: Command execution patterns
 - Managers: Specialized operations
 
-### 3. Proper Logging
-- Consistent use of logger.SSHLogger
-- Structured logging at appropriate levels
-- Operation tracking with logger.StartOperation()
+### 3. Modern Tracing
+- Structured tracing with spans and events
+- Context propagation across operations
+- Rich metadata and error tracking
+- Performance monitoring built-in
 
 ### 4. Error Handling
 ```go
@@ -329,7 +525,7 @@ type SSHError struct {
 }
 
 func (e *SSHError) Error() string {
-    return logger.FormatConnectionError(e.Err, e.Server, e.User)
+    return fmt.Sprintf("ssh %s failed for %s@%s: %v", e.Op, e.User, e.Server, e.Err)
 }
 ```
 
@@ -348,9 +544,12 @@ type MockSSHClient struct {
 func TestExecutor_RunCommand(t *testing.T) {
     mockPool := &MockPool{}
     mockClient := &MockSSHClient{}
-    logger := logger.NewTestLogger()
-
-    executor := NewExecutor(mockPool, logger)
+    tracerFactory := tracer.SetupTestTracing(t)
+    defer tracerFactory.Shutdown(context.Background())
+    
+    sshTracer := tracerFactory.CreateSSHTracer()
+    executor := NewExecutor(mockPool, sshTracer)
+    
     // Test without real SSH connections
 }
 ```
@@ -370,7 +569,7 @@ func TestExecutor_RunCommand(t *testing.T) {
 - **Testability**: Mock any component
 - **Maintainability**: Clear boundaries and responsibilities
 - **Performance**: Better connection reuse and pooling
-- **Observability**: Structured logging throughout
+- **Observability**: Rich tracing throughout all operations
 - **Flexibility**: Easy to extend with new managers
 - **Reliability**: Proper error handling and recovery
 
