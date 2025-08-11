@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { formatTimestamp } from '../api.js';
-	import { ServerListLogic, type ServerListState } from './logic/ServerList.js';
+	import { ServerListLogic, type ServerListState } from './ServerList.js';
 	import ConnectionTestModal from '$lib/components/modals/ConnectionTestModal.svelte';
 	import DeleteServerModal from '$lib/components/modals/DeleteServerModal.svelte';
 	import ProgressModal from '$lib/components/modals/ProgressModal.svelte';

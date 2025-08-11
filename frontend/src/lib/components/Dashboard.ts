@@ -1,4 +1,4 @@
-import { api, type Server, type App, getStatusIcon } from '../../api.js';
+import { api, type Server, type App, getStatusIcon } from './../api.js';
 
 export interface DashboardState {
 	servers: Server[];

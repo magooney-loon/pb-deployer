@@ -1,4 +1,4 @@
-import { api, type App, type Server, getStatusIcon, formatTimestamp } from '../../api.js';
+import { api, type App, type Server, getStatusIcon, formatTimestamp } from './../api.js';
 
 export interface AppFormData {
 	name: string;

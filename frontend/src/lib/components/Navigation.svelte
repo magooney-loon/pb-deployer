@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { themeStore } from '$lib/theme.js';
-	import { NavigationLogic, type NavigationState } from './logic/Navigation.js';
+	import { NavigationLogic, type NavigationState } from './Navigation.js';
 
 	// Create logic instance
 	const logic = new NavigationLogic(page.url.pathname);

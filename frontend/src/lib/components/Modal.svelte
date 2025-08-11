@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { Snippet } from 'svelte';
-	import { ModalLogic, type ModalState } from './logic/Modal.js';
+	import { ModalLogic, type ModalState } from './Modal.js';
 
 	interface Props {
 		open?: boolean;

@@ -1,4 +1,4 @@
-import { api, type Server, type App, type SetupStep } from '../../api.js';
+import { api, type Server, type App, type SetupStep } from './../api.js';
 
 export interface ServerFormData {
 	name: string;

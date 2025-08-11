@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { AppListLogic, type AppListState } from './logic/AppList.js';
+	import { AppListLogic, type AppListState } from './AppList.js';
 	import {
 		Button,
 		ErrorAlert,
