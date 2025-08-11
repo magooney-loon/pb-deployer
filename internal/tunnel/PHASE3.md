@@ -246,43 +246,6 @@ func (config *AdvancedPoolConfig) SetDefaults()
 func (config *AdvancedPoolConfig) ApplyTuning(workload WorkloadType)
 ```
 
-### Step 3.8: Pool Testing Infrastructure
-**File**: `internal/tunnel/pool_test.go`
-**Description**: Create comprehensive tests for all pool functionality.
-
-**Tasks**:
-- [ ] Create mock ConnectionFactory for testing
-- [ ] Implement pool behavior tests (Get, Release, Close)
-- [ ] Add concurrent access testing with race condition detection
-- [ ] Create health monitoring integration tests
-- [ ] Implement cleanup and lifecycle tests
-- [ ] Add performance and load testing
-- [ ] Create pool statistics validation tests
-- [ ] Implement configuration edge case testing
-
-**Key Test Cases**:
-- Pool creation and initialization
-- Connection retrieval and caching
-- Concurrent access safety
-- Health monitoring integration
-- Cleanup and expiration
-- Error handling and recovery
-- Performance under load
-- Configuration validation
-
-### Step 3.9: Pool Documentation and Examples
-**File**: `internal/tunnel/examples/pool/`
-**Description**: Create comprehensive documentation and usage examples.
-
-**Tasks**:
-- [ ] Create basic pool usage examples
-- [ ] Add advanced configuration examples
-- [ ] Include performance tuning guides
-- [ ] Create monitoring and debugging examples
-- [ ] Add troubleshooting guides
-- [ ] Include best practices documentation
-- [ ] Create migration guide from legacy implementations
-
 ## Success Criteria
 
 ### Functional Requirements
