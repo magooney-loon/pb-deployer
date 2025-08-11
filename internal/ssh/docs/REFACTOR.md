@@ -376,7 +376,7 @@ func TestExecutor_RunCommand(t *testing.T) {
 
 ## File Structure
 ```
-internal/ssh-v2/
+internal/ssh/
 ├── client.go          # Core SSHClient implementation
 ├── factory.go         # Connection factory
 ├── pool.go           # Connection pool
