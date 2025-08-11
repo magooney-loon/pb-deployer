@@ -1,4 +1,6 @@
-# pb-deployer
+![pb-deployer banner](frontend/static/deployer.png)
+
+# <img src="frontend/static/favicon.svg" width="32" height="32" style="vertical-align: middle;"> pb-deployer
 
 Production deployment automation for PocketBase applications with SSH server management and security hardening.
 
