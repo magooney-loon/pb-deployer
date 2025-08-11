@@ -40,8 +40,38 @@ func ProductionPoolConfig() tunnel.PoolConfig {
 	}
 }
 
-// Validate validates the pool configuration
-func (c tunnel.PoolConfig) Validate() error {
+// WithMaxConnections returns a copy of the config with the specified max connections
+func WithMaxConnections(c tunnel.PoolConfig, max int) tunnel.PoolConfig {
+	c.MaxConnections = max
+	return c
+}
+
+// WithMaxIdleTime returns a copy of the config with the specified max idle time
+func WithMaxIdleTime(c tunnel.PoolConfig, duration time.Duration) tunnel.PoolConfig {
+	c.MaxIdleTime = duration
+	return c
+}
+
+// WithHealthInterval returns a copy of the config with the specified health interval
+func WithHealthInterval(c tunnel.PoolConfig, duration time.Duration) tunnel.PoolConfig {
+	c.HealthInterval = duration
+	return c
+}
+
+// WithCleanupInterval returns a copy of the config with the specified cleanup interval
+func WithCleanupInterval(c tunnel.PoolConfig, duration time.Duration) tunnel.PoolConfig {
+	c.CleanupInterval = duration
+	return c
+}
+
+// WithMaxRetries returns a copy of the config with the specified max retries
+func WithMaxRetries(c tunnel.PoolConfig, retries int) tunnel.PoolConfig {
+	c.MaxRetries = retries
+	return c
+}
+
+// validatePoolConfig validates the pool configuration
+func validatePoolConfig(c tunnel.PoolConfig) error {
 	if c.MaxConnections <= 0 {
 		return fmt.Errorf("MaxConnections must be greater than 0, got %d", c.MaxConnections)
 	}
@@ -92,34 +122,4 @@ func (c tunnel.PoolConfig) Validate() error {
 	}
 
 	return nil
-}
-
-// WithMaxConnections returns a copy of the config with the specified max connections
-func (c tunnel.PoolConfig) WithMaxConnections(max int) tunnel.PoolConfig {
-	c.MaxConnections = max
-	return c
-}
-
-// WithMaxIdleTime returns a copy of the config with the specified max idle time
-func (c tunnel.PoolConfig) WithMaxIdleTime(duration time.Duration) tunnel.PoolConfig {
-	c.MaxIdleTime = duration
-	return c
-}
-
-// WithHealthInterval returns a copy of the config with the specified health interval
-func (c tunnel.PoolConfig) WithHealthInterval(duration time.Duration) tunnel.PoolConfig {
-	c.HealthInterval = duration
-	return c
-}
-
-// WithCleanupInterval returns a copy of the config with the specified cleanup interval
-func (c tunnel.PoolConfig) WithCleanupInterval(duration time.Duration) tunnel.PoolConfig {
-	c.CleanupInterval = duration
-	return c
-}
-
-// WithMaxRetries returns a copy of the config with the specified max retries
-func (c tunnel.PoolConfig) WithMaxRetries(retries int) tunnel.PoolConfig {
-	c.MaxRetries = retries
-	return c
 }
