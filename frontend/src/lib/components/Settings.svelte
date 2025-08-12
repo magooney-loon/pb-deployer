@@ -232,7 +232,7 @@
 					label="Enable Lockscreen Protection"
 					type="checkbox"
 					bind:checked={formData.lockscreenEnabled}
-					helperText="Require authentication to access the application (Default password: 1234)"
+					helperText="Require authentication to access the application (Default password: 123a)"
 				/>
 
 				<!-- Auto-lock Settings (Nested) -->
