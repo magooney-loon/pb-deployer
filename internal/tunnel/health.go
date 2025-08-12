@@ -3,6 +3,7 @@ package tunnel
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sync"
 	"time"
 )
@@ -439,9 +440,7 @@ func (phm *PoolHealthMonitor) CheckAllHealth(ctx context.Context) HealthReport {
 
 	phm.mu.RLock()
 	checkers := make(map[string]*HealthChecker)
-	for k, v := range phm.checkers {
-		checkers[k] = v
-	}
+	maps.Copy(checkers, phm.checkers)
 	phm.mu.RUnlock()
 
 	report := HealthReport{

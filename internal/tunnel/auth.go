@@ -6,7 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
+
 	"net"
 	"os"
 	"path/filepath"
@@ -194,7 +194,7 @@ func (ah *AuthHandler) parsePrivateKey(keyData []byte, passphrase string) (ssh.S
 
 // loadPrivateKeyFromFile loads a private key from file
 func (ah *AuthHandler) loadPrivateKeyFromFile(keyPath, passphrase string) (ssh.Signer, error) {
-	keyData, err := ioutil.ReadFile(keyPath)
+	keyData, err := os.ReadFile(keyPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read key file %s: %w", keyPath, err)
 	}
@@ -317,12 +317,12 @@ func (ah *AuthHandler) SaveKeyPair(privateKeyData, publicKeyData []byte, basePat
 	}
 
 	// Save private key with restricted permissions
-	if err := ioutil.WriteFile(privateKeyPath, privateKeyData, PrivateKeyPermissions); err != nil {
+	if err := os.WriteFile(privateKeyPath, privateKeyData, PrivateKeyPermissions); err != nil {
 		return fmt.Errorf("failed to write private key to %s: %w", privateKeyPath, err)
 	}
 
 	// Save public key with normal permissions
-	if err := ioutil.WriteFile(publicKeyPath, publicKeyData, FilePermissions); err != nil {
+	if err := os.WriteFile(publicKeyPath, publicKeyData, FilePermissions); err != nil {
 		return fmt.Errorf("failed to write public key to %s: %w", publicKeyPath, err)
 	}
 

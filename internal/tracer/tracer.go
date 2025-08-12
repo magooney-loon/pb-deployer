@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"runtime"
 	"strings"
@@ -111,9 +112,7 @@ func (t *tracer) StartSpan(ctx context.Context, operation string) Span {
 
 	// Copy tracer fields
 	t.mu.RLock()
-	for k, v := range t.fields {
-		span.fields[k] = v
-	}
+	maps.Copy(span.fields, t.fields)
 	t.mu.RUnlock()
 
 	// Create context with span
@@ -145,9 +144,7 @@ func (t *tracer) WithField(key string, value any) Tracer {
 	}
 
 	// Copy existing fields
-	for k, v := range t.fields {
-		newTracer.fields[k] = v
-	}
+	maps.Copy(newTracer.fields, t.fields)
 	newTracer.fields[key] = value
 
 	return newTracer
@@ -171,12 +168,8 @@ func (t *tracer) WithFields(fields Fields) Tracer {
 	}
 
 	// Copy existing fields
-	for k, v := range t.fields {
-		newTracer.fields[k] = v
-	}
-	for k, v := range fields {
-		newTracer.fields[k] = v
-	}
+	maps.Copy(newTracer.fields, t.fields)
+	maps.Copy(newTracer.fields, fields)
 
 	return newTracer
 }
@@ -357,9 +350,7 @@ func (s *span) toSpanData() *SpanData {
 
 	// Copy fields to avoid race conditions
 	fields := make(Fields)
-	for k, v := range s.fields {
-		fields[k] = v
-	}
+	maps.Copy(fields, s.fields)
 
 	// Copy events
 	events := make([]Event, len(s.events))
@@ -487,14 +478,14 @@ func newNoOpSpan() Span {
 	return &noOpSpan{}
 }
 
-func (s *noOpSpan) End()                                        {}
-func (s *noOpSpan) EndWithError(err error)                      {}
-func (s *noOpSpan) SetStatus(status Status)                     {}
+func (s *noOpSpan) End()                                {}
+func (s *noOpSpan) EndWithError(err error)              {}
+func (s *noOpSpan) SetStatus(status Status)             {}
 func (s *noOpSpan) SetField(key string, value any) Span { return s }
-func (s *noOpSpan) SetFields(fields Fields) Span                { return s }
-func (s *noOpSpan) Event(name string, fields ...Field)          {}
-func (s *noOpSpan) StartChild(operation string) Span            { return s }
-func (s *noOpSpan) Context() context.Context                    { return context.Background() }
+func (s *noOpSpan) SetFields(fields Fields) Span        { return s }
+func (s *noOpSpan) Event(name string, fields ...Field)  {}
+func (s *noOpSpan) StartChild(operation string) Span    { return s }
+func (s *noOpSpan) Context() context.Context            { return context.Background() }
 
 // Sampler implementations
 
@@ -535,7 +526,7 @@ func NewProbabilitySampler(probability float64) Sampler {
 func (s *probabilitySampler) ShouldSample(ctx context.Context, operation string, spanID SpanID, parentSpanID SpanID) bool {
 	// Use first 8 bytes of span ID as random value
 	var val uint64
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		val = (val << 8) | uint64(spanID[i])
 	}
 	// Simple probability check
@@ -581,9 +572,7 @@ func (l *tracerLogger) WithField(key string, value any) Logger {
 		tracer: l.tracer,
 		fields: make(Fields),
 	}
-	for k, v := range l.fields {
-		newLogger.fields[k] = v
-	}
+	maps.Copy(newLogger.fields, l.fields)
 	newLogger.fields[key] = value
 	return newLogger
 }
@@ -593,12 +582,8 @@ func (l *tracerLogger) WithFields(fields Fields) Logger {
 		tracer: l.tracer,
 		fields: make(Fields),
 	}
-	for k, v := range l.fields {
-		newLogger.fields[k] = v
-	}
-	for k, v := range fields {
-		newLogger.fields[k] = v
-	}
+	maps.Copy(newLogger.fields, l.fields)
+	maps.Copy(newLogger.fields, fields)
 	return newLogger
 }
 

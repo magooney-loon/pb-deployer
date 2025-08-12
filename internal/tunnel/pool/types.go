@@ -274,7 +274,7 @@ func NewRateLimiter(rate int, interval time.Duration) *RateLimiter {
 	}
 
 	// Fill initial tokens
-	for i := 0; i < rate; i++ {
+	for range rate {
 		rl.tokens <- struct{}{}
 	}
 

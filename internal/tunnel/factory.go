@@ -158,10 +158,7 @@ func (f *connectionFactory) testConnectivity(config ConnectionConfig) error {
 	address := net.JoinHostPort(config.Host, strconv.Itoa(config.Port))
 
 	// Create a shorter timeout for connectivity test
-	testTimeout := config.Timeout
-	if testTimeout > 10*time.Second {
-		testTimeout = 10 * time.Second
-	}
+	testTimeout := min(config.Timeout, 10*time.Second)
 
 	conn, err := net.DialTimeout("tcp", address, testTimeout)
 	if err != nil {
@@ -241,7 +238,7 @@ func (f *connectionFactory) CreateBatch(configs []ConnectionConfig) ([]SSHClient
 	clients := make([]SSHClient, len(configs))
 	var errors []error
 
-	for i := 0; i < len(configs); i++ {
+	for range len(configs) {
 		res := <-resultCh
 		if res.err != nil {
 			errors = append(errors, fmt.Errorf("config %d (%s): %w",
