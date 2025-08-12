@@ -3,6 +3,8 @@
 	import { themeStore } from '$lib/utils/theme.js';
 	import { NavigationLogic, type NavigationState } from './Navigation.js';
 	import { transitionLink, getRouteTransitionName } from '$lib/utils/navigation';
+	import { slide } from 'svelte/transition';
+	import { cubicOut } from 'svelte/easing';
 
 	// Create logic instance
 	const logic = new NavigationLogic(page.url.pathname);
@@ -142,6 +144,8 @@
 	<!-- Mobile menu -->
 	{#if state.mobileMenuOpen}
 		<div
+			out:slide={{ duration: 100, easing: cubicOut, axis: 'y' }}
+			in:slide={{ duration: 300, easing: cubicOut, axis: 'y' }}
 			class="border-t border-gray-200/50 bg-white/95 backdrop-blur-lg sm:hidden dark:border-gray-800/50 dark:bg-gray-950/95"
 		>
 			<div class="px-4 py-3">
