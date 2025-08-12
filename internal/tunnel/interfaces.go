@@ -177,6 +177,12 @@ type SetupManager interface {
 
 	// ConfigureSudo configures sudo access for a user
 	ConfigureSudo(ctx context.Context, user string, commands []string) error
+
+	// InstallPackages installs system packages
+	InstallPackages(ctx context.Context, packages []string) error
+
+	// SetupSystemUser sets up a complete system user with all configurations
+	SetupSystemUser(ctx context.Context, config SystemUserConfig) error
 }
 
 // SecurityManager handles security operations
@@ -250,6 +256,51 @@ type DirectoryConfig struct {
 	Owner       string
 	Group       string
 	Parents     bool // Create parent directories if needed
+}
+
+// SystemUserConfig holds configuration for complete system user setup
+type SystemUserConfig struct {
+	Username     string
+	HomeDir      string
+	Shell        string
+	Groups       []string
+	CreateHome   bool
+	SystemUser   bool
+	SetupSSH     bool
+	SSHKeys      []string
+	SetupSudo    bool
+	SudoCommands []string
+	Directories  []DirectoryConfig
+}
+
+// SetupConfig holds configuration for setup operations
+type SetupConfig struct {
+	DefaultShell     string
+	DefaultGroups    []string
+	PackageManager   string
+	EnableBackup     bool
+	BackupPath       string
+	CreateHomeDir    bool
+	SetPermissions   bool
+	ValidateCommands bool
+	MaxRetries       int
+	RetryDelay       time.Duration
+}
+
+// DefaultSetupConfig returns default setup configuration
+func DefaultSetupConfig() SetupConfig {
+	return SetupConfig{
+		DefaultShell:     "/bin/bash",
+		DefaultGroups:    []string{"users"},
+		PackageManager:   "auto", // Auto-detect
+		EnableBackup:     true,
+		BackupPath:       "/tmp/pb-deployer-backup",
+		CreateHomeDir:    true,
+		SetPermissions:   true,
+		ValidateCommands: true,
+		MaxRetries:       3,
+		RetryDelay:       2 * time.Second,
+	}
 }
 
 // SecurityConfig contains security lockdown configuration
@@ -349,6 +400,22 @@ type DiagnosticResult struct {
 	Metadata   map[string]string
 }
 
+// ServiceTracer interface for tracing service operations
+type ServiceTracer interface {
+	TraceSetupOperation(ctx context.Context, operation, target string) ServiceSpan
+	TraceServiceOperation(ctx context.Context, operation, service string) ServiceSpan
+	TraceSecurityOperation(ctx context.Context, operation, component string) ServiceSpan
+	TraceDeployment(ctx context.Context, name, version string) ServiceSpan
+}
+
+// ServiceSpan interface for service operation spans
+type ServiceSpan interface {
+	End()
+	EndWithError(error)
+	Event(name string, fields ...map[string]any)
+	SetFields(fields map[string]any)
+}
+
 // SSHError represents SSH-specific errors
 type SSHError struct {
 	Op        string
@@ -396,3 +463,30 @@ func (s ConnectionState) String() string {
 		return "unknown"
 	}
 }
+
+// NoOpServiceTracer provides a no-op implementation for when tracing is disabled
+type NoOpServiceTracer struct{}
+
+func (t *NoOpServiceTracer) TraceSetupOperation(ctx context.Context, operation, target string) ServiceSpan {
+	return &NoOpServiceSpan{}
+}
+
+func (t *NoOpServiceTracer) TraceServiceOperation(ctx context.Context, operation, service string) ServiceSpan {
+	return &NoOpServiceSpan{}
+}
+
+func (t *NoOpServiceTracer) TraceSecurityOperation(ctx context.Context, operation, component string) ServiceSpan {
+	return &NoOpServiceSpan{}
+}
+
+func (t *NoOpServiceTracer) TraceDeployment(ctx context.Context, name, version string) ServiceSpan {
+	return &NoOpServiceSpan{}
+}
+
+// NoOpServiceSpan provides a no-op implementation for spans
+type NoOpServiceSpan struct{}
+
+func (s *NoOpServiceSpan) End()                                        {}
+func (s *NoOpServiceSpan) EndWithError(error)                          {}
+func (s *NoOpServiceSpan) Event(name string, fields ...map[string]any) {}
+func (s *NoOpServiceSpan) SetFields(fields map[string]any)             {}
