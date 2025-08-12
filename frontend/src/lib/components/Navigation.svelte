@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { themeStore } from '$lib/theme.js';
+	import { themeStore } from '$lib/utils/theme.js';
 	import { NavigationLogic, type NavigationState } from './Navigation.js';
+	import { transitionLink, getRouteTransitionName } from '$lib/utils/navigation';
 
 	// Create logic instance
 	const logic = new NavigationLogic(page.url.pathname);
@@ -32,7 +33,12 @@
 			<!-- Logo and brand -->
 			<div class="flex items-center">
 				<div class="flex-shrink-0">
-					<a href="/" class="group flex items-center space-x-2">
+					<a
+						href="/"
+						class="group flex items-center space-x-2"
+						use:transitionLink
+						style="view-transition-name: nav-logo"
+					>
 						<img
 							alt="pb-deployer logo"
 							src="/favicon.svg"
@@ -48,6 +54,8 @@
 						<a
 							href={item.href}
 							onclick={() => logic.handleNavItemClick(item.href)}
+							use:transitionLink
+							style="view-transition-name: nav-item-{getRouteTransitionName(item.href)}"
 							class="nav-link relative flex items-center space-x-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200
 							{isActive(item.href)
 								? 'text-gray-900 dark:text-gray-100'
@@ -173,6 +181,8 @@
 						<a
 							href={item.href}
 							onclick={() => logic.handleNavItemClick(item.href)}
+							use:transitionLink
+							style="view-transition-name: mobile-nav-item-{getRouteTransitionName(item.href)}"
 							class="group relative flex items-center space-x-2.5 overflow-hidden rounded-md px-3 py-2.5 text-sm font-medium transition-all duration-200
 							{isActive(item.href)
 								? 'bg-gray-100 text-gray-900 dark:bg-gray-800/50 dark:text-gray-100'

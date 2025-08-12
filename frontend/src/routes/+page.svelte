@@ -7,4 +7,10 @@
 	<meta name="description" content="PocketBase deployment dashboard" />
 </svelte:head>
 
-<Dashboard />
+<div style="view-transition-name: page-title">
+	<h1 class="sr-only">Dashboard</h1>
+</div>
+
+<div style="view-transition-name: dashboard-content">
+	<Dashboard />
+</div>

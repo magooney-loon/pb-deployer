@@ -7,4 +7,10 @@
 	<meta name="description" content="Manage your deployment servers" />
 </svelte:head>
 
-<ServerList />
+<div style="view-transition-name: page-title">
+	<h1 class="sr-only">Servers</h1>
+</div>
+
+<div style="view-transition-name: servers-content">
+	<ServerList />
+</div>

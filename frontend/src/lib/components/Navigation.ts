@@ -1,4 +1,4 @@
-import { themeStore } from '$lib/theme.js';
+import { themeStore } from '$lib/utils/theme.js';
 import { ApiClient } from '$lib/api/client.js';
 
 export interface NavigationItem {
