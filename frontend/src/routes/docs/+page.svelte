@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { SvelteMap } from 'svelte/reactivity';
-	import { fly } from 'svelte/transition';
-	import DocsSection from './components/DocsSection.svelte';
+	import { SvelteSet } from 'svelte/reactivity';
+	import { fly, slide } from 'svelte/transition';
+	import { quintOut } from 'svelte/easing';
+	import MarkdownRenderer from './components/MarkdownRenderer.svelte';
 
 	// Define sections with their metadata
 	const sections = [
@@ -43,18 +44,21 @@
 		}
 	];
 
-	let currentSection = $state('getting-started');
+	let openSections = new SvelteSet(['getting-started']); // Start with getting-started open
 	let sectionContent: Record<string, string> = $state({});
+	let loadingContent: Record<string, boolean> = $state({});
+	let showScrollTop = $state(false);
 
-	// Load markdown content for each section
+	// Load markdown content for a specific section
 	async function loadSectionContent(sectionId: string) {
-		if (sectionContent[sectionId]) return; // Already loaded
+		if (sectionContent[sectionId] || loadingContent[sectionId]) return;
 
 		const section = sections.find((s) => s.id === sectionId);
 		if (!section) return;
 
+		loadingContent = { ...loadingContent, [sectionId]: true };
+
 		try {
-			// Fetch the markdown file from static folder
 			const response = await fetch(`/docs/${section.file}`);
 			if (!response.ok) {
 				throw new Error(`Failed to fetch ${section.file}: ${response.status}`);
@@ -65,131 +69,27 @@
 			console.error(`Failed to load content for ${sectionId}:`, error);
 			sectionContent = {
 				...sectionContent,
-				[sectionId]: `# ${section.title}\n\nContent is being loaded...`
+				[sectionId]: `# ${section.title}\n\nFailed to load content. Please try again.`
 			};
+		} finally {
+			loadingContent = { ...loadingContent, [sectionId]: false };
 		}
 	}
 
-	// Handle section change with proper scrolling
-	function handleSectionChange(sectionId: string) {
-		// Mark as manual scrolling to prevent observer interference
-		isManuallyScrolling = true;
-		currentSection = sectionId;
-		loadSectionContent(sectionId);
-
-		// Small delay to ensure content is rendered
-		setTimeout(() => {
-			const element = document.getElementById(sectionId);
-			if (element) {
-				element.scrollIntoView({
-					behavior: 'smooth',
-					block: 'start'
-				});
-
-				// Reset manual scrolling flag after scroll completes
-				setTimeout(() => {
-					isManuallyScrolling = false;
-				}, 1000);
-			}
-		}, 100);
+	// Toggle section open/closed
+	function toggleSection(sectionId: string) {
+		if (openSections.has(sectionId)) {
+			openSections.delete(sectionId);
+		} else {
+			openSections.add(sectionId);
+			// Load content when opening
+			loadSectionContent(sectionId);
+		}
 	}
 
-	// Load initial content
+	// Load initial content for getting-started
 	$effect(() => {
-		loadSectionContent(currentSection);
-	});
-
-	// Preload all content for better UX
-	$effect(() => {
-		sections.forEach((section) => {
-			loadSectionContent(section.id);
-		});
-	});
-
-	// Enhanced intersection observer for active section tracking
-	let observer: IntersectionObserver;
-	let isManuallyScrolling = $state(false);
-	let showScrollTop = $state(false);
-
-	$effect(() => {
-		if (typeof window !== 'undefined') {
-			// Track which sections are currently visible
-			const visibleSections = new SvelteMap<string, number>();
-
-			observer = new IntersectionObserver(
-				(entries) => {
-					entries.forEach((entry) => {
-						const sectionId = entry.target.id;
-
-						if (entry.isIntersecting) {
-							// Store the intersection ratio for this section
-							visibleSections.set(sectionId, entry.intersectionRatio);
-						} else {
-							// Remove from visible sections
-							visibleSections.delete(sectionId);
-						}
-					});
-
-					// Find the section with the highest intersection ratio
-					// or the first visible section if multiple are visible
-					let bestSection = '';
-					let maxRatio = 0;
-					let topMostSection = '';
-					let minTop = Infinity;
-
-					for (const [sectionId, ratio] of visibleSections) {
-						const element = document.getElementById(sectionId);
-						if (element) {
-							const rect = element.getBoundingClientRect();
-
-							// Track section with highest intersection ratio
-							if (ratio > maxRatio) {
-								maxRatio = ratio;
-								bestSection = sectionId;
-							}
-
-							// Track topmost visible section
-							if (rect.top < minTop && rect.top >= -100) {
-								minTop = rect.top;
-								topMostSection = sectionId;
-							}
-						}
-					}
-
-					// Update current section based on what's most visible
-					// Prefer the section with highest intersection ratio, but fall back to topmost
-					const targetSection = maxRatio > 0.3 ? bestSection : topMostSection;
-
-					if (targetSection && targetSection !== currentSection && !isManuallyScrolling) {
-						currentSection = targetSection;
-					}
-				},
-				{
-					threshold: [0, 0.1, 0.3, 0.5, 0.7, 1.0],
-					rootMargin: '-100px 0px -200px 0px'
-				}
-			);
-
-			// Observe all sections after they're rendered
-			const observeSections = () => {
-				sections.forEach((section) => {
-					const element = document.getElementById(section.id);
-					if (element) {
-						observer.observe(element);
-					}
-				});
-			};
-
-			// Initial observation with delay
-			setTimeout(observeSections, 100);
-
-			// Re-observe if content changes
-			setTimeout(observeSections, 1000);
-		}
-
-		return () => {
-			if (observer) observer.disconnect();
-		};
+		loadSectionContent('getting-started');
 	});
 
 	// Scroll to top functionality
@@ -220,84 +120,104 @@
 	/>
 </svelte:head>
 
-<div class="lg:grid lg:grid-cols-12 lg:gap-12">
-	<!-- Sidebar Navigation -->
-	<div class="lg:col-span-3">
-		<div class="sticky top-8">
-			<div class="space-y-6">
-				<div>
-					<h2 class="mb-4 text-sm font-medium text-gray-900 dark:text-white">Documentation</h2>
-					<nav class="space-y-1">
-						{#each sections as section (section.id)}
-							<button
-								onclick={() => handleSectionChange(section.id)}
-								class="group relative flex w-full items-center space-x-3 rounded-lg px-3 py-2 text-left text-sm transition-all duration-200
-										{currentSection === section.id
-									? 'bg-blue-50 font-semibold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300'
-									: 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800/50 dark:hover:text-gray-100'}"
-							>
-								{#if currentSection === section.id}
-									<div
-										class="absolute top-1/2 left-0 h-4 w-0.5 -translate-y-1/2 rounded-full bg-blue-600 dark:bg-blue-400"
-									></div>
-								{/if}
-								<span
-									class="text-base transition-all duration-200 {currentSection === section.id
-										? 'scale-110 opacity-100'
-										: 'opacity-70 group-hover:opacity-100'}"
-								>
-									{section.icon}
-								</span>
-								<span class="font-medium">{section.title}</span>
-							</button>
-						{/each}
-					</nav>
-				</div>
-			</div>
+<!-- Accordion-style Documentation -->
+<div class="mx-auto max-w-4xl">
+	<div class="mb-8">
+		<h1 class="mb-2 text-3xl font-bold text-gray-900 dark:text-white">Documentation</h1>
+		<p class="text-gray-600 dark:text-gray-400">Complete guide to using pb-deployer</p>
+	</div>
 
-			<!-- Scroll to Top Button - Vercel Style -->
-			{#if showScrollTop}
+	<div class="space-y-4">
+		{#each sections as section (section.id)}
+			<div
+				class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900"
+			>
+				<!-- Section Header -->
 				<button
-					onclick={scrollToTop}
-					class="group fixed right-6 bottom-6 z-50 h-10 w-10 rounded-lg border border-gray-200 bg-white/80 text-gray-600 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-gray-300 hover:bg-white hover:text-gray-900 hover:shadow-md focus:ring-2 focus:ring-gray-200 focus:ring-offset-2 focus:outline-none dark:border-gray-800 dark:bg-gray-900/80 dark:text-gray-400 dark:hover:border-gray-700 dark:hover:bg-gray-900 dark:hover:text-gray-100 dark:focus:ring-gray-700"
-					aria-label="Scroll to top"
-					in:fly={{ y: 20, duration: 300 }}
-					out:fly={{ y: 20, duration: 200 }}
+					onclick={() => toggleSection(section.id)}
+					class="flex w-full items-center justify-between p-6 text-left transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
 				>
+					<div class="flex items-center space-x-3">
+						<span class="text-xl">{section.icon}</span>
+						<h2 class="text-lg font-semibold text-gray-900 dark:text-white">{section.title}</h2>
+						{#if loadingContent[section.id]}
+							<div
+								class="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
+							></div>
+						{/if}
+					</div>
 					<svg
-						class="mx-auto h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5"
+						class="h-5 w-5 text-gray-500 transition-transform duration-200 {openSections.has(
+							section.id
+						)
+							? 'rotate-180'
+							: ''}"
 						fill="none"
 						stroke="currentColor"
 						viewBox="0 0 24 24"
-						xmlns="http://www.w3.org/2000/svg"
 					>
 						<path
 							stroke-linecap="round"
 							stroke-linejoin="round"
-							stroke-width="1.5"
-							d="M12 19V5m-7 7l7-7 7 7"
+							stroke-width="2"
+							d="M19 9l-7 7-7-7"
 						/>
 					</svg>
 				</button>
-			{/if}
-		</div>
+
+				<!-- Section Content -->
+				{#if openSections.has(section.id)}
+					<div
+						class="border-t border-gray-200 dark:border-gray-800"
+						transition:slide={{ duration: 300, easing: quintOut }}
+					>
+						<div class="p-6 pt-4">
+							{#if sectionContent[section.id]}
+								<MarkdownRenderer content={sectionContent[section.id]} />
+							{:else if loadingContent[section.id]}
+								<div class="flex items-center justify-center py-8">
+									<div class="text-center">
+										<div
+											class="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
+										></div>
+										<p class="text-gray-500 dark:text-gray-400">Loading content...</p>
+									</div>
+								</div>
+							{:else}
+								<div class="py-4">
+									<p class="text-gray-500 dark:text-gray-400">Content not available</p>
+								</div>
+							{/if}
+						</div>
+					</div>
+				{/if}
+			</div>
+		{/each}
 	</div>
 
-	<!-- Main Content -->
-	<div class="lg:col-span-9">
-		<div class="border-l border-gray-200 lg:pl-12 dark:border-gray-800">
-			<div class="space-y-16">
-				{#each sections as section (section.id)}
-					{#if sectionContent[section.id]}
-						<DocsSection
-							id={section.id}
-							title={section.title}
-							icon={section.icon}
-							content={sectionContent[section.id]}
-						/>
-					{/if}
-				{/each}
-			</div>
-		</div>
-	</div>
+	<!-- Scroll to Top Button - Vercel Style -->
+	{#if showScrollTop}
+		<button
+			onclick={scrollToTop}
+			class="group fixed right-6 bottom-6 z-50 h-10 w-10 rounded-lg border border-gray-200 bg-white/80 text-gray-600 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-gray-300 hover:bg-white hover:text-gray-900 hover:shadow-md focus:ring-2 focus:ring-gray-200 focus:ring-offset-2 focus:outline-none dark:border-gray-800 dark:bg-gray-900/80 dark:text-gray-400 dark:hover:border-gray-700 dark:hover:bg-gray-900 dark:hover:text-gray-100 dark:focus:ring-gray-700"
+			aria-label="Scroll to top"
+			in:fly={{ y: 20, duration: 300 }}
+			out:fly={{ y: 20, duration: 200 }}
+		>
+			<svg
+				class="mx-auto h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5"
+				fill="none"
+				stroke="currentColor"
+				viewBox="0 0 24 24"
+				xmlns="http://www.w3.org/2000/svg"
+			>
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="1.5"
+					d="M12 19V5m-7 7l7-7 7 7"
+				/>
+			</svg>
+		</button>
+	{/if}
 </div>
