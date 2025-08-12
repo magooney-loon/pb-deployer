@@ -44,7 +44,7 @@
 		}
 	];
 
-	let openSections = new SvelteSet(['getting-started']); // Start with getting-started open
+	let openSections = new SvelteSet(['']);
 	let sectionContent: Record<string, string> = $state({});
 	let loadingContent: Record<string, boolean> = $state({});
 	let showScrollTop = $state(false);
@@ -121,7 +121,7 @@
 </svelte:head>
 
 <!-- Accordion-style Documentation -->
-<div class="mx-auto max-w-4xl">
+<div class="mx-auto">
 	<div class="mb-8">
 		<h1 class="mb-2 text-3xl font-bold text-gray-900 dark:text-white">Documentation</h1>
 		<p class="text-gray-600 dark:text-gray-400">Complete guide to using pb-deployer</p>
