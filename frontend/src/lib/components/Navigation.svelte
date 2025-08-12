@@ -112,7 +112,7 @@
 
 				<!-- GitHub link -->
 				<a
-					href="https://github.com/your-username/pb-deployer"
+					href="https://github.com/magooney-loon/pb-deployer"
 					target="_blank"
 					rel="noopener noreferrer"
 					class="flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 transition-all duration-150 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 focus:outline-none dark:border-gray-800 dark:bg-gray-950 dark:text-gray-400 dark:hover:border-gray-700 dark:hover:bg-gray-900 dark:hover:text-gray-100 dark:focus:ring-gray-100 dark:focus:ring-offset-gray-950"
