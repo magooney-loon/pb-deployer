@@ -3,7 +3,7 @@
 </script>
 
 <svelte:head>
-	<title>Dashboard - pb-deployer</title>
+	<title>Dashboard</title>
 	<meta name="description" content="PocketBase deployment dashboard" />
 </svelte:head>
 

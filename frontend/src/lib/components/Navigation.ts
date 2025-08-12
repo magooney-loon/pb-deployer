@@ -22,7 +22,8 @@ export class NavigationLogic {
 	public readonly navItems: NavigationItem[] = [
 		{ href: '/', label: 'Dashboard', icon: '📊' },
 		{ href: '/servers', label: 'Servers', icon: '🖥️' },
-		{ href: '/apps', label: 'Applications', icon: '📱' }
+		{ href: '/apps', label: 'Applications', icon: '📱' },
+		{ href: '/settings', label: 'Settings', icon: '⚙️' }
 	];
 
 	constructor(initialPath: string = '/') {
