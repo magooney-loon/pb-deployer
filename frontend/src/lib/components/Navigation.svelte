@@ -43,23 +43,28 @@
 				</div>
 
 				<!-- Desktop navigation -->
-				<div class="ml-8 hidden sm:flex sm:items-center sm:space-x-1">
+				<div class="relative ml-8 hidden sm:flex sm:items-center sm:space-x-1">
 					{#each logic.navItems as item (item.href)}
 						<a
 							href={item.href}
 							onclick={() => logic.handleNavItemClick(item.href)}
-							class="relative flex items-center space-x-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-150
+							class="nav-link relative flex items-center space-x-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200
 							{isActive(item.href)
 								? 'text-gray-900 dark:text-gray-100'
-								: 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'}"
+								: 'text-gray-600 hover:bg-gray-50/50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800/30 dark:hover:text-gray-100'}"
 						>
-							<span class="text-sm">{item.icon}</span>
-							<span>{item.label}</span>
-							{#if isActive(item.href)}
+							<span
+								class="text-sm transition-transform duration-200 {isActive(item.href)
+									? 'scale-110'
+									: ''}">{item.icon}</span
+							>
+							<span class="relative">
+								{item.label}
 								<div
-									class="absolute -bottom-3 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-black dark:bg-white"
+									class="nav-indicator absolute -bottom-3 left-1/2 h-0.5 rounded-full bg-black transition-all duration-300 ease-out dark:bg-white
+									{isActive(item.href) ? 'w-full -translate-x-1/2 opacity-100' : 'w-0 -translate-x-1/2 opacity-0'}"
 								></div>
-							{/if}
+							</span>
 						</a>
 					{/each}
 				</div>
@@ -168,15 +173,27 @@
 						<a
 							href={item.href}
 							onclick={() => logic.handleNavItemClick(item.href)}
-							class="group flex items-center space-x-2.5 rounded-md px-3 py-2.5 text-sm font-medium transition-all duration-150
+							class="group relative flex items-center space-x-2.5 overflow-hidden rounded-md px-3 py-2.5 text-sm font-medium transition-all duration-200
 							{isActive(item.href)
 								? 'bg-gray-100 text-gray-900 dark:bg-gray-800/50 dark:text-gray-100'
 								: 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-900/50 dark:hover:text-gray-100'}"
 						>
-							<span class="text-base">{item.icon}</span>
+							<span
+								class="text-base transition-transform duration-200 {isActive(item.href)
+									? 'scale-110'
+									: ''}">{item.icon}</span
+							>
 							<span class="flex-1">{item.label}</span>
+							<div class="flex items-center space-x-2">
+								<div
+									class="h-1.5 w-1.5 rounded-full bg-black transition-all duration-300 dark:bg-white
+									{isActive(item.href) ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}"
+								></div>
+							</div>
 							{#if isActive(item.href)}
-								<div class="h-1.5 w-1.5 rounded-full bg-black dark:bg-white"></div>
+								<div
+									class="absolute top-0 left-0 h-full w-1 bg-black transition-all duration-300 ease-out dark:bg-white"
+								></div>
 							{/if}
 						</a>
 					{/each}
@@ -202,5 +219,16 @@
 
 	.logo-float {
 		animation: float 3s ease-in-out infinite;
+	}
+
+	/* Smooth nav indicator animations */
+	.nav-link:hover .nav-indicator {
+		width: 50%;
+		opacity: 0.3;
+	}
+
+	/* Prevent layout shift during transitions */
+	.nav-indicator {
+		will-change: width, opacity, transform;
 	}
 </style>
