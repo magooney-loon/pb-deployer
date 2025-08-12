@@ -47,7 +47,7 @@ func (e *executor) ExecuteStream(ctx context.Context, cmd Command) (<-chan strin
 
 ### 2. Setup Manager Implementation
 **Priority: High**
-**Files: `managers/setup.go`**
+**Files: `managers/setup/setup.go`**
 
 Handles server initialization, user creation, SSH key management, and directory setup.
 
@@ -77,7 +77,7 @@ func (m *SetupManager) SetupSystemUser(ctx context.Context, config SystemUserCon
 
 ### 3. Security Manager Implementation
 **Priority: High**
-**Files: `managers/security.go`**
+**Files: `managers/security/security.go`**
 
 Implements security hardening, firewall configuration, and intrusion detection setup.
 
@@ -107,7 +107,7 @@ func (m *SecurityManager) AuditSecurity(ctx context.Context) (*SecurityReport, e
 
 ### 4. Service Manager Implementation
 **Priority: High**
-**Files: `managers/service.go`**
+**Files: `managers/service/service.go`**
 
 Provides systemd service management with comprehensive monitoring and control.
 
