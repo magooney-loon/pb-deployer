@@ -113,7 +113,7 @@
 </script>
 
 <svelte:head>
-	<title>Documentation - pb-deployer</title>
+	<title>Documentation</title>
 	<meta
 		name="description"
 		content="Complete documentation for pb-deployer - PocketBase deployment tool"

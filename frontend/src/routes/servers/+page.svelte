@@ -3,7 +3,7 @@
 </script>
 
 <svelte:head>
-	<title>Servers - pb-deployer</title>
+	<title>Servers</title>
 	<meta name="description" content="Manage your deployment servers" />
 </svelte:head>
 
