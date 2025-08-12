@@ -1,11 +1,13 @@
 <script lang="ts">
 	import '../app.css';
 	import Navigation from '$lib/components/Navigation.svelte';
+	import { WarningBanner } from '$lib/components/partials';
 
 	let { children } = $props();
 </script>
 
 <div class="min-h-screen bg-white dark:bg-gray-950">
+	<WarningBanner size="xs" />
 	<Navigation />
 
 	<!-- Main content -->
