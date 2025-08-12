@@ -8,7 +8,6 @@
 
 	let { children } = $props();
 
-	// Inject view transition styles on mount
 	onMount(() => {
 		injectViewTransitionStyles();
 	});
