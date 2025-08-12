@@ -14,7 +14,7 @@ func (sm *SSHManager) ApplySecurityLockdown(progressChan chan<- SetupStep) error
 		return fmt.Errorf("security lockdown requires root access")
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host": sm.server.Host,
 		"port": sm.server.Port,
 	}).Info("Starting security lockdown process")
@@ -41,7 +41,7 @@ func (sm *SSHManager) ApplySecurityLockdown(progressChan chan<- SetupStep) error
 		if err := step.fn(progressChan); err != nil {
 			// Send failure status
 			sm.SendProgressUpdate(progressChan, step.name, "failed", fmt.Sprintf("Failed to execute %s", step.name), (i*100)/totalSteps, err.Error())
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"host": sm.server.Host,
 				"step": step.name,
 			}).WithError(err).Error("Security lockdown step failed")
@@ -54,7 +54,7 @@ func (sm *SSHManager) ApplySecurityLockdown(progressChan chan<- SetupStep) error
 
 	sm.SendProgressUpdate(progressChan, "security_lockdown", "success", "Security lockdown completed successfully", 100)
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host": sm.server.Host,
 		"port": sm.server.Port,
 	}).Info("Security lockdown completed successfully")
@@ -143,7 +143,7 @@ func (sm *SSHManager) detectSSHServiceName(progressChan chan<- SetupStep) (strin
 	if progressChan != nil {
 		sm.SendProgressUpdate(progressChan, "harden_ssh", "running", fmt.Sprintf("Could not detect SSH service. Will try 'ssh' as default. Errors: %s", errorDetails), 87)
 	}
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":   sm.server.Host,
 		"errors": errorDetails,
 	}).Warn("Could not detect SSH service name, using 'ssh' as default")
@@ -487,7 +487,7 @@ func (sm *SSHManager) reloadSSHService(serviceName string, progressChan chan<- S
 		sm.SendProgressUpdate(progressChan, "harden_ssh", "running", "Systemctl methods failed, trying manual reload", 96)
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":             sm.server.Host,
 		"service_name":     serviceName,
 		"service_variants": serviceVariants,
@@ -534,14 +534,14 @@ func (sm *SSHManager) reloadSSHConfigManually(progressChan chan<- SetupStep) err
 	// Verify daemon is still running
 	checkCmd := fmt.Sprintf("kill -0 %s", pid)
 	if _, err := sm.ExecuteCommand(checkCmd); err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host": sm.server.Host,
 			"pid":  pid,
 		}).WithError(err).Error("SSH daemon stopped after configuration reload")
 		return fmt.Errorf("SSH daemon stopped after configuration reload")
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host": sm.server.Host,
 		"pid":  pid,
 	}).Info("SSH daemon successfully reloaded via manual SIGHUP method")
@@ -735,14 +735,14 @@ func (sm *SSHManager) DisableSecurityForTesting() error {
 		return fmt.Errorf("disabling security requires root access")
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host": sm.server.Host,
 		"port": sm.server.Port,
 	}).Warn("Disabling security measures for testing - this should only be used in development")
 
 	// Disable UFW
 	if _, err := sm.ExecuteCommand("ufw --force disable"); err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host": sm.server.Host,
 		}).WithError(err).Error("Failed to disable UFW firewall")
 		return fmt.Errorf("failed to disable UFW: %w", err)
@@ -750,13 +750,13 @@ func (sm *SSHManager) DisableSecurityForTesting() error {
 
 	// Stop fail2ban
 	if _, err := sm.ExecuteCommand("systemctl stop fail2ban"); err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host": sm.server.Host,
 		}).WithError(err).Error("Failed to stop fail2ban service")
 		return fmt.Errorf("failed to stop fail2ban: %w", err)
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host": sm.server.Host,
 		"port": sm.server.Port,
 	}).Warn("Security measures disabled successfully - remember to re-enable for production")

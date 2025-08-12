@@ -24,7 +24,7 @@ func notifySecurityProgress(app core.App, serverID string, step ssh.SetupStep) e
 }
 
 // notifyClients sends a message to all clients subscribed to a specific topic
-func notifyClients(app core.App, subscription string, data interface{}) error {
+func notifyClients(app core.App, subscription string, data any) error {
 	// Add debugging to see what we're sending
 	app.Logger().Debug("Sending realtime message",
 		"subscription", subscription,

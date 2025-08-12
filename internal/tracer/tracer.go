@@ -128,7 +128,7 @@ func (t *tracer) StartSpan(ctx context.Context, operation string) Span {
 }
 
 // WithField adds a field to all future spans
-func (t *tracer) WithField(key string, value interface{}) Tracer {
+func (t *tracer) WithField(key string, value any) Tracer {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -305,7 +305,7 @@ func (s *span) SetStatus(status Status) {
 }
 
 // SetField adds a field to this span
-func (s *span) SetField(key string, value interface{}) Span {
+func (s *span) SetField(key string, value any) Span {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.fields[key] = value
@@ -467,7 +467,7 @@ func (t *noOpTracer) StartSpan(ctx context.Context, operation string) Span {
 	return newNoOpSpan()
 }
 
-func (t *noOpTracer) WithField(key string, value interface{}) Tracer {
+func (t *noOpTracer) WithField(key string, value any) Tracer {
 	return t
 }
 
@@ -490,7 +490,7 @@ func newNoOpSpan() Span {
 func (s *noOpSpan) End()                                        {}
 func (s *noOpSpan) EndWithError(err error)                      {}
 func (s *noOpSpan) SetStatus(status Status)                     {}
-func (s *noOpSpan) SetField(key string, value interface{}) Span { return s }
+func (s *noOpSpan) SetField(key string, value any) Span { return s }
 func (s *noOpSpan) SetFields(fields Fields) Span                { return s }
 func (s *noOpSpan) Event(name string, fields ...Field)          {}
 func (s *noOpSpan) StartChild(operation string) Span            { return s }
@@ -576,7 +576,7 @@ func (l *tracerLogger) Fatal(msg string, fields ...Field) {
 	os.Exit(1)
 }
 
-func (l *tracerLogger) WithField(key string, value interface{}) Logger {
+func (l *tracerLogger) WithField(key string, value any) Logger {
 	newLogger := &tracerLogger{
 		tracer: l.tracer,
 		fields: make(Fields),
@@ -626,7 +626,7 @@ func (l *tracerLogger) log(level Level, msg string, fields ...Field) {
 	}
 
 	// Build log entry
-	entry := map[string]interface{}{
+	entry := map[string]any{
 		"timestamp": time.Now(),
 		"level":     level.String(),
 		"message":   msg,

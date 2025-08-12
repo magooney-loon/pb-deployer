@@ -107,7 +107,7 @@ func (cp *ConnectionPool) GetOrCreateConnection(server *models.Server, asRoot bo
 		cp.mutex.RUnlock()
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":    server.Host,
 		"port":    server.Port,
 		"as_root": asRoot,
@@ -119,7 +119,7 @@ func (cp *ConnectionPool) GetOrCreateConnection(server *models.Server, asRoot bo
 
 // createConnection creates a new pooled connection
 func (cp *ConnectionPool) createConnection(server *models.Server, asRoot bool) (*PooledConnection, error) {
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":    server.Host,
 		"port":    server.Port,
 		"as_root": asRoot,
@@ -127,7 +127,7 @@ func (cp *ConnectionPool) createConnection(server *models.Server, asRoot bool) (
 
 	manager, err := NewSSHManager(server, asRoot)
 	if err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":    server.Host,
 			"port":    server.Port,
 			"as_root": asRoot,
@@ -147,7 +147,7 @@ func (cp *ConnectionPool) createConnection(server *models.Server, asRoot bool) (
 
 	// Test the connection immediately
 	if err := conn.TestHealth(); err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":    server.Host,
 			"port":    server.Port,
 			"as_root": asRoot,
@@ -162,7 +162,7 @@ func (cp *ConnectionPool) createConnection(server *models.Server, asRoot bool) (
 	cp.connections[key] = conn
 	cp.mutex.Unlock()
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":           server.Host,
 		"port":           server.Port,
 		"as_root":        asRoot,
@@ -309,7 +309,7 @@ func (pc *PooledConnection) UpdateLastUsed() {
 // TestHealth performs a health check on the connection
 func (pc *PooledConnection) TestHealth() error {
 	if pc.manager == nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host": pc.server.Host,
 			"port": pc.server.Port,
 		}).Error("SSH manager is nil during health test")
@@ -322,7 +322,7 @@ func (pc *PooledConnection) TestHealth() error {
 	responseTime := time.Since(start)
 
 	if err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":          pc.server.Host,
 			"port":          pc.server.Port,
 			"response_time": responseTime.String(),
@@ -380,7 +380,7 @@ func (pc *PooledConnection) ExecuteCommand(command string) (string, error) {
 	if err != nil {
 		// Check if the error indicates a connection problem
 		if isConnectionError(err) {
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"host":    pc.server.Host,
 				"port":    pc.server.Port,
 				"command": command,
@@ -404,7 +404,7 @@ func (pc *PooledConnection) ExecuteCommandStream(command string, output chan<- s
 	if err != nil {
 		// Check if the error indicates a connection problem
 		if isConnectionError(err) {
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"host":    pc.server.Host,
 				"port":    pc.server.Port,
 				"command": command,
@@ -474,7 +474,7 @@ func NewConnectionManager() *ConnectionManager {
 func (cm *ConnectionManager) ExecuteCommand(server *models.Server, asRoot bool, command string) (string, error) {
 	conn, err := cm.pool.GetOrCreateConnection(server, asRoot)
 	if err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":    server.Host,
 			"port":    server.Port,
 			"as_root": asRoot,
@@ -490,7 +490,7 @@ func (cm *ConnectionManager) ExecuteCommand(server *models.Server, asRoot bool, 
 func (cm *ConnectionManager) ExecuteCommandStream(server *models.Server, asRoot bool, command string, output chan<- string) error {
 	conn, err := cm.pool.GetOrCreateConnection(server, asRoot)
 	if err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":    server.Host,
 			"port":    server.Port,
 			"as_root": asRoot,
@@ -506,7 +506,7 @@ func (cm *ConnectionManager) ExecuteCommandStream(server *models.Server, asRoot 
 func (cm *ConnectionManager) TestConnection(server *models.Server, asRoot bool) error {
 	conn, err := cm.pool.GetOrCreateConnection(server, asRoot)
 	if err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":    server.Host,
 			"port":    server.Port,
 			"as_root": asRoot,

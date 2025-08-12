@@ -59,7 +59,7 @@ func (c *sshClient) Connect(ctx context.Context) error {
 		Timeout: c.config.Timeout,
 	}
 
-	span.Event("dialing", map[string]interface{}{
+	span.Event("dialing", map[string]any{
 		"address": addr,
 		"timeout": c.config.Timeout,
 	})
@@ -88,7 +88,7 @@ func (c *sshClient) Connect(ctx context.Context) error {
 	c.connectedAt = time.Now()
 	c.lastUsed = time.Now()
 
-	span.Event("connection_established", map[string]interface{}{
+	span.Event("connection_established", map[string]any{
 		"host":         c.config.Host,
 		"port":         c.config.Port,
 		"user":         c.config.Username,
@@ -122,7 +122,7 @@ func (c *sshClient) Execute(ctx context.Context, cmd string) (string, error) {
 	}
 	defer session.Close()
 
-	span.SetFields(map[string]interface{}{
+	span.SetFields(map[string]any{
 		"command": cmd,
 		"host":    c.config.Host,
 		"user":    c.config.Username,
@@ -160,7 +160,7 @@ func (c *sshClient) Execute(ctx context.Context, cmd string) (string, error) {
 			exitCode = exitErr.ExitStatus()
 		}
 
-		span.Event("command_failed", map[string]interface{}{
+		span.Event("command_failed", map[string]any{
 			"duration":  duration,
 			"exit_code": exitCode,
 		})
@@ -172,7 +172,7 @@ func (c *sshClient) Execute(ctx context.Context, cmd string) (string, error) {
 		duration := time.Since(start)
 		outputStr := string(output)
 
-		span.Event("command_completed", map[string]interface{}{
+		span.Event("command_completed", map[string]any{
 			"duration":    duration,
 			"output_size": len(output),
 		})
@@ -225,7 +225,7 @@ func (c *sshClient) ExecuteStream(ctx context.Context, cmd string) (<-chan strin
 		return nil, WrapCommandError(cmd, 0, "", err)
 	}
 
-	span.SetFields(map[string]interface{}{
+	span.SetFields(map[string]any{
 		"command":   cmd,
 		"streaming": true,
 		"host":      c.config.Host,
@@ -264,7 +264,7 @@ func (c *sshClient) ExecuteStream(ctx context.Context, cmd string) (<-chan strin
 				}
 				if err != nil {
 					if err != io.EOF {
-						span.Event("stream_error", map[string]interface{}{
+						span.Event("stream_error", map[string]any{
 							"error": err.Error(),
 						})
 					}
@@ -274,7 +274,7 @@ func (c *sshClient) ExecuteStream(ctx context.Context, cmd string) (<-chan strin
 		}
 	}()
 
-	span.Event("stream_started", map[string]interface{}{
+	span.Event("stream_started", map[string]any{
 		"command": cmd,
 	})
 
@@ -316,7 +316,7 @@ func (c *sshClient) Close() error {
 
 	if c.tracer != nil {
 		span := c.tracer.TraceConnection(context.Background(), c.config.Host, c.config.Port, c.config.Username)
-		span.Event("connection_closed", map[string]interface{}{
+		span.Event("connection_closed", map[string]any{
 			"host":      c.config.Host,
 			"port":      c.config.Port,
 			"user":      c.config.Username,
@@ -430,7 +430,7 @@ func (c *sshClient) createHostKeyCallback() (ssh.HostKeyCallback, error) {
 			// Log the new host key acceptance
 			if c.tracer != nil {
 				span := c.tracer.TraceConnection(context.Background(), hostname, c.config.Port, c.config.Username)
-				span.Event("host_key_accepted", map[string]interface{}{
+				span.Event("host_key_accepted", map[string]any{
 					"hostname":    hostname,
 					"remote_addr": remote.String(),
 					"key_type":    key.Type(),
@@ -456,11 +456,11 @@ func (c *sshClient) GetLastUsed() time.Time {
 }
 
 // GetConnectionInfo returns connection information for diagnostics
-func (c *sshClient) GetConnectionInfo() map[string]interface{} {
+func (c *sshClient) GetConnectionInfo() map[string]any {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	info := map[string]interface{}{
+	info := map[string]any{
 		"host":      c.config.Host,
 		"port":      c.config.Port,
 		"user":      c.config.Username,
@@ -486,8 +486,8 @@ type SSHTracer interface {
 type Span interface {
 	End()
 	EndWithError(error)
-	Event(name string, fields ...map[string]interface{})
-	SetFields(fields map[string]interface{})
+	Event(name string, fields ...map[string]any)
+	SetFields(fields map[string]any)
 }
 
 // NoOpTracer provides a no-op implementation for when tracing is disabled
@@ -506,5 +506,5 @@ type NoOpSpan struct{}
 
 func (s *NoOpSpan) End()                                                {}
 func (s *NoOpSpan) EndWithError(error)                                  {}
-func (s *NoOpSpan) Event(name string, fields ...map[string]interface{}) {}
-func (s *NoOpSpan) SetFields(fields map[string]interface{})             {}
+func (s *NoOpSpan) Event(name string, fields ...map[string]any) {}
+func (s *NoOpSpan) SetFields(fields map[string]any)             {}

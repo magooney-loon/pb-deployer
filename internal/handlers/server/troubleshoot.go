@@ -39,9 +39,9 @@ type TroubleshootResponse struct {
 // EnhancedTroubleshootResponse provides enhanced troubleshooting with analysis and recommendations
 type EnhancedTroubleshootResponse struct {
 	TroubleshootResponse
-	Analysis              map[string]interface{}   `json:"analysis"`
-	RecoveryPlan          map[string]interface{}   `json:"recovery_plan"`
-	ActionableSuggestions []map[string]interface{} `json:"actionable_suggestions"`
+	Analysis              map[string]any   `json:"analysis"`
+	RecoveryPlan          map[string]any   `json:"recovery_plan"`
+	ActionableSuggestions []map[string]any `json:"actionable_suggestions"`
 	EstimatedDuration     string                   `json:"estimated_duration"`
 	RequiresAccess        []string                 `json:"requires_access"`
 	AutoFixAvailable      bool                     `json:"auto_fix_available"`

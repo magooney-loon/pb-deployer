@@ -12,7 +12,7 @@ type Tracer interface {
 	StartSpan(ctx context.Context, operation string) Span
 
 	// WithField adds a field to all future spans
-	WithField(key string, value interface{}) Tracer
+	WithField(key string, value any) Tracer
 
 	// WithFields adds multiple fields to all future spans
 	WithFields(fields Fields) Tracer
@@ -36,7 +36,7 @@ type Span interface {
 	SetStatus(status Status)
 
 	// SetField adds a field to this span
-	SetField(key string, value interface{}) Span
+	SetField(key string, value any) Span
 
 	// SetFields adds multiple fields to this span
 	SetFields(fields Fields) Span
@@ -69,7 +69,7 @@ type Logger interface {
 	Fatal(msg string, fields ...Field)
 
 	// WithField returns a logger with an additional field
-	WithField(key string, value interface{}) Logger
+	WithField(key string, value any) Logger
 
 	// WithFields returns a logger with additional fields
 	WithFields(fields Fields) Logger
@@ -134,12 +134,12 @@ const (
 )
 
 // Fields is a map of field key-value pairs
-type Fields map[string]interface{}
+type Fields map[string]any
 
 // Field represents a single key-value pair
 type Field struct {
 	Key   string
-	Value interface{}
+	Value any
 }
 
 // SpanData contains the data for a completed span
@@ -301,10 +301,10 @@ type Metrics interface {
 // Propagator handles context propagation across boundaries
 type Propagator interface {
 	// Inject injects span context into a carrier
-	Inject(ctx context.Context, carrier interface{}) error
+	Inject(ctx context.Context, carrier any) error
 
 	// Extract extracts span context from a carrier
-	Extract(ctx context.Context, carrier interface{}) (SpanContext, error)
+	Extract(ctx context.Context, carrier any) (SpanContext, error)
 }
 
 // SSHTracer provides SSH-specific tracing operations
@@ -464,6 +464,6 @@ func Error(err error) Field {
 	return Field{Key: "error", Value: err.Error()}
 }
 
-func Any(key string, value interface{}) Field {
+func Any(key string, value any) Field {
 	return Field{Key: key, Value: value}
 }

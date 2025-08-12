@@ -49,7 +49,7 @@ type DeploymentStatsResponse struct {
 	SuccessRate float64                `json:"success_rate"`
 	AvgDuration string                 `json:"avg_duration"`
 	Recent      []DeploymentResponse   `json:"recent"`
-	ByApp       map[string]interface{} `json:"by_app"`
+	ByApp       map[string]any `json:"by_app"`
 	ByStatus    map[string]int64       `json:"by_status"`
 }
 
@@ -103,10 +103,10 @@ func listDeployments(app core.App, e *core.RequestEvent) error {
 		deployments[i] = recordToDeploymentResponse(record, app)
 	}
 
-	return e.JSON(http.StatusOK, map[string]interface{}{
+	return e.JSON(http.StatusOK, map[string]any{
 		"deployments": deployments,
 		"count":       len(deployments),
-		"filters": map[string]interface{}{
+		"filters": map[string]any{
 			"app_id": appID,
 			"status": status,
 			"limit":  limit,
@@ -218,7 +218,7 @@ func getDeploymentLogs(app core.App, e *core.RequestEvent) error {
 	logs := record.GetString("logs")
 	status := record.GetString("status")
 
-	return e.JSON(http.StatusOK, map[string]interface{}{
+	return e.JSON(http.StatusOK, map[string]any{
 		"deployment_id": deploymentID,
 		"status":        status,
 		"logs":          logs,
@@ -270,7 +270,7 @@ func cancelDeployment(app core.App, e *core.RequestEvent) error {
 
 	app.Logger().Info("Deployment canceled", "deployment_id", deploymentID)
 
-	return e.JSON(http.StatusOK, map[string]interface{}{
+	return e.JSON(http.StatusOK, map[string]any{
 		"message":       "Deployment canceled successfully",
 		"deployment_id": deploymentID,
 		"status":        "failed",
@@ -338,7 +338,7 @@ func retryDeployment(app core.App, e *core.RequestEvent) error {
 
 	// TODO: Trigger actual deployment process here
 
-	return e.JSON(http.StatusCreated, map[string]interface{}{
+	return e.JSON(http.StatusCreated, map[string]any{
 		"message":             "Deployment retry created",
 		"original_deployment": deploymentID,
 		"new_deployment_id":   newRecord.Id,
@@ -405,7 +405,7 @@ func listAppDeployments(app core.App, e *core.RequestEvent) error {
 		deployments[i].AppName = appRecord.GetString("name")
 	}
 
-	return e.JSON(http.StatusOK, map[string]interface{}{
+	return e.JSON(http.StatusOK, map[string]any{
 		"app_id":      appID,
 		"app_name":    appRecord.GetString("name"),
 		"deployments": deployments,
@@ -460,7 +460,7 @@ func handleDeploymentProgressWebSocket(app core.App, e *core.RequestEvent) error
 
 	// For now, return a simple response since we're using PocketBase realtime
 	// The actual WebSocket connection is handled by PocketBase's realtime system
-	return e.JSON(http.StatusOK, map[string]interface{}{
+	return e.JSON(http.StatusOK, map[string]any{
 		"message":      "Deployment progress available via PocketBase realtime",
 		"subscription": fmt.Sprintf("deployment_progress_%s", deploymentID),
 	})
@@ -493,7 +493,7 @@ func getDeploymentStats(app core.App, e *core.RequestEvent) error {
 	stats := DeploymentStatsResponse{
 		Total:    int64(len(records)),
 		ByStatus: make(map[string]int64),
-		ByApp:    make(map[string]interface{}),
+		ByApp:    make(map[string]any),
 	}
 
 	var totalDuration time.Duration
@@ -591,7 +591,7 @@ func cleanupOldDeployments(app core.App, e *core.RequestEvent) error {
 		})
 	}
 
-	result := map[string]interface{}{
+	result := map[string]any{
 		"found":     len(oldRecords),
 		"kept_days": keepDays,
 		"cutoff":    cutoffDate,

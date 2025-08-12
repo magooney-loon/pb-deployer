@@ -291,7 +291,7 @@ func getServerStatus(app core.App, e *core.RequestEvent) error {
 		connectionErrChan <- err
 	}()
 
-	status := map[string]interface{}{
+	status := map[string]any{
 		"server_id":       serverID,
 		"setup_complete":  setupComplete,
 		"security_locked": securityLocked,
@@ -373,18 +373,18 @@ func getConnectionHealth(app core.App, e *core.RequestEvent) error {
 	rootKey := sshService.GetConnectionKey(server, true)
 	appKey := sshService.GetConnectionKey(server, false)
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"server_id":       serverID,
 		"server_name":     server.Name,
 		"host":            server.Host,
 		"port":            server.Port,
 		"security_locked": server.SecurityLocked,
 		"timestamp":       time.Now().UTC().Format(time.RFC3339),
-		"connections": map[string]interface{}{
+		"connections": map[string]any{
 			"root": getConnectionDetails(connectionStatus, rootKey, server.SecurityLocked),
 			"app":  getConnectionDetails(connectionStatus, appKey, false),
 		},
-		"overall_metrics": map[string]interface{}{
+		"overall_metrics": map[string]any{
 			"total_connections":     healthMetrics.TotalConnections,
 			"healthy_connections":   healthMetrics.HealthyConnections,
 			"unhealthy_connections": healthMetrics.UnhealthyConnections,
@@ -403,9 +403,9 @@ func getConnectionHealth(app core.App, e *core.RequestEvent) error {
 }
 
 // getConnectionDetails extracts connection details from status map
-func getConnectionDetails(connectionStatus map[string]ssh.ConnectionHealthStatus, key string, expectDisabled bool) map[string]interface{} {
+func getConnectionDetails(connectionStatus map[string]ssh.ConnectionHealthStatus, key string, expectDisabled bool) map[string]any {
 	if status, exists := connectionStatus[key]; exists {
-		return map[string]interface{}{
+		return map[string]any{
 			"exists":        true,
 			"healthy":       status.Healthy,
 			"last_used":     status.LastUsed.Format(time.RFC3339),
@@ -415,14 +415,14 @@ func getConnectionDetails(connectionStatus map[string]ssh.ConnectionHealthStatus
 			"last_error":    status.LastError,
 		}
 	} else if expectDisabled {
-		return map[string]interface{}{
+		return map[string]any{
 			"exists":   false,
 			"healthy":  false,
 			"disabled": true,
 			"reason":   "Root connections are disabled after security lockdown",
 		}
 	} else {
-		return map[string]interface{}{
+		return map[string]any{
 			"exists":  false,
 			"healthy": false,
 			"reason":  "Connection not established or not in pool",

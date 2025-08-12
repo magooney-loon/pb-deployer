@@ -9,7 +9,7 @@ import (
 
 // startService starts a systemd service
 func (sm *SSHManager) startService(serviceName string) error {
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     sm.server.Host,
 		"username": sm.username,
 		"service":  serviceName,
@@ -18,7 +18,7 @@ func (sm *SSHManager) startService(serviceName string) error {
 
 	startCmd := fmt.Sprintf("sudo systemctl start %s", serviceName)
 	if _, err := sm.ExecuteCommand(startCmd); err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": sm.username,
 			"service":  serviceName,
@@ -33,7 +33,7 @@ func (sm *SSHManager) startService(serviceName string) error {
 	// Verify service is running
 	status, err := sm.getServiceStatus(serviceName)
 	if err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": sm.username,
 			"service":  serviceName,
@@ -42,7 +42,7 @@ func (sm *SSHManager) startService(serviceName string) error {
 	}
 
 	if !contains(status, "active (running)") {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": sm.username,
 			"service":  serviceName,
@@ -51,7 +51,7 @@ func (sm *SSHManager) startService(serviceName string) error {
 		return fmt.Errorf("service %s did not start properly", serviceName)
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     sm.server.Host,
 		"username": sm.username,
 		"service":  serviceName,
@@ -62,7 +62,7 @@ func (sm *SSHManager) startService(serviceName string) error {
 
 // stopService stops a systemd service
 func (sm *SSHManager) stopService(serviceName string) error {
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     sm.server.Host,
 		"username": sm.username,
 		"service":  serviceName,
@@ -71,7 +71,7 @@ func (sm *SSHManager) stopService(serviceName string) error {
 
 	stopCmd := fmt.Sprintf("sudo systemctl stop %s", serviceName)
 	if _, err := sm.ExecuteCommand(stopCmd); err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": sm.username,
 			"service":  serviceName,
@@ -83,7 +83,7 @@ func (sm *SSHManager) stopService(serviceName string) error {
 	// Wait a moment for service to stop
 	time.Sleep(2 * time.Second)
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     sm.server.Host,
 		"username": sm.username,
 		"service":  serviceName,
@@ -94,7 +94,7 @@ func (sm *SSHManager) stopService(serviceName string) error {
 
 // restartService restarts a systemd service
 func (sm *SSHManager) restartService(serviceName string) error {
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     sm.server.Host,
 		"username": sm.username,
 		"service":  serviceName,
@@ -103,7 +103,7 @@ func (sm *SSHManager) restartService(serviceName string) error {
 
 	restartCmd := fmt.Sprintf("sudo systemctl restart %s", serviceName)
 	if _, err := sm.ExecuteCommand(restartCmd); err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": sm.username,
 			"service":  serviceName,
@@ -118,7 +118,7 @@ func (sm *SSHManager) restartService(serviceName string) error {
 	// Verify service is running
 	status, err := sm.getServiceStatus(serviceName)
 	if err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": sm.username,
 			"service":  serviceName,
@@ -127,7 +127,7 @@ func (sm *SSHManager) restartService(serviceName string) error {
 	}
 
 	if !contains(status, "active (running)") {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": sm.username,
 			"service":  serviceName,
@@ -136,7 +136,7 @@ func (sm *SSHManager) restartService(serviceName string) error {
 		return fmt.Errorf("service %s did not restart properly", serviceName)
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     sm.server.Host,
 		"username": sm.username,
 		"service":  serviceName,
@@ -157,7 +157,7 @@ func (sm *SSHManager) getServiceStatus(serviceName string) (string, error) {
 
 // enableService enables a systemd service to start on boot
 func (sm *SSHManager) enableService(serviceName string) error {
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     sm.server.Host,
 		"username": sm.username,
 		"service":  serviceName,
@@ -166,7 +166,7 @@ func (sm *SSHManager) enableService(serviceName string) error {
 
 	enableCmd := fmt.Sprintf("sudo systemctl enable %s", serviceName)
 	if _, err := sm.ExecuteCommand(enableCmd); err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": sm.username,
 			"service":  serviceName,
@@ -175,7 +175,7 @@ func (sm *SSHManager) enableService(serviceName string) error {
 		return fmt.Errorf("failed to enable service %s: %w", serviceName, err)
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     sm.server.Host,
 		"username": sm.username,
 		"service":  serviceName,
@@ -186,7 +186,7 @@ func (sm *SSHManager) enableService(serviceName string) error {
 
 // disableService disables a systemd service from starting on boot
 func (sm *SSHManager) disableService(serviceName string) error {
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     sm.server.Host,
 		"username": sm.username,
 		"service":  serviceName,
@@ -195,7 +195,7 @@ func (sm *SSHManager) disableService(serviceName string) error {
 
 	disableCmd := fmt.Sprintf("sudo systemctl disable %s", serviceName)
 	if _, err := sm.ExecuteCommand(disableCmd); err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": sm.username,
 			"service":  serviceName,
@@ -204,7 +204,7 @@ func (sm *SSHManager) disableService(serviceName string) error {
 		return fmt.Errorf("failed to disable service %s: %w", serviceName, err)
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     sm.server.Host,
 		"username": sm.username,
 		"service":  serviceName,
@@ -215,7 +215,7 @@ func (sm *SSHManager) disableService(serviceName string) error {
 
 // reloadSystemdDaemon reloads the systemd daemon to pick up service file changes
 func (sm *SSHManager) reloadSystemdDaemon() error {
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     sm.server.Host,
 		"username": sm.username,
 		"action":   "daemon-reload",
@@ -223,7 +223,7 @@ func (sm *SSHManager) reloadSystemdDaemon() error {
 
 	reloadCmd := "sudo systemctl daemon-reload"
 	if _, err := sm.ExecuteCommand(reloadCmd); err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": sm.username,
 			"command":  reloadCmd,
@@ -231,7 +231,7 @@ func (sm *SSHManager) reloadSystemdDaemon() error {
 		return fmt.Errorf("failed to reload systemd daemon: %w", err)
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     sm.server.Host,
 		"username": sm.username,
 	}).Info("Systemd daemon reloaded successfully")
@@ -261,7 +261,7 @@ func (sm *SSHManager) isServiceEnabled(serviceName string) (bool, error) {
 
 // getServiceLogs returns recent logs for a service
 func (sm *SSHManager) getServiceLogs(serviceName string, lines int) (string, error) {
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     sm.server.Host,
 		"username": sm.username,
 		"service":  serviceName,
@@ -272,7 +272,7 @@ func (sm *SSHManager) getServiceLogs(serviceName string, lines int) (string, err
 	logsCmd := fmt.Sprintf("sudo journalctl -u %s --no-pager -n %d", serviceName, lines)
 	output, err := sm.ExecuteCommand(logsCmd)
 	if err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": sm.username,
 			"service":  serviceName,
@@ -281,7 +281,7 @@ func (sm *SSHManager) getServiceLogs(serviceName string, lines int) (string, err
 		return "", fmt.Errorf("failed to get service logs: %w", err)
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":            sm.server.Host,
 		"username":        sm.username,
 		"service":         serviceName,

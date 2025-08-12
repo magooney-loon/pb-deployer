@@ -65,9 +65,9 @@ func listApps(app core.App, e *core.RequestEvent) error {
 	}
 
 	// Convert records to response format
-	apps := make([]map[string]interface{}, len(records))
+	apps := make([]map[string]any, len(records))
 	for i, record := range records {
-		apps[i] = map[string]interface{}{
+		apps[i] = map[string]any{
 			"id":              record.Id,
 			"name":            record.GetString("name"),
 			"server_id":       record.GetString("server_id"),
@@ -81,7 +81,7 @@ func listApps(app core.App, e *core.RequestEvent) error {
 		}
 	}
 
-	return e.JSON(http.StatusOK, map[string]interface{}{
+	return e.JSON(http.StatusOK, map[string]any{
 		"apps":  apps,
 		"count": len(apps),
 	})
@@ -171,7 +171,7 @@ func createApp(app core.App, e *core.RequestEvent) error {
 		"server_id", req.ServerID,
 		"domain", req.Domain)
 
-	return e.JSON(http.StatusCreated, map[string]interface{}{
+	return e.JSON(http.StatusCreated, map[string]any{
 		"id":              record.Id,
 		"name":            record.GetString("name"),
 		"server_id":       record.GetString("server_id"),
@@ -213,7 +213,7 @@ func getApp(app core.App, e *core.RequestEvent) error {
 		})
 	}
 
-	return e.JSON(http.StatusOK, map[string]interface{}{
+	return e.JSON(http.StatusOK, map[string]any{
 		"id":              record.Id,
 		"name":            record.GetString("name"),
 		"server_id":       record.GetString("server_id"),
@@ -286,7 +286,7 @@ func updateApp(app core.App, e *core.RequestEvent) error {
 
 	app.Logger().Info("App updated successfully", "app_id", appID)
 
-	return e.JSON(http.StatusOK, map[string]interface{}{
+	return e.JSON(http.StatusOK, map[string]any{
 		"id":              record.Id,
 		"name":            record.GetString("name"),
 		"server_id":       record.GetString("server_id"),
@@ -333,7 +333,7 @@ func deleteApp(app core.App, e *core.RequestEvent) error {
 		"name", appName,
 		"server_id", serverID)
 
-	return e.JSON(http.StatusOK, map[string]interface{}{
+	return e.JSON(http.StatusOK, map[string]any{
 		"message": "App deleted successfully",
 		"app_id":  appID,
 	})
@@ -437,7 +437,7 @@ func checkAppHealth(app core.App, e *core.RequestEvent) error {
 		app.Logger().Error("Failed to update app status", "app_id", appID, "error", err)
 	}
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"app_id":     appID,
 		"status":     status,
 		"health_url": healthURL,
@@ -517,7 +517,7 @@ func getAppLogs(app core.App, e *core.RequestEvent) error {
 
 	// For now, return a placeholder response
 	// TODO: Implement actual log retrieval via SSH
-	response := map[string]interface{}{
+	response := map[string]any{
 		"app_id":       appID,
 		"service":      serviceName,
 		"server":       serverRecord.GetString("name"),

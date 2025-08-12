@@ -44,7 +44,7 @@ func NewPostSecurityManager(server *models.Server, securityLocked bool) (*PostSe
 		if psm.rootManager != nil {
 			if closeErr := psm.rootManager.Close(); closeErr != nil {
 				// Log but don't override the original error
-				logger.WithFields(map[string]interface{}{
+				logger.WithFields(map[string]any{
 					"host": server.Host,
 					"port": server.Port,
 				}).WithError(closeErr).Warn("Failed to close root manager during cleanup")
@@ -79,7 +79,7 @@ func (psm *PostSecurityManager) GetRootManager() *SSHManager {
 func (psm *PostSecurityManager) ExecuteCommand(command string) (string, error) {
 	manager := psm.GetActiveManager()
 	if manager == nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":            psm.server.Host,
 			"security_locked": psm.securityMode,
 		}).Error("No active SSH manager available for command execution")
@@ -88,7 +88,7 @@ func (psm *PostSecurityManager) ExecuteCommand(command string) (string, error) {
 
 	// Validate connection before executing command
 	if !manager.IsConnected() {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     psm.server.Host,
 			"username": manager.GetUsername(),
 			"command":  command,
@@ -96,7 +96,7 @@ func (psm *PostSecurityManager) ExecuteCommand(command string) (string, error) {
 		return "", fmt.Errorf("SSH connection is not active")
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":            psm.server.Host,
 		"username":        manager.GetUsername(),
 		"command":         command,
@@ -127,14 +127,14 @@ func (psm *PostSecurityManager) ExecutePrivilegedCommand(command string) (string
 	if psm.securityMode || psm.rootManager == nil {
 		// Use sudo through app user
 		if psm.appManager == nil {
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"host":    psm.server.Host,
 				"command": command,
 			}).Error("App manager not available for privileged command execution")
 			return "", fmt.Errorf("app manager not available for privileged command")
 		}
 		if !psm.appManager.IsConnected() {
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"host":     psm.server.Host,
 				"username": psm.appManager.GetUsername(),
 				"command":  command,
@@ -142,7 +142,7 @@ func (psm *PostSecurityManager) ExecutePrivilegedCommand(command string) (string
 			return "", fmt.Errorf("app SSH connection is not active")
 		}
 		sudoCommand := fmt.Sprintf("sudo %s", command)
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":         psm.server.Host,
 			"username":     psm.appManager.GetUsername(),
 			"command":      command,
@@ -152,14 +152,14 @@ func (psm *PostSecurityManager) ExecutePrivilegedCommand(command string) (string
 	} else {
 		// Use root manager directly
 		if !psm.rootManager.IsConnected() {
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"host":     psm.server.Host,
 				"username": psm.rootManager.GetUsername(),
 				"command":  command,
 			}).Error("Root SSH connection is not active for privileged command")
 			return "", fmt.Errorf("root SSH connection is not active")
 		}
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     psm.server.Host,
 			"username": psm.rootManager.GetUsername(),
 			"command":  command,
@@ -214,7 +214,7 @@ func (psm *PostSecurityManager) SwitchToSecurityMode() error {
 	if psm.rootManager != nil {
 		if err := psm.rootManager.Close(); err != nil {
 			// Log but don't fail the switch
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"host": psm.server.Host,
 				"port": psm.server.Port,
 			}).WithError(err).Warn("Failed to close root manager during security mode switch")
@@ -223,7 +223,7 @@ func (psm *PostSecurityManager) SwitchToSecurityMode() error {
 	}
 
 	psm.securityMode = true
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host": psm.server.Host,
 		"port": psm.server.Port,
 	}).Info("Successfully switched post-security manager to security mode")
@@ -274,8 +274,8 @@ func (psm *PostSecurityManager) verifyRootLoginDisabled() error {
 }
 
 // GetConnectionStatus returns detailed status of all connections
-func (psm *PostSecurityManager) GetConnectionStatus() map[string]interface{} {
-	status := map[string]interface{}{
+func (psm *PostSecurityManager) GetConnectionStatus() map[string]any {
+	status := map[string]any{
 		"security_mode": psm.securityMode,
 		"server_host":   psm.server.Host,
 		"server_port":   psm.server.Port,
@@ -286,7 +286,7 @@ func (psm *PostSecurityManager) GetConnectionStatus() map[string]interface{} {
 		appInfo := psm.appManager.GetConnectionInfo()
 		status["app_user"] = appInfo
 	} else {
-		status["app_user"] = map[string]interface{}{
+		status["app_user"] = map[string]any{
 			"connected": false,
 			"error":     "app user manager not available",
 		}
@@ -301,7 +301,7 @@ func (psm *PostSecurityManager) GetConnectionStatus() map[string]interface{} {
 		if psm.rootManager == nil {
 			reason = "root manager not available"
 		}
-		status["root_user"] = map[string]interface{}{
+		status["root_user"] = map[string]any{
 			"connected": false,
 			"reason":    reason,
 		}
@@ -418,7 +418,7 @@ func (psm *PostSecurityManager) Close() error {
 	// Close app manager
 	if psm.appManager != nil {
 		if err := psm.appManager.Close(); err != nil {
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"host": psm.server.Host,
 				"port": psm.server.Port,
 			}).WithError(err).Warn("Failed to close app manager during post-security manager shutdown")
@@ -430,7 +430,7 @@ func (psm *PostSecurityManager) Close() error {
 	// Close root manager
 	if psm.rootManager != nil {
 		if err := psm.rootManager.Close(); err != nil {
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"host": psm.server.Host,
 				"port": psm.server.Port,
 			}).WithError(err).Warn("Failed to close root manager during post-security manager shutdown")
@@ -442,7 +442,7 @@ func (psm *PostSecurityManager) Close() error {
 	// Reset state
 	psm.securityMode = false
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host": psm.server.Host,
 		"port": psm.server.Port,
 	}).Info("Post-security manager closed successfully")
@@ -487,7 +487,7 @@ func (psm *PostSecurityManager) ValidateDeploymentCapabilities() error {
 	// Ensure cleanup happens even if tests fail
 	defer func() {
 		if _, cleanupErr := psm.ExecutePrivilegedCommand(fmt.Sprintf("rm -rf %s", testDir)); cleanupErr != nil {
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"host":     psm.server.Host,
 				"test_dir": testDir,
 			}).WithError(cleanupErr).Warn("Failed to cleanup test directory after deployment capability validation")

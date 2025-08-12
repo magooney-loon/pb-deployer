@@ -368,8 +368,8 @@ func SetupTestTracing(t TestReporter) *TunnelTracerFactory {
 
 // TestReporter is an interface for test reporting
 type TestReporter interface {
-	Log(args ...interface{})
-	Logf(format string, args ...interface{})
+	Log(args ...any)
+	Logf(format string, args ...any)
 }
 
 // TestWriter wraps a TestReporter as an io.Writer

@@ -241,7 +241,7 @@ func createHostKeyAcceptorCallback(server *models.Server) ssh.HostKeyCallback {
 		keyType := key.Type()
 		fingerprint := ssh.FingerprintSHA256(key)
 
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"hostname":    hostname,
 			"remote_addr": remote.String(),
 			"key_type":    keyType,
@@ -275,7 +275,7 @@ func createPermissiveHostKeyCallback(strictCallback ssh.HostKeyCallback, server 
 			keyType := key.Type()
 			fingerprint := ssh.FingerprintSHA256(key)
 
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"hostname":    hostname,
 				"remote_addr": remote.String(),
 				"key_type":    keyType,
@@ -309,7 +309,7 @@ func createHostKeyCallbackWithWarning(server *models.Server) ssh.HostKeyCallback
 
 		// In a production environment, you should log this to a secure location
 		// and implement proper host key verification
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"hostname":    hostname,
 			"remote_addr": remote.String(),
 			"key_type":    keyType,
@@ -377,7 +377,7 @@ func storeHostKey(hostname string, key ssh.PublicKey) error {
 		return fmt.Errorf("failed to write host key to known_hosts: %w", err)
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"hostname":         hostname,
 		"known_hosts_path": knownHostsPath,
 	}).Info("Successfully added host key to known_hosts")
@@ -438,7 +438,7 @@ func (sm *SSHManager) ExecuteCommand(command string) (string, error) {
 	if err != nil {
 		// Try to reconnect once if session creation fails
 		if reconnectErr := sm.reconnect(); reconnectErr != nil {
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"host":           sm.server.Host,
 				"username":       sm.username,
 				"original_error": err.Error(),
@@ -468,7 +468,7 @@ func (sm *SSHManager) ExecuteCommand(command string) (string, error) {
 	duration := time.Since(start)
 
 	if err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": sm.username,
 			"command":  command,
@@ -478,7 +478,7 @@ func (sm *SSHManager) ExecuteCommand(command string) (string, error) {
 		return string(output), fmt.Errorf("command failed: %w (output: %s)", err, string(output))
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":         sm.server.Host,
 		"username":     sm.username,
 		"command":      command,
@@ -507,7 +507,7 @@ func (sm *SSHManager) ExecuteCommandStream(command string, output chan<- string)
 	if err != nil {
 		// Try to reconnect once if session creation fails
 		if reconnectErr := sm.reconnect(); reconnectErr != nil {
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"host":           sm.server.Host,
 				"username":       sm.username,
 				"original_error": err.Error(),
@@ -557,7 +557,7 @@ func (sm *SSHManager) ExecuteCommandStream(command string, output chan<- string)
 			case output <- "[OUT] " + line:
 			default:
 				// Channel is full or closed, skip
-				logger.WithFields(map[string]interface{}{
+				logger.WithFields(map[string]any{
 					"host":     sm.server.Host,
 					"username": sm.username,
 					"command":  command,
@@ -576,7 +576,7 @@ func (sm *SSHManager) ExecuteCommandStream(command string, output chan<- string)
 			case output <- "[ERR] " + line:
 			default:
 				// Channel is full or closed, skip
-				logger.WithFields(map[string]interface{}{
+				logger.WithFields(map[string]any{
 					"host":     sm.server.Host,
 					"username": sm.username,
 					"command":  command,
@@ -593,7 +593,7 @@ func (sm *SSHManager) ExecuteCommandStream(command string, output chan<- string)
 	for i := 0; i < 2; i++ {
 		if err := <-done; err != nil && err != io.EOF {
 			// Log stream error but don't fail the command
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"host":     sm.server.Host,
 				"username": sm.username,
 				"command":  command,
@@ -629,14 +629,14 @@ func (sm *SSHManager) TestConnection() error {
 }
 
 // GetConnectionInfo returns information about the current SSH connection
-func (sm *SSHManager) GetConnectionInfo() map[string]interface{} {
+func (sm *SSHManager) GetConnectionInfo() map[string]any {
 	if sm.conn == nil {
-		return map[string]interface{}{
+		return map[string]any{
 			"connected": false,
 		}
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"connected":   true,
 		"server_host": sm.server.Host,
 		"server_port": sm.server.Port,
@@ -830,7 +830,7 @@ func establishConnectionWithRetry(address string, config *ssh.ClientConfig, maxR
 			// Test the connection immediately to ensure it's working
 			_, _, testErr := conn.SendRequest("keepalive@openssh.com", true, nil)
 			if testErr == nil {
-				logger.WithFields(map[string]interface{}{
+				logger.WithFields(map[string]any{
 					"address": address,
 					"attempt": attempt,
 				}).Debug("SSH connection established successfully")
@@ -839,13 +839,13 @@ func establishConnectionWithRetry(address string, config *ssh.ClientConfig, maxR
 			// Close connection if it's not working properly
 			conn.Close()
 			lastErr = fmt.Errorf("connection established but not responding: %w", testErr)
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"address": address,
 				"attempt": attempt,
 			}).WithError(testErr).Warn("Connection established but not responding")
 		} else {
 			lastErr = err
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"address": address,
 				"attempt": attempt,
 			}).WithError(err).Debug("SSH connection attempt failed")
@@ -857,7 +857,7 @@ func establishConnectionWithRetry(address string, config *ssh.ClientConfig, maxR
 			jitter := time.Duration(attempt*500) * time.Millisecond
 			waitTime := baseWait + jitter
 
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"address":     address,
 				"attempt":     attempt,
 				"max_retries": maxRetries,
@@ -868,7 +868,7 @@ func establishConnectionWithRetry(address string, config *ssh.ClientConfig, maxR
 		}
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"address":     address,
 		"max_retries": maxRetries,
 	}).WithError(lastErr).Error("Failed to establish SSH connection after all retry attempts")
@@ -891,7 +891,7 @@ func (sm *SSHManager) reconnect() error {
 
 	// Establish new connection
 	address := fmt.Sprintf("%s:%d", sm.server.Host, sm.server.Port)
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     sm.server.Host,
 		"username": sm.username,
 		"address":  address,
@@ -899,7 +899,7 @@ func (sm *SSHManager) reconnect() error {
 
 	conn, err := establishConnectionWithRetry(address, config, 3)
 	if err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": sm.username,
 			"address":  address,
@@ -911,7 +911,7 @@ func (sm *SSHManager) reconnect() error {
 	sm.isConnected = true
 	sm.lastUsed = time.Now()
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     sm.server.Host,
 		"username": sm.username,
 	}).Info("SSH connection reconnected successfully")

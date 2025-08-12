@@ -292,7 +292,7 @@ span.End()
 tracer.RecordConnectionStats(span, stats)
 
 // Record SSH metrics
-tracer.RecordSSHMetrics(span, map[string]interface{}{
+tracer.RecordSSHMetrics(span, map[string]any{
     "connections_total": 100,
     "connections_active": 45,
     "commands_executed": 1523,

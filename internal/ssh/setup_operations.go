@@ -10,7 +10,7 @@ import (
 // RunServerSetup performs the complete server setup process
 func (sm *SSHManager) RunServerSetup(progressChan chan<- SetupStep) error {
 	if !sm.isRoot {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": sm.username,
 			"is_root":  sm.isRoot,
@@ -18,7 +18,7 @@ func (sm *SSHManager) RunServerSetup(progressChan chan<- SetupStep) error {
 		return fmt.Errorf("server setup requires root access")
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host": sm.server.Host,
 		"port": sm.server.Port,
 	}).Info("Starting server setup process")
@@ -44,7 +44,7 @@ func (sm *SSHManager) RunServerSetup(progressChan chan<- SetupStep) error {
 		if err := step.fn(progressChan); err != nil {
 			// Send failure status
 			sm.SendProgressUpdate(progressChan, step.name, "failed", fmt.Sprintf("Failed to execute %s", step.name), (i*100)/totalSteps, err.Error())
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"host": sm.server.Host,
 				"step": step.name,
 			}).WithError(err).Error("Server setup step failed")
@@ -57,7 +57,7 @@ func (sm *SSHManager) RunServerSetup(progressChan chan<- SetupStep) error {
 
 	sm.SendProgressUpdate(progressChan, "server_setup", "success", "Server setup completed successfully", 100)
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host": sm.server.Host,
 		"port": sm.server.Port,
 	}).Info("Server setup completed successfully")
@@ -87,7 +87,7 @@ func (sm *SSHManager) createPocketbaseUserWithProgress(progressChan chan<- Setup
 			if progressChan != nil {
 				sm.SendProgressUpdate(progressChan, "create_user", "running", fmt.Sprintf("User %s already exists, skipping creation", username), 100)
 			}
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"host":     sm.server.Host,
 				"username": username,
 			}).Debug("User already exists, skipping creation")
@@ -102,7 +102,7 @@ func (sm *SSHManager) createPocketbaseUserWithProgress(progressChan chan<- Setup
 	// Create the user with home directory
 	createUserCmd := fmt.Sprintf("useradd -m -s /bin/bash %s", username)
 	if _, err := sm.ExecuteCommand(createUserCmd); err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": username,
 			"command":  createUserCmd,
@@ -110,7 +110,7 @@ func (sm *SSHManager) createPocketbaseUserWithProgress(progressChan chan<- Setup
 		return fmt.Errorf("failed to create user %s: %w", username, err)
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     sm.server.Host,
 		"username": username,
 	}).Info("Successfully created user with home directory")
@@ -122,7 +122,7 @@ func (sm *SSHManager) createPocketbaseUserWithProgress(progressChan chan<- Setup
 	// Add user to sudo group for deployment operations
 	addSudoCmd := fmt.Sprintf("usermod -aG sudo %s", username)
 	if _, err := sm.ExecuteCommand(addSudoCmd); err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": username,
 			"command":  addSudoCmd,
@@ -130,7 +130,7 @@ func (sm *SSHManager) createPocketbaseUserWithProgress(progressChan chan<- Setup
 		return fmt.Errorf("failed to add user to sudo group: %w", err)
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     sm.server.Host,
 		"username": username,
 	}).Info("Successfully added user to sudo group")
@@ -143,7 +143,7 @@ func (sm *SSHManager) createPocketbaseUserWithProgress(progressChan chan<- Setup
 	sudoersContent := fmt.Sprintf("%s ALL=(ALL) NOPASSWD: /bin/systemctl, /usr/bin/systemctl, /bin/mkdir, /usr/bin/mkdir, /bin/chown, /usr/bin/chown, /bin/chmod, /usr/bin/chmod", username)
 	sudoersCmd := fmt.Sprintf("echo '%s' > /etc/sudoers.d/%s", sudoersContent, username)
 	if _, err := sm.ExecuteCommand(sudoersCmd); err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": username,
 			"command":  sudoersCmd,
@@ -151,7 +151,7 @@ func (sm *SSHManager) createPocketbaseUserWithProgress(progressChan chan<- Setup
 		return fmt.Errorf("failed to configure sudo access: %w", err)
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     sm.server.Host,
 		"username": username,
 	}).Info("Successfully configured passwordless sudo access")
@@ -193,14 +193,14 @@ func (sm *SSHManager) setupSSHKeysWithProgress(progressChan chan<- SetupStep) er
 		}
 
 		if err := sm.extractCurrentSessionKey(username); err != nil {
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"host":       sm.server.Host,
 				"username":   username,
 				"copy_error": copyErr.Error(),
 			}).WithError(err).Error("Failed to setup SSH keys - both copy and extract methods failed")
 			return fmt.Errorf("failed to setup SSH keys (copy failed: %v, extract failed: %w)", copyErr, err)
 		}
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": username,
 		}).Info("Successfully extracted and setup SSH keys from current session")
@@ -307,14 +307,14 @@ func (sm *SSHManager) testUserConnectionWithProgress(progressChan chan<- SetupSt
 
 	// Test basic command execution
 	if err := testManager.TestConnection(); err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": sm.server.AppUsername,
 		}).WithError(err).Error("User connection test failed")
 		return fmt.Errorf("user connection test failed: %w", err)
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     sm.server.Host,
 		"username": sm.server.AppUsername,
 	}).Info("User connection test successful")
@@ -326,7 +326,7 @@ func (sm *SSHManager) testUserConnectionWithProgress(progressChan chan<- SetupSt
 	// Test sudo access for required commands
 	testSudoCmd := "sudo -n systemctl --version"
 	if _, err := testManager.ExecuteCommand(testSudoCmd); err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": sm.server.AppUsername,
 			"command":  testSudoCmd,
@@ -334,7 +334,7 @@ func (sm *SSHManager) testUserConnectionWithProgress(progressChan chan<- SetupSt
 		return fmt.Errorf("sudo access test failed: %w", err)
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     sm.server.Host,
 		"username": sm.server.AppUsername,
 	}).Info("Sudo access test successful")
@@ -346,7 +346,7 @@ func (sm *SSHManager) testUserConnectionWithProgress(progressChan chan<- SetupSt
 	// Test directory access
 	testDirCmd := "ls -la /opt/pocketbase"
 	if _, err := testManager.ExecuteCommand(testDirCmd); err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": sm.server.AppUsername,
 			"command":  testDirCmd,
@@ -354,7 +354,7 @@ func (sm *SSHManager) testUserConnectionWithProgress(progressChan chan<- SetupSt
 		return fmt.Errorf("directory access test failed: %w", err)
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     sm.server.Host,
 		"username": sm.server.AppUsername,
 	}).Info("Directory access test successful")
@@ -364,14 +364,14 @@ func (sm *SSHManager) testUserConnectionWithProgress(progressChan chan<- SetupSt
 
 // VerifySetupComplete checks if the server setup has been completed successfully
 func (sm *SSHManager) VerifySetupComplete() error {
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host": sm.server.Host,
 		"port": sm.server.Port,
 	}).Debug("Verifying server setup completion")
 
 	// Check if pocketbase user exists
 	if _, err := sm.ExecuteCommand(fmt.Sprintf("id %s", sm.server.AppUsername)); err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": sm.server.AppUsername,
 		}).WithError(err).Error("Pocketbase user does not exist during setup verification")
@@ -382,7 +382,7 @@ func (sm *SSHManager) VerifySetupComplete() error {
 	directories := []string{"/opt/pocketbase", "/opt/pocketbase/apps", "/var/log/pocketbase"}
 	for _, dir := range directories {
 		if _, err := sm.ExecuteCommand(fmt.Sprintf("test -d %s", dir)); err != nil {
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"host":      sm.server.Host,
 				"directory": dir,
 			}).WithError(err).Error("Required directory does not exist during setup verification")
@@ -390,21 +390,21 @@ func (sm *SSHManager) VerifySetupComplete() error {
 		}
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":        sm.server.Host,
 		"directories": directories,
 	}).Debug("All required directories exist")
 
 	// Test connection as pocketbase user
 	if err := sm.testUserConnection(); err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": sm.server.AppUsername,
 		}).WithError(err).Error("User connection test failed during setup verification")
 		return err
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host": sm.server.Host,
 		"port": sm.server.Port,
 	}).Info("Server setup verification completed successfully")
@@ -489,7 +489,7 @@ func (sm *SSHManager) findKeyByConnection(username, clientIP string) error {
 	// In a more sophisticated implementation, we could analyze SSH logs or connection metadata
 	copyFirstKeyCmd := fmt.Sprintf(`head -1 /root/.ssh/authorized_keys > /home/%s/.ssh/authorized_keys`, username)
 	if _, err := sm.ExecuteCommand(copyFirstKeyCmd); err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":      sm.server.Host,
 			"username":  username,
 			"client_ip": clientIP,
@@ -498,7 +498,7 @@ func (sm *SSHManager) findKeyByConnection(username, clientIP string) error {
 		return fmt.Errorf("failed to copy first key from root: %w", err)
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":      sm.server.Host,
 		"username":  username,
 		"client_ip": clientIP,
@@ -538,7 +538,7 @@ func (sm *SSHManager) copyAllRootKeys(username string) error {
 	// Copy all keys from root
 	copyAllCmd := fmt.Sprintf("cp /root/.ssh/authorized_keys /home/%s/.ssh/authorized_keys", username)
 	if _, err := sm.ExecuteCommand(copyAllCmd); err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     sm.server.Host,
 			"username": username,
 			"command":  copyAllCmd,
@@ -546,7 +546,7 @@ func (sm *SSHManager) copyAllRootKeys(username string) error {
 		return fmt.Errorf("failed to copy all keys from root: %w", err)
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     sm.server.Host,
 		"username": username,
 	}).Info("Successfully copied all SSH keys from root as fallback method")

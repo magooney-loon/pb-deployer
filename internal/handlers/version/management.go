@@ -46,8 +46,8 @@ type VersionMetadata struct {
 	ID            string                 `json:"id"`
 	VersionNumber string                 `json:"version_number"`
 	Notes         string                 `json:"notes"`
-	FileInfo      map[string]interface{} `json:"file_info,omitempty"`
-	Validation    map[string]interface{} `json:"validation,omitempty"`
+	FileInfo      map[string]any `json:"file_info,omitempty"`
+	Validation    map[string]any `json:"validation,omitempty"`
 }
 
 // listVersions handles the list versions endpoint
@@ -88,7 +88,7 @@ func listVersions(app core.App, e *core.RequestEvent) error {
 		versions[i] = recordToVersionResponse(record, app)
 	}
 
-	return e.JSON(http.StatusOK, map[string]interface{}{
+	return e.JSON(http.StatusOK, map[string]any{
 		"versions": versions,
 		"count":    len(versions),
 	})
@@ -313,7 +313,7 @@ func deleteVersion(app core.App, e *core.RequestEvent) error {
 		"app_id", appID,
 		"version_number", versionNumber)
 
-	return e.JSON(http.StatusOK, map[string]interface{}{
+	return e.JSON(http.StatusOK, map[string]any{
 		"message":    "Version deleted successfully",
 		"version_id": versionID,
 	})
@@ -465,7 +465,7 @@ func uploadVersionZip(app core.App, e *core.RequestEvent) error {
 		"public_total_size", totalPublicSize,
 		"deployment_size", zipBuffer.Len())
 
-	return e.JSON(http.StatusOK, map[string]interface{}{
+	return e.JSON(http.StatusOK, map[string]any{
 		"message":            "Version files uploaded successfully",
 		"version_id":         versionID,
 		"binary_file":        binaryHeader.Filename,
@@ -554,7 +554,7 @@ func listAppVersions(app core.App, e *core.RequestEvent) error {
 		versions[i].AppName = appRecord.GetString("name")
 	}
 
-	return e.JSON(http.StatusOK, map[string]interface{}{
+	return e.JSON(http.StatusOK, map[string]any{
 		"app_id":   appID,
 		"app_name": appRecord.GetString("name"),
 		"versions": versions,
@@ -618,7 +618,7 @@ func validateVersion(app core.App, e *core.RequestEvent) error {
 	// 3. Checking file permissions
 	// 4. Validating structure
 
-	validation := map[string]interface{}{
+	validation := map[string]any{
 		"valid":      true,
 		"checked_at": time.Now().UTC(),
 		"checks":     []string{"zip_structure", "required_files", "permissions"},
@@ -627,7 +627,7 @@ func validateVersion(app core.App, e *core.RequestEvent) error {
 		"message":    "Validation not yet implemented - assuming valid",
 	}
 
-	return e.JSON(http.StatusOK, map[string]interface{}{
+	return e.JSON(http.StatusOK, map[string]any{
 		"version_id": versionID,
 		"validation": validation,
 	})
@@ -660,12 +660,12 @@ func getVersionMetadata(app core.App, e *core.RequestEvent) error {
 	// Add file info if deployment zip exists
 	deploymentZip := record.GetString("deployment_zip")
 	if deploymentZip != "" {
-		metadata.FileInfo = map[string]interface{}{
+		metadata.FileInfo = map[string]any{
 			"filename": deploymentZip,
 			"has_file": true,
 		}
 	} else {
-		metadata.FileInfo = map[string]interface{}{
+		metadata.FileInfo = map[string]any{
 			"has_file": false,
 		}
 	}
@@ -682,7 +682,7 @@ func updateVersionMetadata(app core.App, e *core.RequestEvent) error {
 		})
 	}
 
-	var req map[string]interface{}
+	var req map[string]any
 	if err := json.NewDecoder(e.Request.Body).Decode(&req); err != nil {
 		return e.JSON(http.StatusBadRequest, map[string]string{
 			"error": "Invalid request body",
@@ -712,7 +712,7 @@ func updateVersionMetadata(app core.App, e *core.RequestEvent) error {
 
 	app.Logger().Info("Version metadata updated successfully", "version_id", versionID)
 
-	return e.JSON(http.StatusOK, map[string]interface{}{
+	return e.JSON(http.StatusOK, map[string]any{
 		"message":    "Metadata updated successfully",
 		"version_id": versionID,
 	})

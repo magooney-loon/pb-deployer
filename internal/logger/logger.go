@@ -60,7 +60,7 @@ type Logger struct {
 	output      io.Writer
 	enableColor bool
 	prefix      string
-	fields      map[string]interface{}
+	fields      map[string]any
 }
 
 // LogEntry represents a single log entry with structured data
@@ -68,7 +68,7 @@ type LogEntry struct {
 	logger    *Logger
 	level     LogLevel
 	message   string
-	fields    map[string]interface{}
+	fields    map[string]any
 	timestamp time.Time
 	caller    string
 }
@@ -79,7 +79,7 @@ func New() *Logger {
 		level:       InfoLevel,
 		output:      os.Stdout,
 		enableColor: isTerminal(os.Stdout),
-		fields:      make(map[string]interface{}),
+		fields:      make(map[string]any),
 	}
 }
 
@@ -89,7 +89,7 @@ func NewWithOutput(output io.Writer) *Logger {
 		level:       InfoLevel,
 		output:      output,
 		enableColor: isTerminal(output),
-		fields:      make(map[string]interface{}),
+		fields:      make(map[string]any),
 	}
 }
 
@@ -130,9 +130,9 @@ func (l *Logger) SetPrefix(prefix string) {
 }
 
 // WithField returns a new logger entry with the specified field
-func (l *Logger) WithField(key string, value interface{}) *LogEntry {
+func (l *Logger) WithField(key string, value any) *LogEntry {
 	l.mu.RLock()
-	fields := make(map[string]interface{})
+	fields := make(map[string]any)
 	for k, v := range l.fields {
 		fields[k] = v
 	}
@@ -148,9 +148,9 @@ func (l *Logger) WithField(key string, value interface{}) *LogEntry {
 }
 
 // WithFields returns a new logger entry with multiple fields
-func (l *Logger) WithFields(fields map[string]interface{}) *LogEntry {
+func (l *Logger) WithFields(fields map[string]any) *LogEntry {
 	l.mu.RLock()
-	allFields := make(map[string]interface{})
+	allFields := make(map[string]any)
 	for k, v := range l.fields {
 		allFields[k] = v
 	}
@@ -171,7 +171,7 @@ func (l *Logger) WithFields(fields map[string]interface{}) *LogEntry {
 func (l *Logger) WithContext(ctx context.Context) *LogEntry {
 	entry := &LogEntry{
 		logger:    l,
-		fields:    make(map[string]interface{}),
+		fields:    make(map[string]any),
 		timestamp: time.Now(),
 	}
 
@@ -187,33 +187,33 @@ func (l *Logger) WithContext(ctx context.Context) *LogEntry {
 }
 
 // Debug logs a debug message
-func (l *Logger) Debug(msg string, args ...interface{}) {
+func (l *Logger) Debug(msg string, args ...any) {
 	l.log(DebugLevel, msg, args...)
 }
 
 // Info logs an info message
-func (l *Logger) Info(msg string, args ...interface{}) {
+func (l *Logger) Info(msg string, args ...any) {
 	l.log(InfoLevel, msg, args...)
 }
 
 // Warn logs a warning message
-func (l *Logger) Warn(msg string, args ...interface{}) {
+func (l *Logger) Warn(msg string, args ...any) {
 	l.log(WarnLevel, msg, args...)
 }
 
 // Error logs an error message
-func (l *Logger) Error(msg string, args ...interface{}) {
+func (l *Logger) Error(msg string, args ...any) {
 	l.log(ErrorLevel, msg, args...)
 }
 
 // Fatal logs a fatal message and exits the program
-func (l *Logger) Fatal(msg string, args ...interface{}) {
+func (l *Logger) Fatal(msg string, args ...any) {
 	l.log(FatalLevel, msg, args...)
 	os.Exit(1)
 }
 
 // log is the internal logging method
-func (l *Logger) log(level LogLevel, msg string, args ...interface{}) {
+func (l *Logger) log(level LogLevel, msg string, args ...any) {
 	l.mu.RLock()
 	if level < l.level {
 		l.mu.RUnlock()
@@ -225,7 +225,7 @@ func (l *Logger) log(level LogLevel, msg string, args ...interface{}) {
 		logger:    l,
 		level:     level,
 		message:   fmt.Sprintf(msg, args...),
-		fields:    make(map[string]interface{}),
+		fields:    make(map[string]any),
 		timestamp: time.Now(),
 		caller:    getCaller(),
 	}
@@ -236,13 +236,13 @@ func (l *Logger) log(level LogLevel, msg string, args ...interface{}) {
 // LogEntry methods
 
 // WithField adds a field to this log entry
-func (e *LogEntry) WithField(key string, value interface{}) *LogEntry {
+func (e *LogEntry) WithField(key string, value any) *LogEntry {
 	e.fields[key] = value
 	return e
 }
 
 // WithFields adds multiple fields to this log entry
-func (e *LogEntry) WithFields(fields map[string]interface{}) *LogEntry {
+func (e *LogEntry) WithFields(fields map[string]any) *LogEntry {
 	for k, v := range fields {
 		e.fields[k] = v
 	}
@@ -258,35 +258,35 @@ func (e *LogEntry) WithError(err error) *LogEntry {
 }
 
 // Debug logs this entry as debug level
-func (e *LogEntry) Debug(msg string, args ...interface{}) {
+func (e *LogEntry) Debug(msg string, args ...any) {
 	e.level = DebugLevel
 	e.message = fmt.Sprintf(msg, args...)
 	e.write()
 }
 
 // Info logs this entry as info level
-func (e *LogEntry) Info(msg string, args ...interface{}) {
+func (e *LogEntry) Info(msg string, args ...any) {
 	e.level = InfoLevel
 	e.message = fmt.Sprintf(msg, args...)
 	e.write()
 }
 
 // Warn logs this entry as warning level
-func (e *LogEntry) Warn(msg string, args ...interface{}) {
+func (e *LogEntry) Warn(msg string, args ...any) {
 	e.level = WarnLevel
 	e.message = fmt.Sprintf(msg, args...)
 	e.write()
 }
 
 // Error logs this entry as error level
-func (e *LogEntry) Error(msg string, args ...interface{}) {
+func (e *LogEntry) Error(msg string, args ...any) {
 	e.level = ErrorLevel
 	e.message = fmt.Sprintf(msg, args...)
 	e.write()
 }
 
 // Fatal logs this entry as fatal level and exits
-func (e *LogEntry) Fatal(msg string, args ...interface{}) {
+func (e *LogEntry) Fatal(msg string, args ...any) {
 	e.level = FatalLevel
 	e.message = fmt.Sprintf(msg, args...)
 	e.write()
@@ -294,7 +294,7 @@ func (e *LogEntry) Fatal(msg string, args ...interface{}) {
 }
 
 // log logs this entry at the specified level (internal method)
-func (e *LogEntry) log(level LogLevel, msg string, args ...interface{}) {
+func (e *LogEntry) log(level LogLevel, msg string, args ...any) {
 	e.level = level
 	e.message = fmt.Sprintf(msg, args...)
 	e.write()
@@ -426,12 +426,12 @@ func SetPrefix(prefix string) {
 }
 
 // WithField returns a log entry with a field using the default logger
-func WithField(key string, value interface{}) *LogEntry {
+func WithField(key string, value any) *LogEntry {
 	return defaultLogger.WithField(key, value)
 }
 
 // WithFields returns a log entry with fields using the default logger
-func WithFields(fields map[string]interface{}) *LogEntry {
+func WithFields(fields map[string]any) *LogEntry {
 	return defaultLogger.WithFields(fields)
 }
 
@@ -446,27 +446,27 @@ func WithError(err error) *LogEntry {
 }
 
 // Debug logs a debug message using the default logger
-func Debug(msg string, args ...interface{}) {
+func Debug(msg string, args ...any) {
 	defaultLogger.Debug(msg, args...)
 }
 
 // Info logs an info message using the default logger
-func Info(msg string, args ...interface{}) {
+func Info(msg string, args ...any) {
 	defaultLogger.Info(msg, args...)
 }
 
 // Warn logs a warning message using the default logger
-func Warn(msg string, args ...interface{}) {
+func Warn(msg string, args ...any) {
 	defaultLogger.Warn(msg, args...)
 }
 
 // Error logs an error message using the default logger
-func Error(msg string, args ...interface{}) {
+func Error(msg string, args ...any) {
 	defaultLogger.Error(msg, args...)
 }
 
 // Fatal logs a fatal message using the default logger and exits
-func Fatal(msg string, args ...interface{}) {
+func Fatal(msg string, args ...any) {
 	defaultLogger.Fatal(msg, args...)
 }
 
@@ -494,10 +494,10 @@ func NewFileLogger(filename string, level LogLevel) (*Logger, error) {
 // Performance and progress logging utilities
 
 // Progress logs progress information with percentage
-func Progress(msg string, current, total int, args ...interface{}) {
+func Progress(msg string, current, total int, args ...any) {
 	percentage := float64(current) / float64(total) * 100
 	message := fmt.Sprintf(msg, args...)
-	WithFields(map[string]interface{}{
+	WithFields(map[string]any{
 		"current":    current,
 		"total":      total,
 		"percentage": fmt.Sprintf("%.1f%%", percentage),
@@ -505,7 +505,7 @@ func Progress(msg string, current, total int, args ...interface{}) {
 }
 
 // Success logs a success message with green color emphasis
-func Success(msg string, args ...interface{}) {
+func Success(msg string, args ...any) {
 	if defaultLogger.enableColor {
 		fmt.Fprintf(defaultLogger.output, "%s✓%s ", ColorGreen, ColorReset)
 	}
@@ -513,7 +513,7 @@ func Success(msg string, args ...interface{}) {
 }
 
 // Failure logs a failure message with red color emphasis
-func Failure(msg string, args ...interface{}) {
+func Failure(msg string, args ...any) {
 	if defaultLogger.enableColor {
 		fmt.Fprintf(defaultLogger.output, "%s✗%s ", ColorRed, ColorReset)
 	}
@@ -521,7 +521,7 @@ func Failure(msg string, args ...interface{}) {
 }
 
 // Step logs a step in a process
-func Step(step string, msg string, args ...interface{}) {
+func Step(step string, msg string, args ...any) {
 	WithField("step", step).Info(msg, args...)
 }
 
@@ -544,16 +544,16 @@ func StartTimer(name string) *Timer {
 // Stop stops the timer and logs the duration
 func (t *Timer) Stop() {
 	duration := time.Since(t.startTime)
-	t.logger.WithFields(map[string]interface{}{
+	t.logger.WithFields(map[string]any{
 		"operation": t.name,
 		"duration":  duration.String(),
 	}).Info("Operation completed")
 }
 
 // StopWithMessage stops the timer and logs a custom message with duration
-func (t *Timer) StopWithMessage(msg string, args ...interface{}) {
+func (t *Timer) StopWithMessage(msg string, args ...any) {
 	duration := time.Since(t.startTime)
-	t.logger.WithFields(map[string]interface{}{
+	t.logger.WithFields(map[string]any{
 		"operation": t.name,
 		"duration":  duration.String(),
 	}).Info(msg, args...)

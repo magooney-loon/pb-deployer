@@ -75,7 +75,7 @@ func TroubleshootConnection(server *models.Server, clientIP string) ([]Connectio
 
 	var diagnostics []ConnectionDiagnostic
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":      server.Host,
 		"port":      server.Port,
 		"client_ip": clientIP,
@@ -96,7 +96,7 @@ func TroubleshootConnection(server *models.Server, clientIP string) ([]Connectio
 
 	// If basic connection fails, skip advanced tests
 	if connectionDiag.Status == "error" {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host": server.Host,
 			"port": server.Port,
 		}).Warn("Basic SSH connection failed, skipping advanced diagnostics")
@@ -124,7 +124,7 @@ func TroubleshootConnection(server *models.Server, clientIP string) ([]Connectio
 	// Check known hosts
 	diagnostics = append(diagnostics, isHostInKnownHostsEnhanced(ctx))
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":             server.Host,
 		"port":             server.Port,
 		"client_ip":        clientIP,
@@ -147,7 +147,7 @@ func testNetworkConnectivityWithContext(ctx *DiagnosticContext) ConnectionDiagno
 	start := time.Now()
 	server := ctx.server
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host": server.Host,
 		"port": server.Port,
 	}).Debug("Testing network connectivity")
@@ -185,7 +185,7 @@ func testNetworkConnectivityEnhanced(ctx *DiagnosticContext) ConnectionDiagnosti
 	start := time.Now()
 	server := ctx.server
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host": server.Host,
 		"port": server.Port,
 	}).Debug("Testing enhanced network connectivity")
@@ -229,7 +229,7 @@ func testNetworkConnectivityEnhanced(ctx *DiagnosticContext) ConnectionDiagnosti
 func testSSHService(server *models.Server) ConnectionDiagnostic {
 	start := time.Now()
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host": server.Host,
 		"port": server.Port,
 	}).Debug("Testing SSH service availability")
@@ -299,7 +299,7 @@ func testSSHProtocolNegotiation(ctx *DiagnosticContext) ConnectionDiagnostic {
 	start := time.Now()
 	server := ctx.server
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host": server.Host,
 		"port": server.Port,
 	}).Debug("Testing SSH protocol negotiation")
@@ -356,7 +356,7 @@ func testSSHServiceEnhanced(ctx *DiagnosticContext) ConnectionDiagnostic {
 	start := time.Now()
 	server := ctx.server
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host": server.Host,
 		"port": server.Port,
 	}).Debug("Testing SSH service availability (enhanced)")
@@ -427,7 +427,7 @@ func testActualSSHConnectionPooled(ctx *DiagnosticContext) ConnectionDiagnostic 
 	start := time.Now()
 	server := ctx.server
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     server.Host,
 		"port":     server.Port,
 		"username": server.AppUsername,
@@ -694,7 +694,7 @@ func analyzeHostKey(ctx *DiagnosticContext) ConnectionDiagnostic {
 	start := time.Now()
 	server := ctx.server
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host": server.Host,
 		"port": server.Port,
 	}).Debug("Analyzing host key configuration")
@@ -920,7 +920,7 @@ func isHostInKnownHostsEnhanced(ctx *DiagnosticContext) ConnectionDiagnostic {
 	start := time.Now()
 	server := ctx.server
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host": server.Host,
 		"port": server.Port,
 	}).Debug("Checking known_hosts file (enhanced)")
@@ -1028,7 +1028,7 @@ func testAuthenticationMethodsEnhanced(ctx *DiagnosticContext) ConnectionDiagnos
 	start := time.Now()
 	server := ctx.server
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     server.Host,
 		"username": server.AppUsername,
 	}).Debug("Testing authentication methods (enhanced)")
@@ -1169,7 +1169,7 @@ func DiagnoseAppUserPostSecurity(server *models.Server) ([]ConnectionDiagnostic,
 
 	var diagnostics []ConnectionDiagnostic
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     server.Host,
 		"port":     server.Port,
 		"username": server.AppUsername,
@@ -1181,7 +1181,7 @@ func DiagnoseAppUserPostSecurity(server *models.Server) ([]ConnectionDiagnostic,
 
 	// If basic connection fails, skip other tests that require SSH access
 	if basicConnDiag.Status == "error" {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host": server.Host,
 			"port": server.Port,
 		}).Warn("Basic app user connection failed, skipping advanced post-security diagnostics")
@@ -1195,7 +1195,7 @@ func DiagnoseAppUserPostSecurity(server *models.Server) ([]ConnectionDiagnostic,
 	diagnostics = append(diagnostics, verifyPostSecurityAccessPooled(ctx))
 	diagnostics = append(diagnostics, checkSSHDaemonConfigPooled(ctx))
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":             server.Host,
 		"port":             server.Port,
 		"username":         server.AppUsername,
@@ -1210,7 +1210,7 @@ func diagnoseAppUserConnectionPooled(ctx *DiagnosticContext) ConnectionDiagnosti
 	start := time.Now()
 	server := ctx.server
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     server.Host,
 		"port":     server.Port,
 		"username": server.AppUsername,
@@ -1258,7 +1258,7 @@ func checkAppUserSudoAccessPooled(ctx *DiagnosticContext) ConnectionDiagnostic {
 	start := time.Now()
 	server := ctx.server
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     server.Host,
 		"port":     server.Port,
 		"username": server.AppUsername,
@@ -1318,7 +1318,7 @@ func checkAppUserSSHKeysPooled(ctx *DiagnosticContext) ConnectionDiagnostic {
 	start := time.Now()
 	server := ctx.server
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     server.Host,
 		"port":     server.Port,
 		"username": server.AppUsername,
@@ -1383,7 +1383,7 @@ func verifyPostSecurityAccessPooled(ctx *DiagnosticContext) ConnectionDiagnostic
 	start := time.Now()
 	server := ctx.server
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     server.Host,
 		"port":     server.Port,
 		"username": server.AppUsername,
@@ -1443,7 +1443,7 @@ func checkSSHDaemonConfigPooled(ctx *DiagnosticContext) ConnectionDiagnostic {
 	start := time.Now()
 	server := ctx.server
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     server.Host,
 		"port":     server.Port,
 		"username": server.AppUsername,
@@ -1522,7 +1522,7 @@ func checkSSHDaemonConfigPooled(ctx *DiagnosticContext) ConnectionDiagnostic {
 func FixCommonIssues(server *models.Server) []ConnectionDiagnostic {
 	var results []ConnectionDiagnostic
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host": server.Host,
 		"port": server.Port,
 	}).Info("Attempting to fix common SSH issues")
@@ -1629,7 +1629,7 @@ func GetConnectionSummary(server *models.Server, asRoot bool) (string, error) {
 func DiagnoseConnectionRefused(server *models.Server) ConnectionDiagnostic {
 	start := time.Now()
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host": server.Host,
 		"port": server.Port,
 	}).Info("Diagnosing connection refused error")
@@ -1827,7 +1827,7 @@ func GetPostSecurityTroubleshootingSummary(server *models.Server) (string, error
 func checkFail2banStatus(server *models.Server) ConnectionDiagnostic {
 	start := time.Now()
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host": server.Host,
 		"port": server.Port,
 	}).Debug("Checking fail2ban status for potential IP ban")
@@ -1860,7 +1860,7 @@ func checkFail2banStatus(server *models.Server) ConnectionDiagnostic {
 func checkFail2banBanStatus(conn *PooledConnection, targetIP string) ConnectionDiagnostic {
 	start := time.Now()
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"target_ip": targetIP,
 	}).Debug("Checking fail2ban ban status for IP")
 
@@ -1913,7 +1913,7 @@ func DiagnoseWithContext(server *models.Server, asRoot bool, timeout time.Durati
 	defer cancel()
 	ctx.ctx = ctxWithTimeout
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":    server.Host,
 		"port":    server.Port,
 		"timeout": timeout.String(),
@@ -1951,8 +1951,8 @@ func DiagnoseWithContext(server *models.Server, asRoot bool, timeout time.Durati
 }
 
 // AnalyzeDiagnosticPatterns analyzes diagnostic results to detect patterns
-func AnalyzeDiagnosticPatterns(diagnostics []ConnectionDiagnostic) map[string]interface{} {
-	analysis := map[string]interface{}{
+func AnalyzeDiagnosticPatterns(diagnostics []ConnectionDiagnostic) map[string]any {
+	analysis := map[string]any{
 		"pattern_detected": "unknown",
 		"confidence":       0.0,
 		"auto_fixable":     false,
@@ -2004,8 +2004,8 @@ func AnalyzeDiagnosticPatterns(diagnostics []ConnectionDiagnostic) map[string]in
 }
 
 // GenerateActionableSuggestions creates actionable suggestions from diagnostics
-func GenerateActionableSuggestions(diagnostics []ConnectionDiagnostic, server *models.Server) []map[string]interface{} {
-	var suggestions []map[string]interface{}
+func GenerateActionableSuggestions(diagnostics []ConnectionDiagnostic, server *models.Server) []map[string]any {
+	var suggestions []map[string]any
 	seen := make(map[string]bool)
 
 	for _, diag := range diagnostics {
@@ -2035,7 +2035,7 @@ func GenerateActionableSuggestions(diagnostics []ConnectionDiagnostic, server *m
 			category = "authentication"
 		}
 
-		suggestion := map[string]interface{}{
+		suggestion := map[string]any{
 			"category":    category,
 			"action":      diag.Suggestion,
 			"description": diag.Message,
@@ -2082,31 +2082,31 @@ func DetectCriticalIssues(diagnostics []ConnectionDiagnostic) []string {
 }
 
 // GenerateRecoveryPlan creates a recovery plan based on diagnostics
-func GenerateRecoveryPlan(diagnostics []ConnectionDiagnostic, server *models.Server) map[string]interface{} {
+func GenerateRecoveryPlan(diagnostics []ConnectionDiagnostic, server *models.Server) map[string]any {
 	criticalIssues := DetectCriticalIssues(diagnostics)
 
-	plan := map[string]interface{}{
+	plan := map[string]any{
 		"has_critical_issues": len(criticalIssues) > 0,
 		"critical_issues":     criticalIssues,
 		"estimated_time":      "5-30 minutes",
 		"success_probability": 0.5,
-		"steps":               []map[string]interface{}{},
+		"steps":               []map[string]any{},
 	}
 
-	var steps []map[string]interface{}
+	var steps []map[string]any
 
 	if containsString(criticalIssues, "fail2ban_ip_ban") {
 		plan["success_probability"] = 0.9
 		plan["estimated_time"] = "2-5 minutes"
 
-		steps = append(steps, map[string]interface{}{
+		steps = append(steps, map[string]any{
 			"step":        1,
 			"title":       "Access Server Console",
 			"description": "Use hosting provider's console/VNC to access server",
 			"required":    true,
 		})
 
-		steps = append(steps, map[string]interface{}{
+		steps = append(steps, map[string]any{
 			"step":        2,
 			"title":       "Unban IP Address",
 			"description": "Remove IP ban from fail2ban",
@@ -2116,7 +2116,7 @@ func GenerateRecoveryPlan(diagnostics []ConnectionDiagnostic, server *models.Ser
 	}
 
 	if containsString(criticalIssues, "authentication_failure") {
-		steps = append(steps, map[string]interface{}{
+		steps = append(steps, map[string]any{
 			"step":        1,
 			"title":       "Verify SSH Key",
 			"description": "Check SSH key configuration",

@@ -54,7 +54,7 @@ func DefaultPTYConfig() *PTYConfig {
 type OperationResult struct {
 	Success   bool
 	Message   string
-	Details   map[string]interface{}
+	Details   map[string]any
 	Duration  time.Duration
 	Timestamp time.Time
 }
@@ -186,7 +186,7 @@ type Event struct {
 	Source    string
 	Target    string
 	Message   string
-	Data      map[string]interface{}
+	Data      map[string]any
 	Error     error
 }
 

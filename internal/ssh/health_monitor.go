@@ -133,7 +133,7 @@ func (hm *HealthMonitor) RegisterConnection(server *models.Server, asRoot bool, 
 	hm.connections[key] = conn
 	hm.mutex.Unlock()
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":           server.Host,
 		"port":           server.Port,
 		"as_root":        asRoot,
@@ -149,7 +149,7 @@ func (hm *HealthMonitor) UnregisterConnection(key string) {
 	defer hm.mutex.Unlock()
 
 	if conn, exists := hm.connections[key]; exists {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":           conn.server.Host,
 			"port":           conn.server.Port,
 			"connection_key": key,
@@ -217,7 +217,7 @@ func (hm *HealthMonitor) RecoverConnection(key string) error {
 		return fmt.Errorf("connection %s not found", key)
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":           conn.server.Host,
 		"port":           conn.server.Port,
 		"connection_key": key,
@@ -238,7 +238,7 @@ func (hm *HealthMonitor) RecoverConnection(key string) error {
 	newManager, err := NewSSHManager(conn.server, conn.isRoot)
 	if err != nil {
 		conn.status = StatusFailed
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":           conn.server.Host,
 			"port":           conn.server.Port,
 			"connection_key": key,
@@ -250,7 +250,7 @@ func (hm *HealthMonitor) RecoverConnection(key string) error {
 	if err := newManager.TestConnection(); err != nil {
 		newManager.Close()
 		conn.status = StatusFailed
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":           conn.server.Host,
 			"port":           conn.server.Port,
 			"connection_key": key,
@@ -264,7 +264,7 @@ func (hm *HealthMonitor) RecoverConnection(key string) error {
 	conn.status = StatusHealthy
 	conn.lastHealthCheck = time.Now()
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":           conn.server.Host,
 		"port":           conn.server.Port,
 		"connection_key": key,
@@ -340,7 +340,7 @@ func (hm *HealthMonitor) performHealthCheck(key string, conn *MonitoredConnectio
 		result.Error = fmt.Errorf("SSH manager is nil")
 		conn.status = StatusFailed
 		conn.consecutiveFails++
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":              conn.server.Host,
 			"port":              conn.server.Port,
 			"connection_key":    key,
@@ -374,7 +374,7 @@ func (hm *HealthMonitor) performHealthCheck(key string, conn *MonitoredConnectio
 
 		conn.totalErrors++
 
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":              conn.server.Host,
 			"port":              conn.server.Port,
 			"connection_key":    key,
@@ -399,7 +399,7 @@ func (hm *HealthMonitor) performHealthCheck(key string, conn *MonitoredConnectio
 		}
 
 		if wasUnhealthy {
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"host":           conn.server.Host,
 				"port":           conn.server.Port,
 				"connection_key": key,
@@ -467,11 +467,11 @@ func (mc *MonitoredConnection) GetManager() *SSHManager {
 }
 
 // GetStats returns connection statistics
-func (mc *MonitoredConnection) GetStats() map[string]interface{} {
+func (mc *MonitoredConnection) GetStats() map[string]any {
 	mc.mutex.RLock()
 	defer mc.mutex.RUnlock()
 
-	return map[string]interface{}{
+	return map[string]any{
 		"status":            mc.status,
 		"consecutive_fails": mc.consecutiveFails,
 		"total_connections": mc.totalConnections,
@@ -549,7 +549,7 @@ func DefaultHealthCheckConfig() *HealthCheckConfig {
 
 // PerformQuickHealthCheck performs a quick health check without full monitoring overhead
 func PerformQuickHealthCheck(server *models.Server, asRoot bool) (*HealthCheckResult, error) {
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":    server.Host,
 		"port":    server.Port,
 		"as_root": asRoot,
@@ -560,7 +560,7 @@ func PerformQuickHealthCheck(server *models.Server, asRoot bool) (*HealthCheckRe
 	// Try to create a temporary connection
 	manager, err := NewSSHManager(server, asRoot)
 	if err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":    server.Host,
 			"port":    server.Port,
 			"as_root": asRoot,
@@ -585,7 +585,7 @@ func PerformQuickHealthCheck(server *models.Server, asRoot bool) (*HealthCheckRe
 	if testErr != nil {
 		result.Status = StatusUnhealthy
 		result.Error = testErr
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":          server.Host,
 			"port":          server.Port,
 			"as_root":       asRoot,
@@ -593,7 +593,7 @@ func PerformQuickHealthCheck(server *models.Server, asRoot bool) (*HealthCheckRe
 		}).WithError(testErr).Debug("Quick health check failed")
 	} else {
 		result.Status = StatusHealthy
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":          server.Host,
 			"port":          server.Port,
 			"as_root":       asRoot,

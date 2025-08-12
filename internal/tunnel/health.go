@@ -27,7 +27,7 @@ type HealthResult struct {
 	Error        error
 	Timestamp    time.Time
 	CheckType    string
-	Details      map[string]interface{}
+	Details      map[string]any
 }
 
 // NewHealthChecker creates a new health checker for an SSH client
@@ -61,7 +61,7 @@ func (hc *HealthChecker) CheckHealth(ctx context.Context) HealthResult {
 	result := HealthResult{
 		Timestamp: start,
 		CheckType: "basic",
-		Details:   make(map[string]interface{}),
+		Details:   make(map[string]any),
 	}
 
 	// Check if client is connected
@@ -70,7 +70,7 @@ func (hc *HealthChecker) CheckHealth(ctx context.Context) HealthResult {
 		result.Error = ErrClientNotConnected
 		result.ResponseTime = time.Since(start)
 
-		span.Event("health_check_failed", map[string]interface{}{
+		span.Event("health_check_failed", map[string]any{
 			"reason":        "not_connected",
 			"response_time": result.ResponseTime,
 		})
@@ -88,7 +88,7 @@ func (hc *HealthChecker) CheckHealth(ctx context.Context) HealthResult {
 		result.Error = err
 		result.Details["error"] = err.Error()
 
-		span.Event("health_check_failed", map[string]interface{}{
+		span.Event("health_check_failed", map[string]any{
 			"reason":        "command_failed",
 			"error":         err.Error(),
 			"response_time": result.ResponseTime,
@@ -98,7 +98,7 @@ func (hc *HealthChecker) CheckHealth(ctx context.Context) HealthResult {
 		result.Error = fmt.Errorf("unexpected health check response: %s", output)
 		result.Details["unexpected_output"] = output
 
-		span.Event("health_check_failed", map[string]interface{}{
+		span.Event("health_check_failed", map[string]any{
 			"reason":        "unexpected_output",
 			"output":        output,
 			"response_time": result.ResponseTime,
@@ -107,7 +107,7 @@ func (hc *HealthChecker) CheckHealth(ctx context.Context) HealthResult {
 		result.Healthy = true
 		result.Details["output"] = output
 
-		span.Event("health_check_passed", map[string]interface{}{
+		span.Event("health_check_passed", map[string]any{
 			"response_time": result.ResponseTime,
 		})
 	}
@@ -163,7 +163,7 @@ func (hc *HealthChecker) GetHealthReport(ctx context.Context) HealthReport {
 	currentResult := hc.CheckHealth(ctx)
 
 	// Get connection info if available
-	var connectionInfo map[string]interface{}
+	var connectionInfo map[string]any
 	if clientImpl, ok := hc.client.(*sshClient); ok {
 		connectionInfo = clientImpl.GetConnectionInfo()
 	}
@@ -198,7 +198,7 @@ func (hc *HealthChecker) GetHealthReport(ctx context.Context) HealthReport {
 		}
 	}
 
-	span.Event("health_report_generated", map[string]interface{}{
+	span.Event("health_report_generated", map[string]any{
 		"healthy":           currentResult.Healthy,
 		"response_time":     currentResult.ResponseTime,
 		"consecutive_fails": consecutiveFails,
@@ -221,7 +221,7 @@ func (hc *HealthChecker) StartMonitoring(ctx context.Context) {
 	span := hc.tracer.TraceConnection(ctx, "health_monitoring_start", 0, "")
 	defer span.End()
 
-	span.Event("monitoring_started", map[string]interface{}{
+	span.Event("monitoring_started", map[string]any{
 		"interval": hc.config.Interval,
 		"timeout":  hc.config.Timeout,
 	})
@@ -252,7 +252,7 @@ func (hc *HealthChecker) RecoverConnection(ctx context.Context) error {
 
 	// Close existing connection
 	if err := hc.client.Close(); err != nil {
-		span.Event("close_failed", map[string]interface{}{
+		span.Event("close_failed", map[string]any{
 			"error": err.Error(),
 		})
 	}
@@ -271,7 +271,7 @@ func (hc *HealthChecker) RecoverConnection(ctx context.Context) error {
 		return err
 	}
 
-	span.Event("recovery_completed", map[string]interface{}{
+	span.Event("recovery_completed", map[string]any{
 		"response_time": result.ResponseTime,
 	})
 
@@ -324,7 +324,7 @@ func (hc *HealthChecker) handleUnhealthyConnection(ctx context.Context, result H
 	span := hc.tracer.TraceConnection(ctx, "unhealthy_connection", 0, "")
 	defer span.End()
 
-	span.Event("unhealthy_detected", map[string]interface{}{
+	span.Event("unhealthy_detected", map[string]any{
 		"consecutive_fails": consecutiveFails,
 		"error":             hc.formatError(result.Error),
 		"response_time":     result.ResponseTime,
@@ -332,18 +332,18 @@ func (hc *HealthChecker) handleUnhealthyConnection(ctx context.Context, result H
 
 	// Attempt recovery if enabled and threshold reached
 	if enableAutoRecovery && consecutiveFails >= maxFails {
-		span.Event("recovery_triggered", map[string]interface{}{
+		span.Event("recovery_triggered", map[string]any{
 			"max_retries": recoveryRetries,
 		})
 
 		for attempt := 1; attempt <= recoveryRetries; attempt++ {
 			if err := hc.RecoverConnection(ctx); err == nil {
-				span.Event("recovery_successful", map[string]interface{}{
+				span.Event("recovery_successful", map[string]any{
 					"attempt": attempt,
 				})
 				return
 			} else {
-				span.Event("recovery_failed", map[string]interface{}{
+				span.Event("recovery_failed", map[string]any{
 					"attempt": attempt,
 					"error":   err.Error(),
 				})
@@ -472,7 +472,7 @@ func (phm *PoolHealthMonitor) CheckAllHealth(ctx context.Context) HealthReport {
 		report.Connections = append(report.Connections, connHealth)
 	}
 
-	span.Event("pool_health_checked", map[string]interface{}{
+	span.Event("pool_health_checked", map[string]any{
 		"total_connections":   report.TotalConnections,
 		"healthy_connections": report.HealthyConnections,
 		"failed_connections":  report.FailedConnections,

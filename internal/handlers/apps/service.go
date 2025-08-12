@@ -351,7 +351,7 @@ func deployApp(app core.App, e *core.RequestEvent) error {
 		}
 	}()
 
-	return e.JSON(http.StatusAccepted, map[string]interface{}{
+	return e.JSON(http.StatusAccepted, map[string]any{
 		"message":         "Deployment started",
 		"deployment_id":   deploymentRecord.Id,
 		"app_id":          appID,
@@ -479,7 +479,7 @@ func rollbackApp(app core.App, e *core.RequestEvent) error {
 		}
 	}()
 
-	return e.JSON(http.StatusAccepted, map[string]interface{}{
+	return e.JSON(http.StatusAccepted, map[string]any{
 		"message":       "Rollback started",
 		"deployment_id": deploymentRecord.Id,
 		"app_id":        appID,
@@ -498,7 +498,7 @@ func handleDeploymentWebSocket(app core.App, e *core.RequestEvent) error {
 
 	// For now, return a simple response since we're using PocketBase realtime
 	// The actual WebSocket connection is handled by PocketBase's realtime system
-	return e.JSON(http.StatusOK, map[string]interface{}{
+	return e.JSON(http.StatusOK, map[string]any{
 		"message":      "Deployment progress available via PocketBase realtime",
 		"subscription": fmt.Sprintf("app_deployment_%s", appID),
 	})

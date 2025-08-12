@@ -334,7 +334,7 @@ func (t *ServiceTracerImpl) TraceHealthEndpoint(ctx context.Context, endpoint st
 // Helper functions for SSH tracing
 
 // RecordSSHMetrics records SSH operation metrics in a span
-func RecordSSHMetrics(span Span, metrics map[string]interface{}) {
+func RecordSSHMetrics(span Span, metrics map[string]any) {
 	for key, value := range metrics {
 		span.SetField(fmt.Sprintf("metrics.%s", key), value)
 	}

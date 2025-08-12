@@ -43,11 +43,11 @@ func (cm *ConnectionMetadata) SetState(state tunnel.ConnectionState) {
 }
 
 // GetStats returns a copy of the metadata stats
-func (cm *ConnectionMetadata) GetStats() map[string]interface{} {
+func (cm *ConnectionMetadata) GetStats() map[string]any {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
 
-	return map[string]interface{}{
+	return map[string]any{
 		"key":           cm.Key,
 		"created_at":    cm.CreatedAt,
 		"last_used":     cm.LastUsed,
@@ -105,13 +105,13 @@ func (cs *ConnectionStats) IncrementCommands(success bool) {
 }
 
 // GetSnapshot returns a snapshot of current stats
-func (cs *ConnectionStats) GetSnapshot() map[string]interface{} {
+func (cs *ConnectionStats) GetSnapshot() map[string]any {
 	cs.mu.RLock()
 	defer cs.mu.RUnlock()
 
 	uptime := time.Since(cs.UptimeStart)
 
-	return map[string]interface{}{
+	return map[string]any{
 		"total_connections":     cs.TotalConnections,
 		"active_connections":    cs.ActiveConnections,
 		"failed_connections":    cs.FailedConnections,
@@ -139,7 +139,7 @@ type Event struct {
 	PoolKey   string
 	ConnKey   string
 	Message   string
-	Data      map[string]interface{}
+	Data      map[string]any
 	Error     error
 }
 

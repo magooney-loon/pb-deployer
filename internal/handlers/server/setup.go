@@ -116,7 +116,7 @@ func runServerSetup(app core.App, e *core.RequestEvent) error {
 		app.Logger().Info("Server setup completed successfully", "server_id", serverID)
 	}()
 
-	return e.JSON(http.StatusOK, map[string]interface{}{
+	return e.JSON(http.StatusOK, map[string]any{
 		"message":   "Server setup started",
 		"server_id": serverID,
 	})
@@ -133,7 +133,7 @@ func handleSetupWebSocket(app core.App, e *core.RequestEvent) error {
 
 	// For now, return a simple response since we're using PocketBase realtime
 	// The actual WebSocket connection is handled by PocketBase's realtime system
-	return e.JSON(http.StatusOK, map[string]interface{}{
+	return e.JSON(http.StatusOK, map[string]any{
 		"message":      "Setup progress available via PocketBase realtime",
 		"subscription": fmt.Sprintf("server_setup_%s", serverID),
 	})

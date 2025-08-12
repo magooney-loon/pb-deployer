@@ -21,7 +21,7 @@ type SSHOperationLogger struct {
 	logger    *SSHLogger
 	operation string
 	startTime time.Time
-	fields    map[string]interface{}
+	fields    map[string]any
 }
 
 // SSHProgressLogger handles progress tracking for long-running SSH operations
@@ -60,7 +60,7 @@ func WithServer(server *models.Server, asRoot bool) *SSHLogger {
 
 // ConnectStart logs the beginning of an SSH connection attempt
 func (s *SSHLogger) ConnectStart() {
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":     s.server.Host,
 		"port":     s.server.Port,
 		"username": s.username,
@@ -71,7 +71,7 @@ func (s *SSHLogger) ConnectStart() {
 
 // ConnectSuccess logs successful SSH connection
 func (s *SSHLogger) ConnectSuccess(responseTime time.Duration, authMethod string) {
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":          s.server.Host,
 		"port":          s.server.Port,
 		"username":      s.username,
@@ -84,7 +84,7 @@ func (s *SSHLogger) ConnectSuccess(responseTime time.Duration, authMethod string
 
 // ConnectFailed logs failed SSH connection with detailed error context
 func (s *SSHLogger) ConnectFailed(err error, attemptNum int, maxAttempts int) {
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":         s.server.Host,
 		"port":         s.server.Port,
 		"username":     s.username,
@@ -97,7 +97,7 @@ func (s *SSHLogger) ConnectFailed(err error, attemptNum int, maxAttempts int) {
 
 // ConnectRetry logs connection retry attempts
 func (s *SSHLogger) ConnectRetry(attemptNum int, maxAttempts int, delay time.Duration) {
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":         s.server.Host,
 		"username":     s.username,
 		"attempt":      attemptNum,
@@ -115,7 +115,7 @@ func (s *SSHLogger) CommandStart(command string) {
 		displayCmd = displayCmd[:97] + "..."
 	}
 
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":     s.server.Host,
 		"username": s.username,
 		"command":  displayCmd,
@@ -130,7 +130,7 @@ func (s *SSHLogger) CommandSuccess(command string, duration time.Duration, outpu
 		displayCmd = displayCmd[:97] + "..."
 	}
 
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":         s.server.Host,
 		"username":     s.username,
 		"command":      displayCmd,
@@ -151,7 +151,7 @@ func (s *SSHLogger) CommandFailed(command string, err error, output string) {
 		displayOutput = displayOutput[:197] + "..."
 	}
 
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":     s.server.Host,
 		"username": s.username,
 		"command":  displayCmd,
@@ -168,7 +168,7 @@ func (s *SSHLogger) ServiceAction(action string, serviceName string, success boo
 		level = ErrorLevel
 	}
 
-	entry := s.WithFields(map[string]interface{}{
+	entry := s.WithFields(map[string]any{
 		"host":            s.server.Host,
 		"username":        s.username,
 		"service":         serviceName,
@@ -203,7 +203,7 @@ func (s *SSHLogger) HealthCheck(healthy bool, responseTime time.Duration, consec
 		}
 	}
 
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":                 s.server.Host,
 		"username":             s.username,
 		"status":               status,
@@ -214,7 +214,7 @@ func (s *SSHLogger) HealthCheck(healthy bool, responseTime time.Duration, consec
 
 // PoolConnection logs connection pool operations
 func (s *SSHLogger) PoolConnection(action string, poolSize int, healthy int, unhealthy int) {
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":                  s.server.Host,
 		"username":              s.username,
 		"action":                action,
@@ -235,7 +235,7 @@ func (s *SSHLogger) SecurityStep(step string, status string, message string, pro
 		level = WarnLevel
 	}
 
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":         s.server.Host,
 		"step":         step,
 		"status":       status,
@@ -253,7 +253,7 @@ func (s *SSHLogger) SetupStep(step string, status string, message string, progre
 		level = WarnLevel
 	}
 
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":         s.server.Host,
 		"step":         step,
 		"status":       status,
@@ -264,7 +264,7 @@ func (s *SSHLogger) SetupStep(step string, status string, message string, progre
 
 // HostKeyAccepted logs when a host key is accepted and stored
 func (s *SSHLogger) HostKeyAccepted(hostname string, keyType string, fingerprint string) {
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"hostname":    hostname,
 		"key_type":    keyType,
 		"fingerprint": fingerprint,
@@ -279,7 +279,7 @@ func (s *SSHLogger) AuthMethodAttempt(method string, success bool, details strin
 		level = WarnLevel
 	}
 
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":        s.server.Host,
 		"username":    s.username,
 		"auth_method": method,
@@ -292,7 +292,7 @@ func (s *SSHLogger) AuthMethodAttempt(method string, success bool, details strin
 
 // StartOperation begins tracking an SSH operation
 func (s *SSHLogger) StartOperation(operation string) *SSHOperationLogger {
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":      s.server.Host,
 		"username":  s.username,
 		"operation": operation,
@@ -302,20 +302,20 @@ func (s *SSHLogger) StartOperation(operation string) *SSHOperationLogger {
 		logger:    s,
 		operation: operation,
 		startTime: time.Now(),
-		fields:    make(map[string]interface{}),
+		fields:    make(map[string]any),
 	}
 }
 
 // SSHOperationLogger methods
 
 // AddField adds a field to the operation context
-func (o *SSHOperationLogger) AddField(key string, value interface{}) *SSHOperationLogger {
+func (o *SSHOperationLogger) AddField(key string, value any) *SSHOperationLogger {
 	o.fields[key] = value
 	return o
 }
 
 // AddFields adds multiple fields to the operation context
-func (o *SSHOperationLogger) AddFields(fields map[string]interface{}) *SSHOperationLogger {
+func (o *SSHOperationLogger) AddFields(fields map[string]any) *SSHOperationLogger {
 	for k, v := range fields {
 		o.fields[k] = v
 	}
@@ -324,7 +324,7 @@ func (o *SSHOperationLogger) AddFields(fields map[string]interface{}) *SSHOperat
 
 // Progress logs progress during the operation
 func (o *SSHOperationLogger) Progress(message string, progressPct int) {
-	allFields := map[string]interface{}{
+	allFields := map[string]any{
 		"host":         o.logger.server.Host,
 		"username":     o.logger.username,
 		"operation":    o.operation,
@@ -344,7 +344,7 @@ func (o *SSHOperationLogger) Progress(message string, progressPct int) {
 func (o *SSHOperationLogger) Success(message string) {
 	duration := time.Since(o.startTime)
 
-	allFields := map[string]interface{}{
+	allFields := map[string]any{
 		"host":      o.logger.server.Host,
 		"username":  o.logger.username,
 		"operation": o.operation,
@@ -364,7 +364,7 @@ func (o *SSHOperationLogger) Success(message string) {
 func (o *SSHOperationLogger) Failure(err error, message string) {
 	duration := time.Since(o.startTime)
 
-	allFields := map[string]interface{}{
+	allFields := map[string]any{
 		"host":      o.logger.server.Host,
 		"username":  o.logger.username,
 		"operation": o.operation,
@@ -384,7 +384,7 @@ func (o *SSHOperationLogger) Failure(err error, message string) {
 
 // StartProgress begins tracking progress for a multi-step operation
 func (s *SSHLogger) StartProgress(operation string, totalSteps int) *SSHProgressLogger {
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":        s.server.Host,
 		"username":    s.username,
 		"operation":   operation,
@@ -407,7 +407,7 @@ func (p *SSHProgressLogger) NextStep(stepName string, message string) {
 	p.currentStep++
 	progressPct := (p.currentStep * 100) / p.totalSteps
 
-	p.logger.WithFields(map[string]interface{}{
+	p.logger.WithFields(map[string]any{
 		"host":         p.logger.server.Host,
 		"username":     p.logger.username,
 		"operation":    p.operation,
@@ -426,7 +426,7 @@ func (p *SSHProgressLogger) StepProgress(message string, subProgressPct int) {
 	stepProgress := subProgressPct / p.totalSteps
 	totalProgress := baseProgress + stepProgress
 
-	p.logger.WithFields(map[string]interface{}{
+	p.logger.WithFields(map[string]any{
 		"host":           p.logger.server.Host,
 		"username":       p.logger.username,
 		"operation":      p.operation,
@@ -440,7 +440,7 @@ func (p *SSHProgressLogger) StepProgress(message string, subProgressPct int) {
 
 // StepFailed logs a step failure
 func (p *SSHProgressLogger) StepFailed(stepName string, err error, message string) {
-	p.logger.WithFields(map[string]interface{}{
+	p.logger.WithFields(map[string]any{
 		"host":        p.logger.server.Host,
 		"username":    p.logger.username,
 		"operation":   p.operation,
@@ -460,7 +460,7 @@ func (p *SSHProgressLogger) Complete(success bool, message string) {
 		level = ErrorLevel
 	}
 
-	p.logger.WithFields(map[string]interface{}{
+	p.logger.WithFields(map[string]any{
 		"host":            p.logger.server.Host,
 		"username":        p.logger.username,
 		"operation":       p.operation,
@@ -480,7 +480,7 @@ func (s *SSHLogger) FileTransfer(operation string, localPath string, remotePath 
 		level = ErrorLevel
 	}
 
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":        s.server.Host,
 		"username":    s.username,
 		"operation":   operation,
@@ -504,7 +504,7 @@ func (s *SSHLogger) ServiceOperation(action string, serviceName string, result s
 		level = WarnLevel
 	}
 
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":            s.server.Host,
 		"username":        s.username,
 		"service":         serviceName,
@@ -523,7 +523,7 @@ func (s *SSHLogger) UserOperation(action string, targetUser string, success bool
 		level = ErrorLevel
 	}
 
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":        s.server.Host,
 		"username":    s.username,
 		"action":      action,
@@ -540,7 +540,7 @@ func (s *SSHLogger) DirectoryOperation(action string, path string, permissions s
 		level = ErrorLevel
 	}
 
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":        s.server.Host,
 		"username":    s.username,
 		"action":      action,
@@ -558,7 +558,7 @@ func (s *SSHLogger) SecurityOperation(operation string, component string, succes
 		level = ErrorLevel
 	}
 
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":      s.server.Host,
 		"username":  s.username,
 		"operation": operation,
@@ -572,7 +572,7 @@ func (s *SSHLogger) SecurityOperation(operation string, component string, succes
 
 // TroubleshootStart logs the beginning of troubleshooting
 func (s *SSHLogger) TroubleshootStart(diagnosticType string) {
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":            s.server.Host,
 		"username":        s.username,
 		"diagnostic_type": diagnosticType,
@@ -593,7 +593,7 @@ func (s *SSHLogger) DiagnosticStep(step string, status string, message string, s
 		level = InfoLevel
 	}
 
-	fields := map[string]interface{}{
+	fields := map[string]any{
 		"host":      s.server.Host,
 		"username":  s.username,
 		"diag_step": step,
@@ -614,7 +614,7 @@ func (s *SSHLogger) AutoFix(issue string, fix string, success bool, details stri
 		level = ErrorLevel
 	}
 
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":     s.server.Host,
 		"username": s.username,
 		"issue":    issue,
@@ -628,7 +628,7 @@ func (s *SSHLogger) AutoFix(issue string, fix string, success bool, details stri
 
 // PoolHealthMetrics logs connection pool health metrics
 func (s *SSHLogger) PoolHealthMetrics(totalConns int64, healthyConns int64, avgResponseTime time.Duration, errorRate float64) {
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"total_connections":     totalConns,
 		"healthy_connections":   healthyConns,
 		"unhealthy_connections": totalConns - healthyConns,
@@ -647,7 +647,7 @@ func (s *SSHLogger) ConnectionRecovery(attempt int, maxAttempts int, success boo
 		}
 	}
 
-	fields := map[string]interface{}{
+	fields := map[string]any{
 		"host":         s.server.Host,
 		"username":     s.username,
 		"attempt":      attempt,
@@ -667,7 +667,7 @@ func (s *SSHLogger) ConnectionRecovery(attempt int, maxAttempts int, success boo
 
 // DeploymentStart logs the start of a deployment operation
 func (s *SSHLogger) DeploymentStart(appName string, version string, isFirstDeploy bool) {
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":            s.server.Host,
 		"username":        s.username,
 		"app":             appName,
@@ -679,7 +679,7 @@ func (s *SSHLogger) DeploymentStart(appName string, version string, isFirstDeplo
 
 // DeploymentStep logs deployment steps
 func (s *SSHLogger) DeploymentStep(appName string, step string, message string, progressPct int) {
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":         s.server.Host,
 		"username":     s.username,
 		"app":          appName,
@@ -696,7 +696,7 @@ func (s *SSHLogger) DeploymentComplete(appName string, version string, success b
 		level = ErrorLevel
 	}
 
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":         s.server.Host,
 		"username":     s.username,
 		"app":          appName,
@@ -717,7 +717,7 @@ func WithSSHContext(server *models.Server, asRoot bool) *LogEntry {
 		username = server.RootUsername
 	}
 
-	return WithFields(map[string]interface{}{
+	return WithFields(map[string]any{
 		"ssh_host":     server.Host,
 		"ssh_port":     server.Port,
 		"ssh_username": username,
@@ -729,7 +729,7 @@ func WithSSHContext(server *models.Server, asRoot bool) *LogEntry {
 
 // LogSSHSetupStep logs setup steps in the format expected by the SSH package
 func LogSSHSetupStep(server *models.Server, step string, status string, message string, progressPct int, details string) {
-	fields := map[string]interface{}{
+	fields := map[string]any{
 		"server":       server.Name,
 		"host":         server.Host,
 		"step":         step,
@@ -759,7 +759,7 @@ func LogSSHSetupStep(server *models.Server, step string, status string, message 
 
 // LogSSHSecurityStep logs security steps in the format expected by the SSH package
 func LogSSHSecurityStep(server *models.Server, step string, status string, message string, progressPct int, details string) {
-	fields := map[string]interface{}{
+	fields := map[string]any{
 		"server":       server.Name,
 		"host":         server.Host,
 		"step":         step,
@@ -850,7 +850,7 @@ func FormatConnectionError(err error, server *models.Server, asRoot bool) string
 
 // ConnectionMetrics logs detailed connection performance metrics
 func (s *SSHLogger) ConnectionMetrics(connectTime time.Duration, firstCommandTime time.Duration, throughput float64) {
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":            s.server.Host,
 		"username":        s.username,
 		"connect_time":    connectTime.String(),
@@ -862,7 +862,7 @@ func (s *SSHLogger) ConnectionMetrics(connectTime time.Duration, firstCommandTim
 
 // CommandMetrics logs command execution metrics
 func (s *SSHLogger) CommandMetrics(commandType string, count int, avgDuration time.Duration, successRate float64) {
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":         s.server.Host,
 		"username":     s.username,
 		"command_type": commandType,
@@ -873,13 +873,13 @@ func (s *SSHLogger) CommandMetrics(commandType string, count int, avgDuration ti
 }
 
 // SecurityAudit logs security audit results
-func (s *SSHLogger) SecurityAudit(auditType string, findings map[string]interface{}, passed bool) {
+func (s *SSHLogger) SecurityAudit(auditType string, findings map[string]any, passed bool) {
 	level := InfoLevel
 	if !passed {
 		level = WarnLevel
 	}
 
-	s.WithFields(map[string]interface{}{
+	s.WithFields(map[string]any{
 		"host":       s.server.Host,
 		"audit_type": auditType,
 		"passed":     passed,
@@ -896,7 +896,7 @@ func LogSSHConnect(server *models.Server, asRoot bool, status string, duration t
 		username = server.RootUsername
 	}
 
-	fields := map[string]interface{}{
+	fields := map[string]any{
 		"host":     server.Host,
 		"port":     server.Port,
 		"username": username,
@@ -938,7 +938,7 @@ func LogSSHCommand(server *models.Server, asRoot bool, command string, success b
 		displayCmd = displayCmd[:97] + "..."
 	}
 
-	fields := map[string]interface{}{
+	fields := map[string]any{
 		"host":     server.Host,
 		"username": username,
 		"command":  displayCmd,
@@ -968,7 +968,7 @@ func LogSSHOperation(server *models.Server, asRoot bool, operation string, statu
 		username = server.RootUsername
 	}
 
-	fields := map[string]interface{}{
+	fields := map[string]any{
 		"host":      server.Host,
 		"username":  username,
 		"operation": operation,
@@ -1006,7 +1006,7 @@ func LogSSHError(server *models.Server, asRoot bool, operation string, err error
 		username = server.RootUsername
 	}
 
-	WithFields(map[string]interface{}{
+	WithFields(map[string]any{
 		"host":      server.Host,
 		"username":  username,
 		"operation": operation,
@@ -1020,7 +1020,7 @@ func LogSSHFileTransfer(server *models.Server, asRoot bool, operation string, lo
 		username = server.RootUsername
 	}
 
-	fields := map[string]interface{}{
+	fields := map[string]any{
 		"host":        server.Host,
 		"username":    username,
 		"operation":   operation,
@@ -1052,7 +1052,7 @@ func LogSSHService(server *models.Server, asRoot bool, action string, serviceNam
 		username = server.RootUsername
 	}
 
-	fields := map[string]interface{}{
+	fields := map[string]any{
 		"host":            server.Host,
 		"username":        username,
 		"service":         serviceName,
@@ -1091,7 +1091,7 @@ func LogSSHHealth(server *models.Server, asRoot bool, healthy bool, responseTime
 		}
 	}
 
-	WithFields(map[string]interface{}{
+	WithFields(map[string]any{
 		"host":                 server.Host,
 		"username":             username,
 		"status":               status,
@@ -1102,7 +1102,7 @@ func LogSSHHealth(server *models.Server, asRoot bool, healthy bool, responseTime
 
 // LogSSHDeployment logs deployment operations using the default logger
 func LogSSHDeployment(server *models.Server, appName string, version string, step string, status string, progressPct int, duration time.Duration) {
-	fields := map[string]interface{}{
+	fields := map[string]any{
 		"host":         server.Host,
 		"app":          appName,
 		"version":      version,
@@ -1138,7 +1138,7 @@ func LogSSHSecurity(server *models.Server, asRoot bool, operation string, compon
 		username = server.RootUsername
 	}
 
-	fields := map[string]interface{}{
+	fields := map[string]any{
 		"host":      server.Host,
 		"username":  username,
 		"operation": operation,
@@ -1165,7 +1165,7 @@ func LogSSHTroubleshoot(server *models.Server, asRoot bool, step string, status 
 		username = server.RootUsername
 	}
 
-	fields := map[string]interface{}{
+	fields := map[string]any{
 		"host":      server.Host,
 		"username":  username,
 		"diag_step": step,

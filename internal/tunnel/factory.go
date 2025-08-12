@@ -31,7 +31,7 @@ func (f *connectionFactory) Create(config ConnectionConfig) (SSHClient, error) {
 	span := f.tracer.TraceConnection(context.Background(), config.Host, config.Port, config.Username)
 	defer span.End()
 
-	span.Event("factory_create_start", map[string]interface{}{
+	span.Event("factory_create_start", map[string]any{
 		"host":      config.Host,
 		"port":      config.Port,
 		"user":      config.Username,
@@ -49,7 +49,7 @@ func (f *connectionFactory) Create(config ConnectionConfig) (SSHClient, error) {
 	// Set defaults for missing values
 	config = f.setDefaults(config)
 
-	span.Event("defaults_applied", map[string]interface{}{
+	span.Event("defaults_applied", map[string]any{
 		"timeout":       config.Timeout.String(),
 		"max_retries":   config.MaxRetries,
 		"host_key_mode": int(config.HostKeyMode),
@@ -180,14 +180,14 @@ func (f *connectionFactory) CreateWithRetry(config ConnectionConfig, strategy Re
 	var lastErr error
 
 	for attempt := 1; attempt <= strategy.MaxAttempts; attempt++ {
-		span.Event("retry_attempt", map[string]interface{}{
+		span.Event("retry_attempt", map[string]any{
 			"attempt":      attempt,
 			"max_attempts": strategy.MaxAttempts,
 		})
 
 		client, err := f.Create(config)
 		if err == nil {
-			span.Event("retry_success", map[string]interface{}{
+			span.Event("retry_success", map[string]any{
 				"attempt": attempt,
 			})
 			return client, nil
@@ -203,7 +203,7 @@ func (f *connectionFactory) CreateWithRetry(config ConnectionConfig, strategy Re
 		// Don't sleep on the last attempt
 		if attempt < strategy.MaxAttempts {
 			delay := strategy.CalculateBackoff(attempt)
-			span.Event("retry_delay", map[string]interface{}{
+			span.Event("retry_delay", map[string]any{
 				"delay": delay.String(),
 				"error": err.Error(),
 			})
@@ -352,7 +352,7 @@ func (f *connectionFactory) DetectAndCreateConfig(host string, port int, usernam
 	// Try to detect authentication method
 	authMethod, err := f.authHandler.DetectAuthMethod(username)
 	if err != nil {
-		span.Event("auth_detection_failed", map[string]interface{}{
+		span.Event("auth_detection_failed", map[string]any{
 			"error": err.Error(),
 		})
 		// Default to key auth
@@ -361,7 +361,7 @@ func (f *connectionFactory) DetectAndCreateConfig(host string, port int, usernam
 
 	config.AuthMethod = authMethod
 
-	span.Event("config_detected", map[string]interface{}{
+	span.Event("config_detected", map[string]any{
 		"auth_type": authMethod.Type,
 	})
 

@@ -44,7 +44,7 @@ type ConnectionTestResult struct {
 
 // TestConnection tests SSH connectivity for a server
 func (s *SSHService) TestConnection(server *models.Server, asRoot bool) *ConnectionTestResult {
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":    server.Host,
 		"port":    server.Port,
 		"as_root": asRoot,
@@ -67,7 +67,7 @@ func (s *SSHService) TestConnectionWithContext(ctx context.Context, server *mode
 	// For security-locked servers attempting root connection, return expected failure
 	if server.SecurityLocked && asRoot {
 		result.Error = "Root SSH access disabled by security lockdown"
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":            server.Host,
 			"username":        username,
 			"security_locked": true,
@@ -77,7 +77,7 @@ func (s *SSHService) TestConnectionWithContext(ctx context.Context, server *mode
 
 	// Pre-accept host key to avoid verification issues
 	if err := AcceptHostKey(server); err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host": server.Host,
 			"port": server.Port,
 		}).WithError(err).Warn("Could not pre-accept host key, continuing anyway")
@@ -90,7 +90,7 @@ func (s *SSHService) TestConnectionWithContext(ctx context.Context, server *mode
 
 	if err != nil {
 		result.Error = fmt.Sprintf("SSH connection test failed: %v", err)
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":          server.Host,
 			"port":          server.Port,
 			"username":      username,
@@ -100,7 +100,7 @@ func (s *SSHService) TestConnectionWithContext(ctx context.Context, server *mode
 	}
 
 	result.Success = true
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":          server.Host,
 		"port":          server.Port,
 		"username":      username,
@@ -125,7 +125,7 @@ func (s *SSHService) ExecuteCommand(server *models.Server, asRoot bool, command 
 		return "", fmt.Errorf("command cannot be empty")
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     server.Host,
 		"username": s.getUsername(server, asRoot),
 		"command":  command,
@@ -134,7 +134,7 @@ func (s *SSHService) ExecuteCommand(server *models.Server, asRoot bool, command 
 
 	output, err := s.connectionManager.ExecuteCommand(server, asRoot, command)
 	if err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     server.Host,
 			"username": s.getUsername(server, asRoot),
 			"command":  command,
@@ -150,7 +150,7 @@ func (s *SSHService) ExecuteCommandStream(server *models.Server, asRoot bool, co
 		return fmt.Errorf("command cannot be empty")
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":     server.Host,
 		"username": s.getUsername(server, asRoot),
 		"command":  command,
@@ -159,7 +159,7 @@ func (s *SSHService) ExecuteCommandStream(server *models.Server, asRoot bool, co
 
 	err := s.connectionManager.ExecuteCommandStream(server, asRoot, command, output)
 	if err != nil {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":     server.Host,
 			"username": s.getUsername(server, asRoot),
 			"command":  command,
@@ -172,14 +172,14 @@ func (s *SSHService) ExecuteCommandStream(server *models.Server, asRoot bool, co
 // RunServerSetup performs complete server setup using connection pooling
 func (s *SSHService) RunServerSetup(server *models.Server, progressChan chan<- SetupStep) error {
 	if !s.isValidForRootOperations(server) {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":            server.Host,
 			"security_locked": server.SecurityLocked,
 		}).Error("Server setup cannot proceed - invalid configuration for root operations")
 		return fmt.Errorf("server setup requires root access and server cannot be security-locked")
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host": server.Host,
 		"port": server.Port,
 	}).Info("Starting server setup process via SSH service")
@@ -203,14 +203,14 @@ func (s *SSHService) RunServerSetup(server *models.Server, progressChan chan<- S
 // ApplySecurityLockdown applies security lockdown using connection pooling
 func (s *SSHService) ApplySecurityLockdown(server *models.Server, progressChan chan<- SetupStep) error {
 	if !s.isValidForRootOperations(server) {
-		logger.WithFields(map[string]interface{}{
+		logger.WithFields(map[string]any{
 			"host":            server.Host,
 			"security_locked": server.SecurityLocked,
 		}).Error("Security lockdown cannot proceed - invalid configuration for root operations")
 		return fmt.Errorf("security lockdown requires root access and server cannot already be security-locked")
 	}
 
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host": server.Host,
 		"port": server.Port,
 	}).Info("Starting security lockdown process via SSH service")
@@ -271,7 +271,7 @@ func (s *SSHService) RestartService(server *models.Server, serviceName string) e
 
 // StartService starts a systemd service using appropriate privileges
 func (s *SSHService) StartService(server *models.Server, serviceName string) error {
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":            server.Host,
 		"service":         serviceName,
 		"security_locked": server.SecurityLocked,
@@ -281,7 +281,7 @@ func (s *SSHService) StartService(server *models.Server, serviceName string) err
 		// Use PostSecurityManager for security-locked servers
 		psm, err := s.CreatePostSecurityManager(server)
 		if err != nil {
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"host":    server.Host,
 				"service": serviceName,
 			}).WithError(err).Error("Failed to create post-security manager for service start")
@@ -299,7 +299,7 @@ func (s *SSHService) StartService(server *models.Server, serviceName string) err
 
 // StopService stops a systemd service using appropriate privileges
 func (s *SSHService) StopService(server *models.Server, serviceName string) error {
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":            server.Host,
 		"service":         serviceName,
 		"security_locked": server.SecurityLocked,
@@ -309,7 +309,7 @@ func (s *SSHService) StopService(server *models.Server, serviceName string) erro
 		// Use PostSecurityManager for security-locked servers
 		psm, err := s.CreatePostSecurityManager(server)
 		if err != nil {
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"host":    server.Host,
 				"service": serviceName,
 			}).WithError(err).Error("Failed to create post-security manager for service stop")
@@ -327,7 +327,7 @@ func (s *SSHService) StopService(server *models.Server, serviceName string) erro
 
 // ExecutePrivilegedCommand executes a command that requires elevated privileges
 func (s *SSHService) ExecutePrivilegedCommand(server *models.Server, command string) (string, error) {
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":            server.Host,
 		"command":         command,
 		"security_locked": server.SecurityLocked,
@@ -337,7 +337,7 @@ func (s *SSHService) ExecutePrivilegedCommand(server *models.Server, command str
 		// Use PostSecurityManager for security-locked servers (uses sudo)
 		psm, err := s.CreatePostSecurityManager(server)
 		if err != nil {
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"host":    server.Host,
 				"command": command,
 			}).WithError(err).Error("Failed to create post-security manager for privileged command")
@@ -353,7 +353,7 @@ func (s *SSHService) ExecutePrivilegedCommand(server *models.Server, command str
 
 // ValidateDeploymentCapabilities checks if the server can perform deployment operations
 func (s *SSHService) ValidateDeploymentCapabilities(server *models.Server) error {
-	logger.WithFields(map[string]interface{}{
+	logger.WithFields(map[string]any{
 		"host":            server.Host,
 		"security_locked": server.SecurityLocked,
 	}).Info("Validating deployment capabilities via SSH service")
@@ -362,7 +362,7 @@ func (s *SSHService) ValidateDeploymentCapabilities(server *models.Server) error
 		// Use PostSecurityManager for validation
 		psm, err := s.CreatePostSecurityManager(server)
 		if err != nil {
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"host": server.Host,
 			}).WithError(err).Error("Failed to create post-security manager for deployment validation")
 			return fmt.Errorf("failed to create post-security manager: %w", err)
@@ -373,7 +373,7 @@ func (s *SSHService) ValidateDeploymentCapabilities(server *models.Server) error
 		// For non-security-locked servers, test basic connectivity
 		testResult := s.TestConnection(server, true)
 		if !testResult.Success {
-			logger.WithFields(map[string]interface{}{
+			logger.WithFields(map[string]any{
 				"host":  server.Host,
 				"error": testResult.Error,
 			}).Error("Deployment validation failed - connection test failed")
@@ -523,7 +523,7 @@ func (s *SSHService) RecoverConnection(server *models.Server, asRoot bool) error
 }
 
 // GetConnectionInfo returns detailed information about a connection
-func (s *SSHService) GetConnectionInfo(server *models.Server, asRoot bool) (map[string]interface{}, error) {
+func (s *SSHService) GetConnectionInfo(server *models.Server, asRoot bool) (map[string]any, error) {
 	conn, err := s.connectionManager.pool.GetOrCreateConnection(server, asRoot)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get connection: %w", err)
@@ -538,7 +538,7 @@ func (s *SSHService) GetConnectionInfo(server *models.Server, asRoot bool) (map[
 
 	// Add additional connection pool information
 	status := conn.GetHealthStatus()
-	info["pool_health"] = map[string]interface{}{
+	info["pool_health"] = map[string]any{
 		"healthy":       status.Healthy,
 		"last_used":     status.LastUsed,
 		"age":           status.Age.String(),

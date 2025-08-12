@@ -72,7 +72,7 @@ func (s *Session) Run(ctx context.Context, cmd string) (*Result, error) {
 		return nil, err
 	}
 
-	span.Event("command_completed", map[string]interface{}{
+	span.Event("command_completed", map[string]any{
 		"exit_code": result.ExitCode,
 		"duration":  result.Duration,
 	})
@@ -140,7 +140,7 @@ func (s *Session) Start(ctx context.Context, cmd string) error {
 	// Prepare command with modifications
 	finalCmd := s.prepareCommand(cmd)
 
-	span.SetFields(map[string]interface{}{
+	span.SetFields(map[string]any{
 		"original_command": cmd,
 		"final_command":    finalCmd,
 		"environment_vars": len(s.config.Environment),
@@ -158,7 +158,7 @@ func (s *Session) Start(ctx context.Context, cmd string) error {
 
 	s.started = true
 
-	span.Event("command_started", map[string]interface{}{
+	span.Event("command_started", map[string]any{
 		"start_time": s.startTime,
 	})
 
@@ -409,7 +409,7 @@ func (es *ExecutorSession) ExecuteCommand(ctx context.Context, cmd string, opts 
 	}
 	session.SetConfig(sessionConfig)
 
-	span.SetFields(map[string]interface{}{
+	span.SetFields(map[string]any{
 		"command":     cmd,
 		"sudo":        opts.Sudo,
 		"timeout":     opts.Timeout,
@@ -423,7 +423,7 @@ func (es *ExecutorSession) ExecuteCommand(ctx context.Context, cmd string, opts 
 		return nil, WrapCommandError(cmd, 0, "", err)
 	}
 
-	span.Event("execution_completed", map[string]interface{}{
+	span.Event("execution_completed", map[string]any{
 		"exit_code":   result.ExitCode,
 		"duration":    result.Duration,
 		"output_size": len(result.Output),
@@ -448,7 +448,7 @@ func (es *ExecutorSession) ExecuteScript(ctx context.Context, script string, int
 	// Create a command that pipes the script to the interpreter
 	cmd := fmt.Sprintf("cat << 'EOF' | %s\n%s\nEOF", interpreter, script)
 
-	span.SetFields(map[string]interface{}{
+	span.SetFields(map[string]any{
 		"interpreter": interpreter,
 		"script_size": len(script),
 		"sudo":        opts.Sudo,
@@ -474,7 +474,7 @@ func (es *ExecutorSession) ExecuteCommandStream(ctx context.Context, cmd string,
 		return nil, err
 	}
 
-	span.Event("stream_started", map[string]interface{}{
+	span.Event("stream_started", map[string]any{
 		"command": cmd,
 	})
 

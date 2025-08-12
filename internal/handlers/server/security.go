@@ -126,7 +126,7 @@ func applySecurityLockdown(app core.App, e *core.RequestEvent) error {
 		app.Logger().Info("Security lockdown completed successfully", "server_id", serverID)
 	}()
 
-	return e.JSON(http.StatusOK, map[string]interface{}{
+	return e.JSON(http.StatusOK, map[string]any{
 		"message":   "Security lockdown started",
 		"server_id": serverID,
 	})
@@ -143,7 +143,7 @@ func handleSecurityWebSocket(app core.App, e *core.RequestEvent) error {
 
 	// For now, return a simple response since we're using PocketBase realtime
 	// The actual WebSocket connection is handled by PocketBase's realtime system
-	return e.JSON(http.StatusOK, map[string]interface{}{
+	return e.JSON(http.StatusOK, map[string]any{
 		"message":      "Security progress available via PocketBase realtime",
 		"subscription": fmt.Sprintf("server_security_%s", serverID),
 	})

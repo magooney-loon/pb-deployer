@@ -431,10 +431,10 @@ func (c *ConsoleLogger) SSHError(operation string, server string, username strin
 }
 
 // ConnectionTest displays connection test results in a formatted way
-func (c *ConsoleLogger) ConnectionTest(serverName string, host string, port int, results map[string]interface{}) {
+func (c *ConsoleLogger) ConnectionTest(serverName string, host string, port int, results map[string]any) {
 	c.Section(fmt.Sprintf("Connection Test: %s (%s:%d)", serverName, host, port))
 
-	if tcp, ok := results["tcp_connection"].(map[string]interface{}); ok {
+	if tcp, ok := results["tcp_connection"].(map[string]any); ok {
 		if success, ok := tcp["success"].(bool); ok {
 			symbol := "✓"
 			color := ColorGreen
@@ -466,7 +466,7 @@ func (c *ConsoleLogger) ConnectionTest(serverName string, host string, port int,
 	}
 
 	for _, conn := range sshConnections {
-		if ssh, ok := results[conn.key].(map[string]interface{}); ok {
+		if ssh, ok := results[conn.key].(map[string]any); ok {
 			if success, ok := ssh["success"].(bool); ok {
 				symbol := "✓"
 				color := ColorGreen

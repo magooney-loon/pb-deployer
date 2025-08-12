@@ -176,7 +176,7 @@ func (f *ConsoleFormatter) formatFields(fields Fields) string {
 	return strings.Join(parts, " ")
 }
 
-func (f *ConsoleFormatter) formatValue(v interface{}) string {
+func (f *ConsoleFormatter) formatValue(v any) string {
 	var str string
 	switch val := v.(type) {
 	case string:
@@ -288,8 +288,8 @@ func (f *JSONFormatter) FormatEvent(event Event) ([]byte, error) {
 	return json.Marshal(data)
 }
 
-func (f *JSONFormatter) spanToMap(span *SpanData) map[string]interface{} {
-	data := map[string]interface{}{
+func (f *JSONFormatter) spanToMap(span *SpanData) map[string]any {
+	data := map[string]any{
 		"trace_id":   fmt.Sprintf("%x", span.TraceID),
 		"span_id":    fmt.Sprintf("%x", span.SpanID),
 		"operation":  span.Operation,
@@ -315,7 +315,7 @@ func (f *JSONFormatter) spanToMap(span *SpanData) map[string]interface{} {
 	}
 
 	if len(span.Events) > 0 {
-		events := make([]map[string]interface{}, len(span.Events))
+		events := make([]map[string]any, len(span.Events))
 		for i, event := range span.Events {
 			events[i] = f.eventToMap(event)
 		}
@@ -325,8 +325,8 @@ func (f *JSONFormatter) spanToMap(span *SpanData) map[string]interface{} {
 	return data
 }
 
-func (f *JSONFormatter) eventToMap(event Event) map[string]interface{} {
-	data := map[string]interface{}{
+func (f *JSONFormatter) eventToMap(event Event) map[string]any {
+	data := map[string]any{
 		"name":      event.Name,
 		"timestamp": event.Timestamp.Format(time.RFC3339Nano),
 	}
