@@ -215,7 +215,7 @@
 
 			<!-- Information Banner -->
 			<WarningBanner
-				message="Lockscreen password is hardcoded at compile time."
+				message="Lockscreen Keybind: CTRL+L or CMD+L (if enabled)"
 				color="blue"
 				icon="ℹ️"
 			/>
