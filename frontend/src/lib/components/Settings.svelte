@@ -212,6 +212,12 @@
 					onDismiss={clearSuccess}
 				/>
 			{/if}
+			<!-- Information Banner -->
+			<WarningBanner
+				message="Lockscreen password is hardcoded at compile time."
+				color="blue"
+				icon="ℹ️"
+			/>
 
 			<!-- Security Settings Card -->
 			<Card
@@ -392,12 +398,5 @@
 				</div>
 			</Card>
 		</form>
-
-		<!-- Information Banner -->
-		<WarningBanner
-			message="Settings are automatically saved to your browser's local storage and will persist across sessions."
-			color="blue"
-			icon="ℹ️"
-		/>
 	{/if}
 </div>
