@@ -212,6 +212,7 @@
 					onDismiss={clearSuccess}
 				/>
 			{/if}
+
 			<!-- Information Banner -->
 			<WarningBanner
 				message="Lockscreen password is hardcoded at compile time."
