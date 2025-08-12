@@ -6,7 +6,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { lockscreenState, lockScreen } from '$lib/components/Settings';
-	import Lockscreen from './settings/Lockscreen.svelte';
+	import Lockscreen from './settings/components/Lockscreen.svelte';
 
 	let { children } = $props();
 
