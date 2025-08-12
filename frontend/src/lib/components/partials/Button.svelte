@@ -115,11 +115,11 @@
 
 	// Icon spacing based on size
 	const iconSpacing = {
-		xs: 'space-x-1',
-		sm: 'space-x-1.5',
-		md: 'space-x-2',
-		lg: 'space-x-2.5',
-		xl: 'space-x-3'
+		xs: { left: 'mr-1', right: 'ml-1' },
+		sm: { left: 'mr-1.5', right: 'ml-1.5' },
+		md: { left: 'mr-2', right: 'ml-2' },
+		lg: { left: 'mr-2.5', right: 'ml-2.5' },
+		xl: { left: 'mr-3', right: 'ml-3' }
 	};
 
 	let buttonClasses = $derived(
@@ -128,7 +128,6 @@
 			sizeVariants[size],
 			variantStyles[variant][color],
 			fullWidth ? 'w-full' : '',
-			icon ? iconSpacing[size] : '',
 			className
 		]
 			.filter(Boolean)
@@ -156,7 +155,7 @@
 		{#if loading}
 			<div class="h-4 w-4 animate-spin rounded-full border-b-2 border-current"></div>
 		{:else if icon && iconPosition === 'left'}
-			<span>{icon}</span>
+			<span class={iconSpacing[size].left}>{icon}</span>
 		{/if}
 
 		{#if children}
@@ -164,7 +163,7 @@
 		{/if}
 
 		{#if !loading && icon && iconPosition === 'right'}
-			<span>{icon}</span>
+			<span class={iconSpacing[size].right}>{icon}</span>
 		{/if}
 	</a>
 {:else}
@@ -172,7 +171,7 @@
 		{#if loading}
 			<div class="h-4 w-4 animate-spin rounded-full border-b-2 border-current"></div>
 		{:else if icon && iconPosition === 'left'}
-			<span>{icon}</span>
+			<span class={iconSpacing[size].left}>{icon}</span>
 		{/if}
 
 		{#if children}
@@ -180,7 +179,7 @@
 		{/if}
 
 		{#if !loading && icon && iconPosition === 'right'}
-			<span>{icon}</span>
+			<span class={iconSpacing[size].right}>{icon}</span>
 		{/if}
 	</button>
 {/if}
