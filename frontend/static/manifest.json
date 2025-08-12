@@ -1,0 +1,31 @@
+{
+	"name": "PB Deployer",
+	"short_name": "PB Deployer",
+	"description": "PocketBase deployment tool",
+	"start_url": "/",
+	"display": "standalone",
+	"background_color": "#000000",
+	"theme_color": "#000000",
+	"orientation": "portrait-primary",
+	"scope": "/",
+	"icons": [
+		{
+			"src": "/favicon.png",
+			"sizes": "48x48",
+			"type": "image/png",
+			"purpose": "any maskable"
+		},
+		{
+			"src": "/favicon.svg",
+			"sizes": "any",
+			"type": "image/svg+xml",
+			"purpose": "any maskable"
+		},
+		{
+			"src": "/deployer.png",
+			"sizes": "1920x1079",
+			"type": "image/png",
+			"purpose": "any"
+		}
+	]
+}
