@@ -112,7 +112,7 @@ export class SettingsService {
 export const settingsService = new SettingsService();
 
 // Lockscreen constants
-const LOCKSCREEN_PASSWORD = '1234'; // In production, this should be hashed and configurable
+const LOCKSCREEN_PASSWORD = '123a';
 const STORAGE_KEY_PASSWORD = 'pb-deployer-lockscreen-password';
 
 // Lockscreen state interface
