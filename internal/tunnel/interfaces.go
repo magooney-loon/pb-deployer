@@ -90,6 +90,24 @@ type FileTransferInterface interface {
 	GetDiskSpace(ctx context.Context, remotePath string) (*DiskSpaceInfo, error)
 }
 
+// AdvancedHealthMonitorInterface defines advanced health monitoring operations
+type AdvancedHealthMonitorInterface interface {
+	// DeepHealthCheck performs comprehensive health analysis
+	DeepHealthCheck(ctx context.Context) (*DetailedHealthReport, error)
+
+	// PredictiveAnalysis performs predictive analysis
+	PredictiveAnalysis(ctx context.Context) (*HealthPrediction, error)
+
+	// AutoRecover attempts automatic recovery using specified strategy
+	AutoRecover(ctx context.Context, strategy RecoveryStrategy) error
+
+	// GetPerformanceMetrics retrieves current performance metrics
+	GetPerformanceMetrics(ctx context.Context) (*PerformanceReport, error)
+
+	// StartAdvancedMonitoring starts comprehensive monitoring
+	StartAdvancedMonitoring(ctx context.Context)
+}
+
 // ConnectionConfig contains SSH connection configuration
 type ConnectionConfig struct {
 	Host        string
@@ -238,6 +256,186 @@ type TransferProgress struct {
 	StartTime        time.Time
 	LastUpdate       time.Time
 }
+
+// DetailedHealthReport represents comprehensive health analysis
+type DetailedHealthReport struct {
+	Timestamp    time.Time
+	BasicHealth  HealthResult
+	Performance  *PerformanceReport
+	Diagnostics  []DiagnosticCheck
+	Metrics      *HealthMetricsSummary
+	Predictions  *HealthPrediction
+	Alerts       []HealthAlert
+	OverallScore float64
+}
+
+// HealthPrediction represents predictive health analysis
+type HealthPrediction struct {
+	Timestamp   time.Time
+	Window      time.Duration
+	Confidence  float64
+	TrendType   TrendType
+	Predictions []HealthForecast
+	Insights    []string
+	Risks       []RiskFactor
+}
+
+// HealthForecast represents a future health prediction
+type HealthForecast struct {
+	Timestamp        time.Time
+	PredictedHealthy bool
+	SuccessRate      float64
+	ResponseTime     time.Duration
+	Confidence       float64
+}
+
+// TrendType represents health trend types
+type TrendType string
+
+const (
+	TrendImproving TrendType = "improving"
+	TrendStable    TrendType = "stable"
+	TrendDegrading TrendType = "degrading"
+)
+
+// RiskFactor represents a potential risk
+type RiskFactor struct {
+	Type        RiskType
+	Severity    RiskSeverity
+	Description string
+	Probability float64
+	Impact      RiskImpact
+}
+
+// RiskType represents types of risks
+type RiskType string
+
+const (
+	RiskHighFailureRate        RiskType = "high_failure_rate"
+	RiskPerformanceDegradation RiskType = "performance_degradation"
+	RiskResourceExhaustion     RiskType = "resource_exhaustion"
+	RiskSecurityViolation      RiskType = "security_violation"
+)
+
+// RiskSeverity represents risk severity levels
+type RiskSeverity string
+
+const (
+	RiskSeverityLow    RiskSeverity = "low"
+	RiskSeverityMedium RiskSeverity = "medium"
+	RiskSeverityHigh   RiskSeverity = "high"
+)
+
+// RiskImpact represents risk impact levels
+type RiskImpact string
+
+const (
+	RiskImpactLow    RiskImpact = "low"
+	RiskImpactMedium RiskImpact = "medium"
+	RiskImpactHigh   RiskImpact = "high"
+)
+
+// PerformanceReport represents system performance metrics
+type PerformanceReport struct {
+	Timestamp   time.Time
+	Tests       []PerformanceTestResult
+	SystemInfo  *SystemInfo
+	NetworkInfo *NetworkInfo
+}
+
+// PerformanceTestResult represents results of a performance test
+type PerformanceTestResult struct {
+	Name      string
+	Duration  time.Duration
+	Success   bool
+	Output    string
+	Error     string
+	Timestamp time.Time
+	Metrics   map[string]float64
+}
+
+// SystemInfo represents system information
+type SystemInfo struct {
+	Uptime        time.Duration
+	KernelVersion string
+	OSVersion     string
+	CPUCores      string
+}
+
+// NetworkInfo represents network information
+type NetworkInfo struct {
+	Interfaces   []string
+	NetworkStats []string
+}
+
+// DiagnosticCheck represents a diagnostic check result
+type DiagnosticCheck struct {
+	Name            string
+	Category        string
+	Status          DiagnosticStatus
+	Message         string
+	Timestamp       time.Time
+	Details         map[string]any
+	Recommendations []string
+}
+
+// DiagnosticStatus represents diagnostic check status
+type DiagnosticStatus string
+
+const (
+	DiagnosticStatusPass    DiagnosticStatus = "pass"
+	DiagnosticStatusWarning DiagnosticStatus = "warning"
+	DiagnosticStatusFail    DiagnosticStatus = "fail"
+)
+
+// HealthMetricsSummary represents a summary of health metrics
+type HealthMetricsSummary struct {
+	TotalSamples    int
+	SuccessRate     float64
+	AverageResponse time.Duration
+	OldestSample    time.Time
+	LatestSample    time.Time
+	DataRetention   time.Duration
+}
+
+// HealthAlert represents a health alert
+type HealthAlert struct {
+	Type      AlertType
+	Severity  AlertSeverity
+	Title     string
+	Message   string
+	Timestamp time.Time
+	Metadata  map[string]any
+}
+
+// AlertType represents types of alerts
+type AlertType string
+
+const (
+	AlertTypeHealth      AlertType = "health"
+	AlertTypePerformance AlertType = "performance"
+	AlertTypeSecurity    AlertType = "security"
+	AlertTypeResource    AlertType = "resource"
+)
+
+// AlertSeverity represents alert severity levels
+type AlertSeverity string
+
+const (
+	AlertSeverityLow    AlertSeverity = "low"
+	AlertSeverityMedium AlertSeverity = "medium"
+	AlertSeverityHigh   AlertSeverity = "high"
+)
+
+// RecoveryStrategy represents recovery strategies
+type RecoveryStrategy string
+
+const (
+	RecoveryStrategyReconnect RecoveryStrategy = "reconnect"
+	RecoveryStrategyRestart   RecoveryStrategy = "restart"
+	RecoveryStrategyReset     RecoveryStrategy = "reset"
+	RecoveryStrategyEscalate  RecoveryStrategy = "escalate"
+)
 
 // Result represents command execution result
 type Result struct {
