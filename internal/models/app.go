@@ -54,8 +54,23 @@ func (a *App) CreateCollection(app core.App) error {
 		return nil
 	}
 
+	// Find servers collection for relation
+	serversCollection, err := app.FindCollectionByNameOrId("servers")
+	if err != nil {
+		app.Logger().Error("createAppsCollection: Servers collection not found", "error", err)
+		return err
+	}
+
 	// Create new collection
 	collection := core.NewBaseCollection("apps")
+
+	// Add relation field to server FIRST
+	collection.Fields.Add(&core.RelationField{
+		Name:          "server_id",
+		Required:      true,
+		CollectionId:  serversCollection.Id,
+		CascadeDelete: true,
+	})
 
 	// Set permissions to allow all operations (local-only tool)
 	collection.ListRule = types.Pointer("")
@@ -64,7 +79,7 @@ func (a *App) CreateCollection(app core.App) error {
 	collection.UpdateRule = types.Pointer("")
 	collection.DeleteRule = types.Pointer("")
 
-	// Add fields with minimal validation
+	// Add other fields
 	collection.Fields.Add(&core.TextField{
 		Name:     "name",
 		Required: true,
@@ -72,19 +87,15 @@ func (a *App) CreateCollection(app core.App) error {
 	})
 
 	collection.Fields.Add(&core.TextField{
-		Name:     "server_id",
+		Name:     "remote_path",
 		Required: true,
-		Max:      15,
+		Max:      500,
 	})
 
 	collection.Fields.Add(&core.TextField{
-		Name: "remote_path",
-		Max:  500,
-	})
-
-	collection.Fields.Add(&core.TextField{
-		Name: "service_name",
-		Max:  100,
+		Name:     "service_name",
+		Required: true,
+		Max:      100,
 	})
 
 	collection.Fields.Add(&core.TextField{
@@ -113,6 +124,12 @@ func (a *App) CreateCollection(app core.App) error {
 		OnCreate: true,
 		OnUpdate: true,
 	})
+
+	// Add indexes for common queries and relations
+	collection.AddIndex("idx_apps_name", true, "name", "")
+	collection.AddIndex("idx_apps_server", false, "server_id", "")
+	collection.AddIndex("idx_apps_domain", false, "domain", "")
+	collection.AddIndex("idx_apps_status", false, "status", "")
 
 	// Save the collection
 	if err := app.Save(collection); err != nil {

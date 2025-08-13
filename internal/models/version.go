@@ -57,8 +57,23 @@ func (v *Version) CreateCollection(app core.App) error {
 		return nil
 	}
 
+	// Find apps collection for relation
+	appsCollection, err := app.FindCollectionByNameOrId("apps")
+	if err != nil {
+		app.Logger().Error("createVersionsCollection: Apps collection not found", "error", err)
+		return err
+	}
+
 	// Create new collection
 	collection := core.NewBaseCollection("versions")
+
+	// Add relation field to app FIRST
+	collection.Fields.Add(&core.RelationField{
+		Name:          "app_id",
+		Required:      true,
+		CollectionId:  appsCollection.Id,
+		CascadeDelete: true,
+	})
 
 	// Set permissions to allow all operations (local-only tool)
 	collection.ListRule = types.Pointer("")
@@ -67,16 +82,11 @@ func (v *Version) CreateCollection(app core.App) error {
 	collection.UpdateRule = types.Pointer("")
 	collection.DeleteRule = types.Pointer("")
 
-	// Add fields with minimal validation
+	// Add other fields
 	collection.Fields.Add(&core.TextField{
-		Name:     "app_id",
+		Name:     "version_number",
 		Required: true,
-		Max:      15,
-	})
-
-	collection.Fields.Add(&core.TextField{
-		Name: "version_number",
-		Max:  50,
+		Max:      50,
 	})
 
 	collection.Fields.Add(&core.FileField{
@@ -102,6 +112,11 @@ func (v *Version) CreateCollection(app core.App) error {
 		OnCreate: true,
 		OnUpdate: true,
 	})
+
+	// Add indexes for common queries and relations
+	collection.AddIndex("idx_versions_app", false, "app_id", "")
+	collection.AddIndex("idx_versions_version", false, "version_number", "")
+	collection.AddIndex("idx_versions_app_version", true, "app_id", "version_number")
 
 	// Save the collection
 	if err := app.Save(collection); err != nil {

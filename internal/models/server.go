@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/pocketbase/pocketbase/core"
@@ -45,7 +46,7 @@ func (s *Server) GetSSHAddress() string {
 	if s.Port == 22 {
 		return s.Host
 	}
-	return s.Host + ":" + string(rune(s.Port))
+	return fmt.Sprintf("%s:%d", s.Host, s.Port)
 }
 
 // IsReadyForDeployment checks if server is properly set up for deployments
@@ -84,7 +85,7 @@ func (s *Server) CreateCollection(app core.App) error {
 	collection.UpdateRule = types.Pointer("")
 	collection.DeleteRule = types.Pointer("")
 
-	// Add fields with minimal validation
+	// Add required fields
 	collection.Fields.Add(&core.TextField{
 		Name:     "name",
 		Required: true,
@@ -98,19 +99,23 @@ func (s *Server) CreateCollection(app core.App) error {
 	})
 
 	collection.Fields.Add(&core.NumberField{
-		Name: "port",
-		Min:  types.Pointer(1.0),
-		Max:  types.Pointer(65535.0),
+		Name:     "port",
+		Required: true,
+		Min:      types.Pointer(1.0),
+		Max:      types.Pointer(65535.0),
+	})
+
+	// SSH authentication fields
+	collection.Fields.Add(&core.TextField{
+		Name:     "root_username",
+		Required: true,
+		Max:      50,
 	})
 
 	collection.Fields.Add(&core.TextField{
-		Name: "root_username",
-		Max:  50,
-	})
-
-	collection.Fields.Add(&core.TextField{
-		Name: "app_username",
-		Max:  50,
+		Name:     "app_username",
+		Required: true,
+		Max:      50,
 	})
 
 	collection.Fields.Add(&core.BoolField{
@@ -122,6 +127,7 @@ func (s *Server) CreateCollection(app core.App) error {
 		Max:  500,
 	})
 
+	// Status fields
 	collection.Fields.Add(&core.BoolField{
 		Name: "setup_complete",
 	})
@@ -141,6 +147,11 @@ func (s *Server) CreateCollection(app core.App) error {
 		OnCreate: true,
 		OnUpdate: true,
 	})
+
+	// Add indexes for common queries
+	collection.AddIndex("idx_servers_name", true, "name", "")
+	collection.AddIndex("idx_servers_host", false, "host", "")
+	collection.AddIndex("idx_servers_status", false, "setup_complete", "security_locked")
 
 	// Save the collection
 	if err := app.Save(collection); err != nil {

@@ -106,8 +106,37 @@ func (d *Deployment) CreateCollection(app core.App) error {
 		return nil
 	}
 
+	// Find apps collection for relation
+	appsCollection, err := app.FindCollectionByNameOrId("apps")
+	if err != nil {
+		app.Logger().Error("createDeploymentsCollection: Apps collection not found", "error", err)
+		return err
+	}
+
+	// Find versions collection for relation
+	versionsCollection, err := app.FindCollectionByNameOrId("versions")
+	if err != nil {
+		app.Logger().Error("createDeploymentsCollection: Versions collection not found", "error", err)
+		return err
+	}
+
 	// Create new collection
 	collection := core.NewBaseCollection("deployments")
+
+	// Add relation fields FIRST
+	collection.Fields.Add(&core.RelationField{
+		Name:          "app_id",
+		Required:      true,
+		CollectionId:  appsCollection.Id,
+		CascadeDelete: true,
+	})
+
+	collection.Fields.Add(&core.RelationField{
+		Name:          "version_id",
+		Required:      false, // Some deployments might not have a specific version
+		CollectionId:  versionsCollection.Id,
+		CascadeDelete: true,
+	})
 
 	// Set permissions to allow all operations (local-only tool)
 	collection.ListRule = types.Pointer("")
@@ -116,21 +145,12 @@ func (d *Deployment) CreateCollection(app core.App) error {
 	collection.UpdateRule = types.Pointer("")
 	collection.DeleteRule = types.Pointer("")
 
-	// Add fields with minimal validation
-	collection.Fields.Add(&core.TextField{
-		Name:     "app_id",
-		Required: true,
-		Max:      15,
-	})
-
-	collection.Fields.Add(&core.TextField{
-		Name: "version_id",
-		Max:  15,
-	})
+	// Add other fields
 
 	collection.Fields.Add(&core.SelectField{
-		Name:   "status",
-		Values: []string{"pending", "running", "success", "failed"},
+		Name:     "status",
+		Required: true,
+		Values:   []string{"pending", "running", "success", "failed"},
 	})
 
 	collection.Fields.Add(&core.TextField{
@@ -157,6 +177,13 @@ func (d *Deployment) CreateCollection(app core.App) error {
 		OnCreate: true,
 		OnUpdate: true,
 	})
+
+	// Add indexes for common queries and relations
+	collection.AddIndex("idx_deployments_app", false, "app_id", "")
+	collection.AddIndex("idx_deployments_version", false, "version_id", "")
+	collection.AddIndex("idx_deployments_status", false, "status", "")
+	collection.AddIndex("idx_deployments_app_status", false, "app_id", "status")
+	collection.AddIndex("idx_deployments_created", false, "created", "")
 
 	// Save the collection
 	if err := app.Save(collection); err != nil {

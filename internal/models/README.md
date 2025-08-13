@@ -2,6 +2,8 @@
 
 PocketBase data models for deployment management with SSH targets.
 
+Features proper relations, cascade deletes, and optimized indexes.
+
 ## Core Models
 
 ```go
@@ -135,12 +137,47 @@ Server (1) ──── (N) App (1) ──── (N) Version
                  └──── (N) Deployment ──┘
 ```
 
-## Features
+## Database Schema Features
 
 - **PocketBase Integration**: Auto-creates collections with proper schema
+- **Relational Integrity**: Proper foreign key relations between models
+- **Cascade Deletes**: Automatic cleanup when parent records are removed
+- **Optimized Indexes**: Performance-tuned queries for common operations
 - **Lifecycle Management**: Built-in status tracking and transitions
-- **Foreign Key Constraints**: Referential integrity between models
 - **Auto Timestamps**: Created/Updated fields managed automatically
 - **File Uploads**: Version model supports ZIP deployment packages
 - **Validation**: Field length limits and type constraints
 - **Progress Logging**: Deployment log tracking with size limits
+
+## Relations & Cascade Behavior
+
+```
+Server (deleted) → Apps (cascade delete) → Versions & Deployments (cascade delete)
+App (deleted) → Versions & Deployments (cascade delete)  
+Version (deleted) → Deployments (cascade delete)
+```
+
+## Indexes for Performance
+
+### Servers Collection
+- `idx_servers_name` (unique): Fast name lookups
+- `idx_servers_host`: Host-based queries
+- `idx_servers_status`: Setup/security status filtering
+
+### Apps Collection  
+- `idx_apps_name` (unique): Fast name lookups
+- `idx_apps_server`: Server-based app queries
+- `idx_apps_domain`: Domain-based lookups
+- `idx_apps_status`: Status filtering
+
+### Versions Collection
+- `idx_versions_app`: App-based version queries
+- `idx_versions_version`: Version number lookups
+- `idx_versions_app_version` (unique): Prevent duplicate versions per app
+
+### Deployments Collection
+- `idx_deployments_app`: App-based deployment history
+- `idx_deployments_version`: Version-based deployments
+- `idx_deployments_status`: Status filtering
+- `idx_deployments_app_status`: Combined app + status queries
+- `idx_deployments_created`: Chronological ordering
