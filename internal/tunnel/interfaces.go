@@ -198,6 +198,12 @@ type SecurityManager interface {
 
 	// HardenSSH applies SSH hardening configuration
 	HardenSSH(ctx context.Context, settings SSHHardeningConfig) error
+
+	// ConfigureAutoUpdates configures automatic security updates
+	ConfigureAutoUpdates(ctx context.Context) error
+
+	// AuditSecurity performs comprehensive security audit and compliance checking
+	AuditSecurity(ctx context.Context) (*SecurityReport, error)
 }
 
 // ServiceManager handles systemd service operations
@@ -351,6 +357,24 @@ type SSHHardeningConfig struct {
 	ChallengeResponseAuthentication bool
 	KerberosAuthentication          bool
 	GSSAPIAuthentication            bool
+}
+
+// SecurityReport contains the results of a security audit
+type SecurityReport struct {
+	Timestamp       time.Time
+	Overall         string // "excellent", "good", "fair", "poor", "critical", "unknown"
+	Checks          []SecurityCheck
+	Recommendations []string
+}
+
+// SecurityCheck represents a single security check result
+type SecurityCheck struct {
+	Name     string
+	Category string // "ssh", "firewall", "intrusion_prevention", "system", etc.
+	Status   string // "pass", "warning", "fail"
+	Score    int    // 0-100
+	Issues   []string
+	Details  map[string]any
 }
 
 // SetupStep represents a step in setup process
