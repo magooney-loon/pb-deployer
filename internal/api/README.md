@@ -1,4 +1,4 @@
-# API Package - Phase 3 Complete Schema Documentation
+# API Package - Schema Documentation
 
 ## Overview
 Complete OpenAPI specification and JSON schemas for the pb-deployer API, covering all managers and models.

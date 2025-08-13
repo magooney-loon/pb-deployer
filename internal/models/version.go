@@ -2,6 +2,9 @@ package models
 
 import (
 	"time"
+
+	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/types"
 )
 
 // Version represents a version of a deployed PocketBase application
@@ -41,4 +44,71 @@ func (v *Version) GetVersionString() string {
 		return "unknown"
 	}
 	return v.VersionNum
+}
+
+// CreateCollection creates the versions collection in the database
+func (v *Version) CreateCollection(app core.App) error {
+	app.Logger().Info("createVersionsCollection: Starting versions collection creation")
+
+	// Check if collection already exists
+	existingCollection, err := app.FindCollectionByNameOrId("versions")
+	if err == nil && existingCollection != nil {
+		app.Logger().Info("createVersionsCollection: Versions collection already exists")
+		return nil
+	}
+
+	// Create new collection
+	collection := core.NewBaseCollection("versions")
+
+	// Set permissions to allow all operations (local-only tool)
+	collection.ListRule = types.Pointer("")
+	collection.ViewRule = types.Pointer("")
+	collection.CreateRule = types.Pointer("")
+	collection.UpdateRule = types.Pointer("")
+	collection.DeleteRule = types.Pointer("")
+
+	// Add fields with minimal validation
+	collection.Fields.Add(&core.TextField{
+		Name:     "app_id",
+		Required: true,
+		Max:      15,
+	})
+
+	collection.Fields.Add(&core.TextField{
+		Name: "version_number",
+		Max:  50,
+	})
+
+	collection.Fields.Add(&core.FileField{
+		Name:      "deployment_zip",
+		MaxSelect: 1,
+		MaxSize:   157286400, // 150MB
+		MimeTypes: []string{"application/zip"},
+	})
+
+	collection.Fields.Add(&core.TextField{
+		Name: "notes",
+		Max:  1000,
+	})
+
+	// Add auto-date fields
+	collection.Fields.Add(&core.AutodateField{
+		Name:     "created",
+		OnCreate: true,
+	})
+
+	collection.Fields.Add(&core.AutodateField{
+		Name:     "updated",
+		OnCreate: true,
+		OnUpdate: true,
+	})
+
+	// Save the collection
+	if err := app.Save(collection); err != nil {
+		app.Logger().Error("createVersionsCollection: Failed to save versions collection", "error", err)
+		return err
+	}
+
+	app.Logger().Info("createVersionsCollection: Successfully created versions collection")
+	return nil
 }

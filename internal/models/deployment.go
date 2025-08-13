@@ -2,6 +2,9 @@ package models
 
 import (
 	"time"
+
+	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/types"
 )
 
 // Deployment represents a deployment operation for a PocketBase application
@@ -90,4 +93,77 @@ func (d *Deployment) AppendLog(message string) {
 	} else {
 		d.Logs += "\n" + message
 	}
+}
+
+// CreateCollection creates the deployments collection in the database
+func (d *Deployment) CreateCollection(app core.App) error {
+	app.Logger().Info("createDeploymentsCollection: Starting deployments collection creation")
+
+	// Check if collection already exists
+	existingCollection, err := app.FindCollectionByNameOrId("deployments")
+	if err == nil && existingCollection != nil {
+		app.Logger().Info("createDeploymentsCollection: Deployments collection already exists")
+		return nil
+	}
+
+	// Create new collection
+	collection := core.NewBaseCollection("deployments")
+
+	// Set permissions to allow all operations (local-only tool)
+	collection.ListRule = types.Pointer("")
+	collection.ViewRule = types.Pointer("")
+	collection.CreateRule = types.Pointer("")
+	collection.UpdateRule = types.Pointer("")
+	collection.DeleteRule = types.Pointer("")
+
+	// Add fields with minimal validation
+	collection.Fields.Add(&core.TextField{
+		Name:     "app_id",
+		Required: true,
+		Max:      15,
+	})
+
+	collection.Fields.Add(&core.TextField{
+		Name: "version_id",
+		Max:  15,
+	})
+
+	collection.Fields.Add(&core.SelectField{
+		Name:   "status",
+		Values: []string{"pending", "running", "success", "failed"},
+	})
+
+	collection.Fields.Add(&core.TextField{
+		Name: "logs",
+		Max:  100000, // 100KB of logs
+	})
+
+	collection.Fields.Add(&core.DateField{
+		Name: "started_at",
+	})
+
+	collection.Fields.Add(&core.DateField{
+		Name: "completed_at",
+	})
+
+	// Add auto-date fields
+	collection.Fields.Add(&core.AutodateField{
+		Name:     "created",
+		OnCreate: true,
+	})
+
+	collection.Fields.Add(&core.AutodateField{
+		Name:     "updated",
+		OnCreate: true,
+		OnUpdate: true,
+	})
+
+	// Save the collection
+	if err := app.Save(collection); err != nil {
+		app.Logger().Error("createDeploymentsCollection: Failed to save deployments collection", "error", err)
+		return err
+	}
+
+	app.Logger().Info("createDeploymentsCollection: Successfully created deployments collection")
+	return nil
 }

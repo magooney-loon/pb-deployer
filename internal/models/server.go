@@ -2,6 +2,9 @@ package models
 
 import (
 	"time"
+
+	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/types"
 )
 
 // Server represents a remote server where PocketBase apps can be deployed
@@ -58,4 +61,93 @@ func (s *Server) IsSetupComplete() bool {
 // IsSecurityLocked checks if security hardening is applied
 func (s *Server) IsSecurityLocked() bool {
 	return s.SecurityLocked
+}
+
+// CreateCollection creates the servers collection in the database
+func (s *Server) CreateCollection(app core.App) error {
+	app.Logger().Info("createServersCollection: Starting servers collection creation")
+
+	// Check if collection already exists
+	existingCollection, err := app.FindCollectionByNameOrId("servers")
+	if err == nil && existingCollection != nil {
+		app.Logger().Info("createServersCollection: Servers collection already exists")
+		return nil
+	}
+
+	// Create new collection
+	collection := core.NewBaseCollection("servers")
+
+	// Set permissions to allow all operations (local-only tool)
+	collection.ListRule = types.Pointer("")
+	collection.ViewRule = types.Pointer("")
+	collection.CreateRule = types.Pointer("")
+	collection.UpdateRule = types.Pointer("")
+	collection.DeleteRule = types.Pointer("")
+
+	// Add fields with minimal validation
+	collection.Fields.Add(&core.TextField{
+		Name:     "name",
+		Required: true,
+		Max:      255,
+	})
+
+	collection.Fields.Add(&core.TextField{
+		Name:     "host",
+		Required: true,
+		Max:      255,
+	})
+
+	collection.Fields.Add(&core.NumberField{
+		Name: "port",
+		Min:  types.Pointer(1.0),
+		Max:  types.Pointer(65535.0),
+	})
+
+	collection.Fields.Add(&core.TextField{
+		Name: "root_username",
+		Max:  50,
+	})
+
+	collection.Fields.Add(&core.TextField{
+		Name: "app_username",
+		Max:  50,
+	})
+
+	collection.Fields.Add(&core.BoolField{
+		Name: "use_ssh_agent",
+	})
+
+	collection.Fields.Add(&core.TextField{
+		Name: "manual_key_path",
+		Max:  500,
+	})
+
+	collection.Fields.Add(&core.BoolField{
+		Name: "setup_complete",
+	})
+
+	collection.Fields.Add(&core.BoolField{
+		Name: "security_locked",
+	})
+
+	// Add auto-date fields
+	collection.Fields.Add(&core.AutodateField{
+		Name:     "created",
+		OnCreate: true,
+	})
+
+	collection.Fields.Add(&core.AutodateField{
+		Name:     "updated",
+		OnCreate: true,
+		OnUpdate: true,
+	})
+
+	// Save the collection
+	if err := app.Save(collection); err != nil {
+		app.Logger().Error("createServersCollection: Failed to save servers collection", "error", err)
+		return err
+	}
+
+	app.Logger().Info("createServersCollection: Successfully created servers collection")
+	return nil
 }
