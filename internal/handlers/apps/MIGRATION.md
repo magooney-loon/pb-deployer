@@ -533,9 +533,8 @@ func (h *AppHandlers) deployWithProgress(ctx context.Context, deployment *models
     // Start progress monitoring
     go h.monitorDeploymentProgress(ctx, deployment.ID, progressChan)
     
-    // Use deployment manager with progress
-    result, err := h.deployMgr.DeployApplicationWithProgress(ctx, config, progressChan)
-    close(progressChan)
+    // Use deployment manager 
+    result, err := h.deployMgr.DeployApplication(ctx, config)
     
     if err != nil {
         deployment.MarkAsFailed()

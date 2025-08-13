@@ -269,9 +269,21 @@ func (h *ServerHandlers) performServerSetup(ctx context.Context, server *models.
     // Monitor progress and send notifications
     go h.monitorSetupProgress(ctx, server.ID, progressChan)
     
-    // Use setup manager with progress tracking
-    result, err := h.setupMgr.SetupServerWithProgress(ctx, config, progressChan)
-    close(progressChan)
+    // Use setup manager for server setup
+    if err := h.setupMgr.CreateUser(ctx, config.UserConfig); err != nil {
+        span.EndWithError(err)
+        return fmt.Errorf("failed to create user: %w", err)
+    }
+    
+    if err := h.setupMgr.SetupSSHKeys(ctx, config.Username, config.SSHKeys); err != nil {
+        span.EndWithError(err)
+        return fmt.Errorf("failed to setup SSH keys: %w", err)
+    }
+    
+    if err := h.setupMgr.CreateDirectory(ctx, config.AppDirectory, config.Username); err != nil {
+        span.EndWithError(err)
+        return fmt.Errorf("failed to create directory: %w", err)
+    }
     
     if err != nil {
         server.SetupComplete = false
@@ -381,8 +393,20 @@ func (h *ServerHandlers) performSecurityLockdown(ctx context.Context, server *mo
     go h.monitorSecurityProgress(ctx, server.ID, progressChan)
     
     // Apply security lockdown using security manager
-    result, err := h.securityMgr.ApplyLockdownWithProgress(ctx, config, progressChan)
-    close(progressChan)
+    if err := h.securityMgr.ApplyLockdown(ctx, config.SecurityConfig); err != nil {
+        span.EndWithError(err)
+        return fmt.Errorf("failed to apply security lockdown: %w", err)
+    }
+    
+    if err := h.securityMgr.ConfigureFirewall(ctx, config.FirewallRules); err != nil {
+        span.EndWithError(err)
+        return fmt.Errorf("failed to configure firewall: %w", err)
+    }
+    
+    if err := h.securityMgr.SetupFail2ban(ctx, config.Fail2banConfig); err != nil {
+        span.EndWithError(err)
+        return fmt.Errorf("failed to setup fail2ban: %w", err)
+    }
     
     if err != nil {
         server.SecurityLocked = false
@@ -401,27 +425,29 @@ func (h *ServerHandlers) performSecurityLockdown(ctx context.Context, server *mo
 }
 ```
 
-### `troubleshoot.go` - Enhanced Troubleshooting
+### `security.go` - Security Audit Integration
 
 #### Current Issues
-- Basic diagnostic capabilities
-- Limited auto-fix functionality
-- No comprehensive analysis
-- Manual connection testing
+- No automated security auditing
+- Limited security compliance checking
+- Manual security assessment
+- No continuous security monitoring
 
 #### Migration Changes
 
-**Enhanced Troubleshooting:**
+**Enhanced Security Audit:**
 ```go
 // BEFORE
-func troubleshootServerConnection(app core.App, e *core.RequestEvent) error {
-    diagnostics, err := ssh.TroubleshootConnection(server, clientIP)
-    response := processDiagnostics(server, diagnostics, clientIP, &connectionTime)
+func auditServerSecurity(app core.App, e *core.RequestEvent) error {
+    auditResult, err := security.AuditSecurity(server)
+    response := processSecurityAudit(server, auditResult, &auditTime)
 }
 
 // AFTER
-func (h *ServerHandlers) troubleshootServerConnection(app core.App, e *core.RequestEvent) error {
-    span := h.sshTracer.TraceConnection(e.Request.Context(), server.Host, server.Port, "troubleshoot")
+func (h *ServerHandlers) auditServerSecurity(app core.App, e *core.RequestEvent) error {
+    span := h.securityTracer.TraceAuditEvent(e.Request.Context(), "security_audit", tracer.Fields{
+        "server.id": serverID,
+    })
     defer span.End()
     
     serverModel, err := models.GetServer(app, serverID)
@@ -430,88 +456,98 @@ func (h *ServerHandlers) troubleshootServerConnection(app core.App, e *core.Requ
         return handleServerError(e, err, "Server not found")
     }
     
-    // Enhanced troubleshooting with tunnel diagnostics
-    diagnostics, err := h.performEnhancedDiagnostics(e.Request.Context(), serverModel)
-    if err != nil {
-        span.EndWithError(err)
-        return handleDiagnosticError(e, err, "Troubleshooting failed")
+    // Comprehensive security audit using security manager
+    auditConfig := tunnel.SecurityAuditConfig{
+        CheckSSHConfig:     true,
+        CheckFirewall:      true,
+        CheckFail2ban:      true,
+        CheckUserPerms:     true,
+        CheckSystemPerms:   true,
+        CheckNetworkPerms:  true,
     }
     
-    // Generate actionable insights
-    analysis := h.analyzeDiagnostics(diagnostics, serverModel)
+    auditResult, err := h.securityMgr.AuditSecurity(e.Request.Context())
+    if err != nil {
+        span.EndWithError(err)
+        return handleSecurityError(e, err, "Security audit failed")
+    }
     
-    // Auto-fix capability assessment
-    autoFixPlan := h.assessAutoFixCapability(diagnostics, serverModel)
+    // Generate security score and recommendations
+    securityScore := h.calculateSecurityScore(auditResult)
+    recommendations := h.generateSecurityRecommendations(auditResult, serverModel)
     
-    response := EnhancedTroubleshootResponse{
-        ServerID:      serverModel.ID,
-        Diagnostics:   diagnostics,
-        Analysis:      analysis,
-        AutoFixPlan:   autoFixPlan,
-        Timestamp:     time.Now().UTC(),
-        CanAutoFix:    autoFixPlan.CanAutoFix,
-        Severity:      analysis.Severity,
+    response := SecurityAuditResponse{
+        ServerID:        serverModel.ID,
+        SecurityScore:   securityScore,
+        AuditResult:     auditResult,
+        Recommendations: recommendations,
+        ComplianceStatus: h.assessCompliance(auditResult),
+        RiskLevel:       h.calculateRiskLevel(auditResult),
+        NextAuditDue:    time.Now().UTC().Add(24 * time.Hour),
+        Timestamp:       time.Now().UTC(),
     }
     
     span.SetFields(tracer.Fields{
-        "server.id":              serverModel.ID,
-        "diagnostics.count":      len(diagnostics),
-        "diagnostics.errors":     analysis.ErrorCount,
-        "diagnostics.warnings":   analysis.WarningCount,
-        "diagnostics.auto_fix":   autoFixPlan.CanAutoFix,
+        "server.id":           serverModel.ID,
+        "security.score":      securityScore.Overall,
+        "security.ssh_score":  securityScore.SSH,
+        "security.fw_score":   securityScore.Firewall,
+        "security.risk_level": response.RiskLevel,
+        "audit.checks_run":    len(auditResult.Checks),
     })
     
     return e.JSON(http.StatusOK, response)
 }
 
-func (h *ServerHandlers) performEnhancedDiagnostics(ctx context.Context, server *models.Server) ([]tunnel.Diagnostic, error) {
-    span := h.sshTracer.TraceConnection(ctx, server.Host, server.Port, "enhanced_diagnostics")
+func (h *ServerHandlers) performSecurityAudit(ctx context.Context, server *models.Server) (*tunnel.SecurityAuditResult, error) {
+    span := h.securityTracer.TraceAuditEvent(ctx, "security_audit", tracer.Fields{
+        "server.id":   server.ID,
+        "server.host": server.Host,
+    })
     defer span.End()
     
-    // Get connection from pool for diagnostics
-    connectionKey := h.pool.GetConnectionKey(server, false)
-    client, err := h.pool.Get(ctx, connectionKey)
+    // Use security manager for comprehensive audit
+    auditConfig := tunnel.SecurityAuditConfig{
+        CheckSSHConfig:     true,
+        CheckFirewall:      true,
+        CheckFail2ban:      true,
+        CheckUserPerms:     true,
+        CheckSystemPerms:   true,
+        CheckNetworkPerms:  true,
+        CheckCompliance:    true,
+        GenerateReport:     true,
+    }
+    
+    auditResult, err := h.securityMgr.AuditSecurity(ctx)
     if err != nil {
         span.EndWithError(err)
-        return nil, fmt.Errorf("failed to get connection for diagnostics: %w", err)
+        return nil, fmt.Errorf("failed to perform security audit: %w", err)
     }
-    defer h.pool.Release(connectionKey, client)
     
-    // Run comprehensive diagnostics
-    diagnostics := []tunnel.Diagnostic{}
+    span.SetFields(tracer.Fields{
+        "audit.checks_run":    len(auditResult.Checks),
+        "audit.issues_found":  auditResult.IssuesFound,
+        "audit.score":         auditResult.OverallScore,
+        "audit.risk_level":    auditResult.RiskLevel,
+    })
     
-    // Network diagnostics
-    netDiag := h.runNetworkDiagnostics(ctx, server, client)
-    diagnostics = append(diagnostics, netDiag...)
-    
-    // SSH diagnostics  
-    sshDiag := h.runSSHDiagnostics(ctx, server, client)
-    diagnostics = append(diagnostics, sshDiag...)
-    
-    // Security diagnostics
-    secDiag := h.runSecurityDiagnostics(ctx, server, client)
-    diagnostics = append(diagnostics, secDiag...)
-    
-    // Service diagnostics
-    serviceDiag := h.runServiceDiagnostics(ctx, server, client)
-    diagnostics = append(diagnostics, serviceDiag...)
-    
-    span.SetField("diagnostics.total", len(diagnostics))
-    return diagnostics, nil
+    return auditResult, nil
 }
 ```
 
-**Auto-Fix Implementation:**
+**Security Monitoring Implementation:**
 ```go
 // BEFORE
-func autoFixIssues(app core.App, e *core.RequestEvent) error {
-    fixResults := ssh.FixCommonIssues(server)
-    response := processDiagnostics(server, fixResults, clientIP, &connectionTime)
+func monitorSecurityStatus(app core.App, e *core.RequestEvent) error {
+    auditResult := security.ContinuousAudit(server)
+    response := processSecurityStatus(server, auditResult, &monitorTime)
 }
 
 // AFTER
-func (h *ServerHandlers) autoFixIssues(app core.App, e *core.RequestEvent) error {
-    span := h.sshTracer.TraceConnection(e.Request.Context(), server.Host, server.Port, "auto_fix")
+func (h *ServerHandlers) monitorSecurityStatus(app core.App, e *core.RequestEvent) error {
+    span := h.securityTracer.TraceAuditEvent(e.Request.Context(), "security_monitoring", tracer.Fields{
+        "server.id": serverID,
+    })
     defer span.End()
     
     serverModel, err := models.GetServer(app, serverID)
@@ -520,43 +556,49 @@ func (h *ServerHandlers) autoFixIssues(app core.App, e *core.RequestEvent) error
         return handleServerError(e, err, "Server not found")
     }
     
-    // Run diagnostics first
-    diagnostics, err := h.performEnhancedDiagnostics(e.Request.Context(), serverModel)
+    // Perform continuous security monitoring
+    auditResult, err := h.performSecurityAudit(e.Request.Context(), serverModel)
     if err != nil {
         span.EndWithError(err)
-        return handleDiagnosticError(e, err, "Diagnostic scan failed")
+        return handleSecurityError(e, err, "Security audit failed")
     }
     
-    // Identify fixable issues
-    fixPlan := h.createAutoFixPlan(diagnostics, serverModel)
+    // Check for security issues that need immediate attention
+    criticalIssues := h.identifyCriticalSecurityIssues(auditResult)
     
-    if !fixPlan.HasFixableIssues {
+    if len(criticalIssues) == 0 {
         return e.JSON(http.StatusOK, map[string]any{
-            "message": "No auto-fixable issues found",
-            "plan":    fixPlan,
+            "message":    "No critical security issues found",
+            "audit":      auditResult,
+            "next_audit": time.Now().UTC().Add(1 * time.Hour),
         })
     }
     
-    // Execute fixes with progress tracking
-    progressChan := make(chan tunnel.FixProgress, 10)
-    go h.monitorFixProgress(e.Request.Context(), serverModel.ID, progressChan)
+    // Generate security alerts for critical issues
+    alerts := h.generateSecurityAlerts(serverModel, criticalIssues)
     
-    fixResults, err := h.executeAutoFix(e.Request.Context(), serverModel, fixPlan, progressChan)
-    close(progressChan)
+    // Schedule follow-up audit
+    h.scheduleSecurityFollowUp(e.Request.Context(), serverModel.ID, criticalIssues)
     
-    if err != nil {
-        span.EndWithError(err)
-        return handleFixError(e, err, "Auto-fix execution failed")
+    monitoringResult := SecurityMonitoringResult{
+        ServerID:        serverModel.ID,
+        AuditResult:     auditResult,
+        CriticalIssues:  criticalIssues,
+        SecurityAlerts:  alerts,
+        NextAudit:       time.Now().UTC().Add(30 * time.Minute),
+        MonitoringLevel: h.determineMonitoringLevel(auditResult),
+        Timestamp:       time.Now().UTC(),
     }
     
     span.SetFields(tracer.Fields{
-        "server.id":           serverModel.ID,
-        "fix.issues_found":    len(fixPlan.Issues),
-        "fix.applied":         fixResults.Applied,
-        "fix.success_rate":    fixResults.SuccessRate,
+        "server.id":            serverModel.ID,
+        "security.score":       auditResult.OverallScore,
+        "security.critical":    len(criticalIssues),
+        "security.alerts":      len(alerts),
+        "monitoring.level":     monitoringResult.MonitoringLevel,
     })
     
-    return e.JSON(http.StatusOK, fixResults)
+    return e.JSON(http.StatusOK, monitoringResult)
 }
 ```
 
@@ -589,7 +631,7 @@ func (h *ServerHandlers) assessServerSecurity(app core.App, e *core.RequestEvent
         CheckNetworkPerms: true,
     }
     
-    auditResult, err := h.securityMgr.RunSecurityAudit(e.Request.Context(), auditConfig)
+    auditResult, err := h.securityMgr.AuditSecurity(e.Request.Context())
     if err != nil {
         span.EndWithError(err)
         return handleSecurityError(e, err, "Security audit failed")
@@ -840,7 +882,7 @@ func (h *ServerHandlers) runSecurityAudit(app core.App, e *core.RequestEvent) er
         GenerateReport:        true,
     }
     
-    auditResult, err := h.securityMgr.RunComprehensiveAudit(e.Request.Context(), auditConfig)
+    auditResult, err := h.securityMgr.AuditSecurity(e.Request.Context())
     if err != nil {
         span.EndWithError(err)
         return handleSecurityError(e, err, "Security audit failed")
@@ -1348,70 +1390,7 @@ func (h *ServerHandlers) getCachedServerHealth(serverID string) (*CachedHealth, 
 }
 ```
 
-## Testing Migration
 
-### Mock Dependencies Setup
-```go
-func TestServerHandlers(t *testing.T) {
-    // Setup test dependencies
-    tracerFactory := tracer.SetupTestTracing(t)
-    mockExecutor := &tunnel.MockExecutor{}
-    mockSetupMgr := &tunnel.MockSetupManager{}
-    mockSecurityMgr := &tunnel.MockSecurityManager{}
-    mockServiceMgr := &tunnel.MockServiceManager{}
-    mockPool := &tunnel.MockPool{}
-    
-    handlers := &ServerHandlers{
-        executor:       mockExecutor,
-        setupMgr:       mockSetupMgr,
-        securityMgr:    mockSecurityMgr,
-        serviceMgr:     mockServiceMgr,
-        pool:           mockPool,
-        sshTracer:      tracerFactory.CreateSSHTracer(),
-        poolTracer:     tracerFactory.CreatePoolTracer(),
-        securityTracer: tracerFactory.CreateSecurityTracer(),
-    }
-    
-    // Setup expectations
-    mockPool.On("Get", mock.Anything, mock.Anything).Return(&tunnel.MockClient{}, nil)
-    mockSetupMgr.On("SetupServer", mock.Anything, mock.Anything).Return(nil)
-    
-    // Execute test
-    err := handlers.runServerSetup(testApp, testEvent)
-    assert.NoError(t, err)
-    
-    // Verify expectations
-    mockSetupMgr.AssertExpectations(t)
-    mockPool.AssertExpectations(t)
-}
-```
-
-### Integration Testing
-```go
-func TestServerConnectionIntegration(t *testing.T) {
-    // Real components for integration testing
-    tracerFactory := tracer.SetupTestTracing(t)
-    sshTracer := tracerFactory.CreateSSHTracer()
-    
-    factory := tunnel.NewConnectionFactory(sshTracer)
-    pool := tunnel.NewPool(factory, tunnel.DefaultPoolConfig(), sshTracer)
-    executor := tunnel.NewExecutor(pool, sshTracer)
-    
-    handlers := NewServerHandlers(executor, /* other deps */)
-    
-    // Test with real server (if available in test environment)
-    testServer := &models.Server{
-        Host:         "localhost",
-        Port:         22,
-        AppUsername:  "testuser",
-        UseSSHAgent:  true,
-    }
-    
-    // Test connection through handlers
-    result := handlers.testConnectionWithRealComponents(t, testServer)
-    assert.True(t, result.Success)
-}
-```
 
 ## Breaking Changes Summary
 
@@ -1529,8 +1508,8 @@ func (h *ServerHandlers) auditServerOperation(ctx context.Context, serverID, ope
         span.EndWithError(err)
     }
     
-    // Store audit event
-    h.securityMgr.LogAuditEvent(ctx, auditEvent)
+    // Record audit event in tracer
+    span.Event("security_audit_performed")
     
     span.Event("audit_logged")
 }

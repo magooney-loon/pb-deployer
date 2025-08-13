@@ -159,7 +159,7 @@ func (h *DeploymentHandlers) getDeploymentStatus(app core.App, e *core.RequestEv
     }
     
     // Get real-time deployment status from manager
-    liveStatus, err := h.deployMgr.GetDeploymentStatus(e.Request.Context(), deploymentModel.ID)
+    liveStatus, err := h.deployMgr.GetDeploymentStatus(e.Request.Context())
     if err != nil && !errors.Is(err, tunnel.ErrDeploymentNotActive) {
         h.tracer.RecordError(span, err, "failed to get live status")
     }
@@ -311,9 +311,8 @@ func (h *DeploymentHandlers) executeDeployment(ctx context.Context, deployment *
     // Start progress monitoring
     go h.monitorDeploymentProgress(ctx, deployment.ID, progressChan)
     
-    // Execute deployment with comprehensive management
-    result, err := h.deployMgr.DeployApplicationWithProgress(ctx, config, progressChan)
-    close(progressChan)
+    // Execute deployment with deployment manager
+    result, err := h.deployMgr.DeployApplication(ctx, config)
     
     // Update deployment record based on result
     if err != nil {
@@ -478,10 +477,10 @@ func (h *DeploymentHandlers) getDeploymentStatus(app core.App, e *core.RequestEv
     
     // Add real-time metrics if deployment is active
     if deploymentModel.IsRunning() {
-        liveMetrics, err := h.deployMgr.GetLiveDeploymentMetrics(e.Request.Context(), deploymentModel.ID)
+        liveStatus, err := h.deployMgr.GetDeploymentStatus(e.Request.Context())
         if err == nil {
-            status.LiveMetrics = liveMetrics
-            status.EstimatedRemaining = h.calculateRemainingTime(liveMetrics, deploymentModel)
+            status.LiveStatus = liveStatus
+            status.EstimatedRemaining = h.calculateRemainingTime(liveStatus, deploymentModel)
         }
     }
     
@@ -698,10 +697,8 @@ func (h *DeploymentHandlers) compareDeployments(app core.App, e *core.RequestEve
         return handleDeploymentError(e, err, "To deployment not found")
     }
     
-    // Generate deployment comparison
-    comparison, err := h.deployMgr.CompareDeployments(e.Request.Context(), tunnel.DeploymentComparison{
-        FromDeployment: fromDeployment.ID,
-        ToDeployment:   toDeployment.ID,
+    // Generate deployment comparison using basic comparison
+    comparison, err := h.compareDeploymentVersions(e.Request.Context(), fromDeployment, toDeployment)
         IncludeFiles:   e.Request.URL.Query().Get("include_files") == "true",
         IncludeConfig:  e.Request.URL.Query().Get("include_config") == "true",
         IncludeMetrics: e.Request.URL.Query().Get("include_metrics") == "true",
@@ -754,10 +751,10 @@ func (h *DeploymentHandlers) scheduleDeployment(app core.App, e *core.RequestEve
         return handleDeploymentError(e, err, "Failed to schedule deployment")
     }
     
-    // Register with scheduler
-    h.deployMgr.ScheduleDeployment(deployment.ID, req.ScheduledAt, tunnel.ScheduleConfig{
-        AutoCancel:     req.AutoCancel,
-        NotifyBefore:   req.NotifyBefore,
+    // Store scheduled deployment in database
+    deployment.ScheduledAt = &req.ScheduledAt
+    deployment.AutoCancel = req.AutoCancel
+    deployment.NotifyBefore = req.NotifyBefore
         ValidateFirst:  req.ValidateFirst,
     })
     

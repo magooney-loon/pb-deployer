@@ -47,12 +47,10 @@ func RegisterVersionHandlers(app core.App, group *router.RouterGroup[*core.Reque
 **Target:**
 ```go
 type VersionHandlers struct {
-    executor      tunnel.Executor
-    fileMgr       tunnel.FileManager
-    deployMgr     tunnel.DeploymentManager
-    tracer        tracer.ServiceTracer
-    fileTracer    tracer.FileTracer
-    validator     tunnel.PackageValidator
+    executor   tunnel.Executor
+    deployMgr  tunnel.DeploymentManager
+    tracer     tracer.ServiceTracer
+    validator  tunnel.PackageValidator
 }
 
 func NewVersionHandlers(
@@ -62,12 +60,10 @@ func NewVersionHandlers(
     tracerFactory tracer.TracerFactory,
 ) *VersionHandlers {
     return &VersionHandlers{
-        executor:   executor,
-        fileMgr:    fileMgr,
-        deployMgr:  deployMgr,
-        tracer:     tracerFactory.CreateServiceTracer(),
-        fileTracer: tracerFactory.CreateFileTracer(),
-        validator:  tunnel.NewPackageValidator(),
+        executor:  executor,
+        deployMgr: deployMgr,
+        tracer:    tracerFactory.CreateServiceTracer(),
+        validator: tunnel.NewPackageValidator(),
     }
 }
 
@@ -245,10 +241,16 @@ func (h *VersionHandlers) uploadVersionPackage(app core.App, e *core.RequestEven
     
     // Create package with progress tracking
     progressChan := make(chan tunnel.PackageProgress, 10)
-    go h.monitorPackageCreation(e.Request.Context(), versionModel.ID, progressChan)
+    // Create deployment package using executor
+    packagePath := filepath.Join("/tmp", fmt.Sprintf("version_%d.zip", versionModel.ID))
     
-    packageResult, err := h.fileMgr.CreateDeploymentPackage(e.Request.Context(), packageConfig, progressChan)
-    close(progressChan)
+    // Use executor to create package via shell commands
+    createCmd := tunnel.Command{
+        Cmd:     fmt.Sprintf("cd %s && zip -r %s *", uploadDir, packagePath),
+        Timeout: 5 * time.Minute,
+    }
+    
+    result, err := h.executor.RunCommand(e.Request.Context(), createCmd)
     
     if err != nil {
         span.EndWithError(err)
@@ -320,11 +322,18 @@ func (h *VersionHandlers) downloadVersionPackage(app core.App, e *core.RequestEv
         })
     }
     
-    // Validate package integrity before download
+    // Validate package exists and get info
     packagePath := versionModel.GetDeploymentZipPath()
-    if err := h.fileMgr.ValidatePackageIntegrity(packagePath, versionModel.Checksum); err != nil {
+    
+    statCmd := tunnel.Command{
+        Cmd:     fmt.Sprintf("stat %s", packagePath),
+        Timeout: 10 * time.Second,
+    }
+    
+    _, err = h.executor.RunCommand(e.Request.Context(), statCmd)
+    if err != nil {
         span.EndWithError(err)
-        return handleIntegrityError(e, err, "Package integrity check failed")
+        return handleIntegrityError(e, err, "Package file not found")
     }
     
     // Prepare download with metadata
@@ -346,11 +355,18 @@ func (h *VersionHandlers) downloadVersionPackage(app core.App, e *core.RequestEv
         "download.client":  getClientIP(e.Request),
     })
     
-    // Stream file with progress tracking
-    err = h.fileMgr.StreamFile(e.Response, e.Request, downloadConfig)
+    // Transfer file from server using executor
+    transferConfig := tunnel.FileTransfer{
+        LocalPath:  packagePath,
+        RemotePath: versionModel.GetDeploymentZipPath(),
+        Direction:  tunnel.TransferDownload,
+        Progress:   true,
+    }
+    
+    err = h.executor.TransferFile(e.Request.Context(), transferConfig)
     if err != nil {
         span.EndWithError(err)
-        return handleDownloadError(e, err, "Download failed")
+        return handleDownloadError(e, err, "File transfer failed")
     }
     
     span.Event("package_downloaded")
@@ -509,23 +525,36 @@ func (h *VersionHandlers) buildVersionMetadata(ctx context.Context, version *mod
     }
     
     if version.HasDeploymentZip() {
-        // Get detailed file information
-        fileInfo, err := h.fileMgr.GetFileInfo(version.GetDeploymentZipPath())
+        // Get file information using executor
+        statCmd := tunnel.Command{
+            Cmd:     fmt.Sprintf("stat -c '%%s,%%Y' %s", version.GetDeploymentZipPath()),
+            Timeout: 10 * time.Second,
+        }
+        
+        result, err := h.executor.RunCommand(context.Background(), statCmd)
         if err == nil {
-            metadata.FileInfo = FileInfo{
-                Filename:         fileInfo.Filename,
-                Size:            fileInfo.Size,
-                Checksum:        fileInfo.Checksum,
-                LastModified:    fileInfo.LastModified,
-                CompressionRatio: fileInfo.CompressionRatio,
-                FileCount:       fileInfo.FileCount,
+            parts := strings.Split(strings.TrimSpace(result.Output), ",")
+            if len(parts) == 2 {
+                size, _ := strconv.ParseInt(parts[0], 10, 64)
+                modTime, _ := strconv.ParseInt(parts[1], 10, 64)
+                
+                metadata.FileInfo = FileInfo{
+                    Filename:     filepath.Base(version.GetDeploymentZipPath()),
+                    Size:         size,
+                    LastModified: time.Unix(modTime, 0),
+                }
             }
         }
         
-        // Get package contents
-        contents, err := h.fileMgr.GetPackageContents(version.GetDeploymentZipPath())
+        // Get package contents using executor
+        listCmd := tunnel.Command{
+            Cmd:     fmt.Sprintf("unzip -l %s", version.GetDeploymentZipPath()),
+            Timeout: 30 * time.Second,
+        }
+        
+        result, err := h.executor.RunCommand(context.Background(), listCmd)
         if err == nil {
-            metadata.PackageContents = contents
+            metadata.PackageContents = parseZipListing(result.Output)
         }
         
         // Get validation history
@@ -617,10 +646,11 @@ func (h *VersionHandlers) compareVersions(app core.App, e *core.RequestEvent) er
         DeepAnalysis:   e.Request.URL.Query().Get("deep") == "true",
     }
     
-    comparison, err := h.fileMgr.CompareVersions(e.Request.Context(), fromVersion, toVersion, comparisonConfig)
+    // Compare versions using executor commands
+    comparison, err := h.compareVersionPackages(e.Request.Context(), fromVersion, toVersion, comparisonConfig)
     if err != nil {
         span.EndWithError(err)
-        return handleComparisonError(e, err, "Version comparison failed")
+        return handleVersionError(e, err, "Version comparison failed")
     }
     
     span.SetFields(tracer.Fields{
@@ -661,8 +691,13 @@ func (h *VersionHandlers) optimizeVersionPackage(app core.App, e *core.RequestEv
         CreateBackup:     true,
     }
     
-    // Perform optimization
-    optimizationResult, err := h.fileMgr.OptimizePackage(e.Request.Context(), versionModel.GetDeploymentZipPath(), optimizationConfig)
+    // Perform optimization using executor
+    optimizeCmd := tunnel.Command{
+        Cmd:     fmt.Sprintf("gzip -9 %s && mv %s.gz %s", versionModel.GetDeploymentZipPath(), versionModel.GetDeploymentZipPath(), versionModel.GetDeploymentZipPath()),
+        Timeout: 10 * time.Minute,
+    }
+    
+    result, err := h.executor.RunCommand(e.Request.Context(), optimizeCmd)
     if err != nil {
         span.EndWithError(err)
         return handleOptimizationError(e, err, "Package optimization failed")
@@ -811,10 +846,16 @@ func (h *VersionHandlers) getVersionForDeployment(ctx context.Context, versionID
         return nil, err
     }
     
-    // Verify package integrity
-    if err := h.fileMgr.ValidatePackageIntegrity(versionModel.GetDeploymentZipPath(), versionModel.Checksum); err != nil {
+    // Verify package exists
+    statCmd := tunnel.Command{
+        Cmd:     fmt.Sprintf("test -f %s", versionModel.GetDeploymentZipPath()),
+        Timeout: 10 * time.Second,
+    }
+    
+    _, err = h.executor.RunCommand(e.Request.Context(), statCmd)
+    if err != nil {
         span.EndWithError(err)
-        return nil, fmt.Errorf("package integrity check failed: %w", err)
+        return nil, fmt.Errorf("package file not found: %w", err)
     }
     
     span.SetFields(tracer.Fields{
@@ -944,10 +985,10 @@ func (h *VersionHandlers) configureFileOperations() FileOperationConfig {
     return FileOperationConfig{
         MaxFileSize:      104857600, // 100MB
         MaxTotalSize:     157286400, // 150MB
-        AllowedTypes:     []string{"application/octet-stream", "application/zip", "text/plain"},
-        RequiredFiles:    []string{"pocketbase_binary"},
+        AllowedTypes:     []string{".zip", ".tar.gz"},
+        RequiredFiles:    []string{"pocketbase"},
         ValidateStructure: true,
-        CompressionLevel: 9, // Best compression
+        CompressionLevel: 9,
         ChecksumType:     "sha256",
         ProgressTracking: true,
     }
@@ -960,12 +1001,10 @@ func (h *VersionHandlers) configureFileOperations() FileOperationConfig {
 ```go
 // 1. Create new handler struct with dependencies
 type VersionHandlers struct {
-    executor      tunnel.Executor
-    fileMgr       tunnel.FileManager
-    deployMgr     tunnel.DeploymentManager
-    tracer        tracer.ServiceTracer
-    fileTracer    tracer.FileTracer
-    validator     tunnel.PackageValidator
+    executor  tunnel.Executor
+    deployMgr tunnel.DeploymentManager
+    tracer    tracer.ServiceTracer
+    validator tunnel.PackageValidator
 }
 
 // 2. Convert functions to methods
@@ -993,9 +1032,9 @@ models.SaveVersion(app, versionModel)
 binaryFile, binaryHeader, err := e.Request.FormFile("pocketbase_binary")
 publicFiles := e.Request.MultipartForm.File["pb_public_files"]
 
-// AFTER: Use file manager
-uploadRequest, err := h.fileMgr.ParseUploadRequest(e.Request, h.configureFileOperations())
-packageResult, err := h.fileMgr.CreateDeploymentPackage(ctx, packageConfig, progressChan)
+// AFTER: Use executor for file operations
+uploadRequest, err := h.parseUploadRequest(e.Request)
+packageResult, err := h.createDeploymentPackage(ctx, packageConfig)
 ```
 
 ### Step 4: Add Comprehensive Tracing
@@ -1085,9 +1124,13 @@ func (h *VersionHandlers) processVersionPackageAsync(ctx context.Context, versio
     // Monitor progress
     go h.monitorPackageProgress(ctx, versionModel.ID, progressChan)
     
-    // Create package
-    result, err := h.fileMgr.CreateDeploymentPackageAsync(ctx, packageConfig, progressChan)
-    close(progressChan)
+    // Create package using executor
+    createCmd := tunnel.Command{
+        Cmd:     fmt.Sprintf("cd %s && zip -r %s *", packageConfig.SourceDir, packageConfig.OutputPath),
+        Timeout: 10 * time.Minute,
+    }
+    
+    result, err := h.executor.RunCommand(ctx, createCmd)
     
     // Update version model
     if err != nil {
@@ -1129,11 +1172,18 @@ func (h *VersionHandlers) streamVersionDownload(app core.App, e *core.RequestEve
         TrackProgress:  true,
     }
     
-    // Stream with progress tracking
-    err = h.fileMgr.StreamFileDownload(e.Response, e.Request, streamConfig)
+    // Transfer file using executor
+    transferConfig := tunnel.FileTransfer{
+        LocalPath:  streamConfig.LocalPath,
+        RemotePath: streamConfig.RemotePath,
+        Direction:  tunnel.TransferDownload,
+        Progress:   true,
+    }
+    
+    err = h.executor.TransferFile(e.Request.Context(), transferConfig)
     if err != nil {
         span.EndWithError(err)
-        return handleDownloadError(e, err, "Streaming download failed")
+        return handleDownloadError(e, err, "File transfer failed")
     }
     
     span.SetFields(tracer.Fields{
@@ -1147,75 +1197,7 @@ func (h *VersionHandlers) streamVersionDownload(app core.App, e *core.RequestEve
 }
 ```
 
-## Testing Migration
 
-### Mock Dependencies Setup
-```go
-func TestVersionHandlers(t *testing.T) {
-    // Setup test dependencies
-    tracerFactory := tracer.SetupTestTracing(t)
-    mockExecutor := &tunnel.MockExecutor{}
-    mockFileMgr := &tunnel.MockFileManager{}
-    mockDeployMgr := &tunnel.MockDeploymentManager{}
-    mockValidator := &tunnel.MockPackageValidator{}
-    
-    handlers := &VersionHandlers{
-        executor:   mockExecutor,
-        fileMgr:    mockFileMgr,
-        deployMgr:  mockDeployMgr,
-        tracer:     tracerFactory.CreateServiceTracer(),
-        fileTracer: tracerFactory.CreateFileTracer(),
-        validator:  mockValidator,
-    }
-    
-    // Setup expectations
-    mockValidator.On("ValidatePocketBaseBinary", mock.Anything).Return(&tunnel.ValidationResult{Valid: true}, nil)
-    mockFileMgr.On("CreateDeploymentPackage", mock.Anything, mock.Anything, mock.Anything).Return(&tunnel.PackageResult{}, nil)
-    
-    // Execute test
-    err := handlers.uploadVersionPackage(testApp, testEvent)
-    assert.NoError(t, err)
-    
-    // Verify expectations
-    mockValidator.AssertExpectations(t)
-    mockFileMgr.AssertExpectations(t)
-}
-```
-
-### Integration Testing
-```go
-func TestVersionFileOperations(t *testing.T) {
-    // Real components for file operation testing
-    tracerFactory := tracer.SetupTestTracing(t)
-    fileTracer := tracerFactory.CreateFileTracer()
-    
-    fileMgr := tunnel.NewFileManager(nil, fileTracer) // No executor needed for local operations
-    validator := tunnel.NewPackageValidator()
-    
-    handlers := &VersionHandlers{
-        fileMgr:    fileMgr,
-        validator:  validator,
-        fileTracer: fileTracer,
-    }
-    
-    // Test with real files
-    testBinary := createTestPocketBaseBinary(t)
-    testPublicFiles := createTestPublicFiles(t)
-    
-    uploadRequest := &tunnel.UploadRequest{
-        Files: map[string][]io.Reader{
-            "pocketbase_binary": {testBinary},
-            "pb_public_files":   testPublicFiles,
-        },
-        TotalSize: calculateTotalSize(testBinary, testPublicFiles),
-    }
-    
-    // Test validation
-    validation, err := handlers.validatePackageUpload(context.Background(), uploadRequest)
-    assert.NoError(t, err)
-    assert.True(t, validation.Valid)
-}
-```
 
 ## Validation Checklist
 
@@ -1244,7 +1226,7 @@ func TestVersionFileOperations(t *testing.T) {
 - [ ] Package integrity checks functional
 - [ ] Performance improvements measurable
 - [ ] Integration with deployment pipeline working
-- [ ] Test coverage maintained or improved
+
 
 ## Success Metrics
 
