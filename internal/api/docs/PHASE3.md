@@ -1338,24 +1338,21 @@ The API also supports WebSocket connections for real-time updates:
 | 502 | Bad Gateway - SSH connection failed |
 | 503 | Service Unavailable - Service temporarily unavailable |
 
-## Rate Limiting
+## Local Tool - No Authentication Required
 
-- **Default Limit**: 100 requests per minute per IP
-- **Authenticated Limit**: 1000 requests per minute per user
-- **Headers**:
-  - `X-RateLimit-Limit`: Maximum requests allowed
-  - `X-RateLimit-Remaining`: Requests remaining
-  - `X-RateLimit-Reset`: Unix timestamp when limit resets
+This is a **local development tool** designed to run on the developer's machine only. No authentication is required since:
 
-## Authentication
+- All operations are performed locally
+- Tool manages servers via SSH keys (not API authentication)
+- PocketBase runs in local-only mode
+- No external access or multi-user requirements
 
-All API endpoints require authentication via Bearer token:
+## Connection Security
 
-```http
-Authorization: Bearer <token>
-```
-
-Tokens can be obtained via the authentication endpoint (to be implemented in Phase 4).
+Security is managed at the SSH level:
+- SSH key-based authentication to target servers
+- No API tokens or user management needed
+- Direct database access through local PocketBase instance
 
 ## Phase 3 Implementation Status
 
@@ -1365,14 +1362,14 @@ Tokens can be obtained via the authentication endpoint (to be implemented in Pha
 - All API endpoints documented
 - WebSocket event definitions
 - Error code documentation
-- Rate limiting specification
+- Local tool configuration (no auth required)
 
 ### Next Steps
 1. Implement API handlers based on this schema
 2. Set up OpenAPI validation middleware
 3. Generate client SDKs from schema
 4. Implement WebSocket event system
-5. Add authentication layer (Phase 4)
+5. Test local deployment workflows
 
 ## Testing
 
