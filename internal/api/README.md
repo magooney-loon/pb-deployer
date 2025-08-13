@@ -18,8 +18,8 @@ Expose all tunnel functionality through a comprehensive RESTful API with OpenAPI
       "url": "https://github.com/magooney-loon"
     },
     "license": {
-      "name": "MIT",
-      "url": "https://opensource.org/licenses/MIT"
+      "name": "AGPL-3.0",
+      "url": "https://opensource.org/license/agpl-v3"
     }
   },
   "servers": [
