@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"pb-deployer/internal/tunnel"
+	"pb-deployer/internal/utils"
 )
 
 // securityManager implements the SecurityManager interface
@@ -771,7 +772,7 @@ func (sm *securityManager) createFail2banConfig(ctx context.Context, config tunn
 	jailPath := filepath.Join(tunnel.Fail2banConfigPath, tunnel.Fail2banJailLocal)
 
 	cmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("cat > %s << 'EOF'\n%sEOF", shellEscape(jailPath), jailConfig),
+		Cmd:     fmt.Sprintf("cat > %s << 'EOF'\n%sEOF", utils.ShellEscape(jailPath), jailConfig),
 		Sudo:    true,
 		Timeout: 30 * time.Second,
 	}
@@ -798,7 +799,7 @@ func (sm *securityManager) buildFail2banJailConfig(config tunnel.Fail2banConfig)
 	lines = append(lines, "")
 
 	// SSH jail
-	if containsService(config.Services, "ssh") || containsService(config.Services, "sshd") {
+	if utils.ContainsService(config.Services, "ssh") || utils.ContainsService(config.Services, "sshd") {
 		lines = append(lines, "[sshd]")
 		lines = append(lines, "enabled = true")
 		lines = append(lines, "port = ssh")
@@ -900,22 +901,22 @@ func (sm *securityManager) buildSSHDConfig(settings tunnel.SSHHardeningConfig) s
 	lines = append(lines, "")
 
 	lines = append(lines, fmt.Sprintf("Protocol %d", settings.Protocol))
-	lines = append(lines, fmt.Sprintf("PasswordAuthentication %s", boolToYesNo(settings.PasswordAuthentication)))
-	lines = append(lines, fmt.Sprintf("PubkeyAuthentication %s", boolToYesNo(settings.PubkeyAuthentication)))
-	lines = append(lines, fmt.Sprintf("PermitRootLogin %s", boolToYesNo(settings.PermitRootLogin)))
-	lines = append(lines, fmt.Sprintf("X11Forwarding %s", boolToYesNo(settings.X11Forwarding)))
-	lines = append(lines, fmt.Sprintf("AllowAgentForwarding %s", boolToYesNo(settings.AllowAgentForwarding)))
-	lines = append(lines, fmt.Sprintf("AllowTcpForwarding %s", boolToYesNo(settings.AllowTcpForwarding)))
+	lines = append(lines, fmt.Sprintf("PasswordAuthentication %s", utils.BoolToYesNo(settings.PasswordAuthentication)))
+	lines = append(lines, fmt.Sprintf("PubkeyAuthentication %s", utils.BoolToYesNo(settings.PubkeyAuthentication)))
+	lines = append(lines, fmt.Sprintf("PermitRootLogin %s", utils.BoolToYesNo(settings.PermitRootLogin)))
+	lines = append(lines, fmt.Sprintf("X11Forwarding %s", utils.BoolToYesNo(settings.X11Forwarding)))
+	lines = append(lines, fmt.Sprintf("AllowAgentForwarding %s", utils.BoolToYesNo(settings.AllowAgentForwarding)))
+	lines = append(lines, fmt.Sprintf("AllowTcpForwarding %s", utils.BoolToYesNo(settings.AllowTcpForwarding)))
 	lines = append(lines, fmt.Sprintf("ClientAliveInterval %d", settings.ClientAliveInterval))
 	lines = append(lines, fmt.Sprintf("ClientAliveCountMax %d", settings.ClientAliveCountMax))
 	lines = append(lines, fmt.Sprintf("MaxAuthTries %d", settings.MaxAuthTries))
 	lines = append(lines, fmt.Sprintf("MaxSessions %d", settings.MaxSessions))
-	lines = append(lines, fmt.Sprintf("IgnoreRhosts %s", boolToYesNo(settings.IgnoreRhosts)))
-	lines = append(lines, fmt.Sprintf("HostbasedAuthentication %s", boolToYesNo(settings.HostbasedAuthentication)))
-	lines = append(lines, fmt.Sprintf("PermitEmptyPasswords %s", boolToYesNo(settings.PermitEmptyPasswords)))
-	lines = append(lines, fmt.Sprintf("ChallengeResponseAuthentication %s", boolToYesNo(settings.ChallengeResponseAuthentication)))
-	lines = append(lines, fmt.Sprintf("KerberosAuthentication %s", boolToYesNo(settings.KerberosAuthentication)))
-	lines = append(lines, fmt.Sprintf("GSSAPIAuthentication %s", boolToYesNo(settings.GSSAPIAuthentication)))
+	lines = append(lines, fmt.Sprintf("IgnoreRhosts %s", utils.BoolToYesNo(settings.IgnoreRhosts)))
+	lines = append(lines, fmt.Sprintf("HostbasedAuthentication %s", utils.BoolToYesNo(settings.HostbasedAuthentication)))
+	lines = append(lines, fmt.Sprintf("PermitEmptyPasswords %s", utils.BoolToYesNo(settings.PermitEmptyPasswords)))
+	lines = append(lines, fmt.Sprintf("ChallengeResponseAuthentication %s", utils.BoolToYesNo(settings.ChallengeResponseAuthentication)))
+	lines = append(lines, fmt.Sprintf("KerberosAuthentication %s", utils.BoolToYesNo(settings.KerberosAuthentication)))
+	lines = append(lines, fmt.Sprintf("GSSAPIAuthentication %s", utils.BoolToYesNo(settings.GSSAPIAuthentication)))
 
 	// Additional security settings
 	lines = append(lines, "")
@@ -1192,22 +1193,6 @@ func (sm *securityManager) reportProgress(ctx context.Context, update tunnel.Pro
 	}
 }
 
-func boolToYesNo(b bool) string {
-	if b {
-		return "yes"
-	}
-	return "no"
-}
-
-func containsService(services []string, service string) bool {
-	for _, s := range services {
-		if s == service {
-			return true
-		}
-	}
-	return false
-}
-
 // defaultSecurityConfig returns default security configuration
 func defaultSecurityConfig() tunnel.SecurityConfig {
 	return tunnel.SecurityConfig{
@@ -1447,7 +1432,7 @@ func (sm *securityManager) auditSSHConfiguration(ctx context.Context) tunnel.Sec
 	// Calculate score based on issues
 	if issues > 0 {
 		check.Status = "warning"
-		check.Score = max(0, 100-(issues*25))
+		check.Score = utils.Max(0, 100-(issues*25))
 	}
 
 	check.Details["issues_found"] = issues
@@ -1628,7 +1613,7 @@ func (sm *securityManager) auditSystemSecurity(ctx context.Context) tunnel.Secur
 	// Calculate score based on issues
 	if issues > 0 {
 		check.Status = "warning"
-		check.Score = max(0, 100-(issues*20))
+		check.Score = utils.Max(0, 100-(issues*20))
 	}
 
 	check.Details["issues_found"] = issues
@@ -1680,11 +1665,4 @@ func (sm *securityManager) calculateOverallSecurity(report *tunnel.SecurityRepor
 			}
 		}
 	}
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

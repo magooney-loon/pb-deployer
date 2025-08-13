@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"time"
 
+	"pb-deployer/internal/utils"
+
 	"github.com/pocketbase/pocketbase/core"
 )
 
@@ -41,16 +43,16 @@ type DeploymentStatusResponse struct {
 
 // DeploymentStatsResponse represents deployment statistics
 type DeploymentStatsResponse struct {
-	Total       int64                  `json:"total"`
-	Pending     int64                  `json:"pending"`
-	Running     int64                  `json:"running"`
-	Success     int64                  `json:"success"`
-	Failed      int64                  `json:"failed"`
-	SuccessRate float64                `json:"success_rate"`
-	AvgDuration string                 `json:"avg_duration"`
-	Recent      []DeploymentResponse   `json:"recent"`
-	ByApp       map[string]any `json:"by_app"`
-	ByStatus    map[string]int64       `json:"by_status"`
+	Total       int64                `json:"total"`
+	Pending     int64                `json:"pending"`
+	Running     int64                `json:"running"`
+	Success     int64                `json:"success"`
+	Failed      int64                `json:"failed"`
+	SuccessRate float64              `json:"success_rate"`
+	AvgDuration string               `json:"avg_duration"`
+	Recent      []DeploymentResponse `json:"recent"`
+	ByApp       map[string]any       `json:"by_app"`
+	ByStatus    map[string]int64     `json:"by_status"`
 }
 
 // listDeployments handles the list deployments endpoint
@@ -661,12 +663,8 @@ func recordToDeploymentResponse(record *core.Record, app core.App) DeploymentRes
 }
 
 // formatDuration formats a duration in a human-readable way
+// formatDuration is now available from utils package
+// Keeping this as a wrapper for backward compatibility
 func formatDuration(d time.Duration) string {
-	if d < time.Minute {
-		return fmt.Sprintf("%.1fs", d.Seconds())
-	} else if d < time.Hour {
-		return fmt.Sprintf("%.1fm", d.Minutes())
-	} else {
-		return fmt.Sprintf("%.1fh", d.Hours())
-	}
+	return utils.FormatDuration(d)
 }

@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"pb-deployer/internal/utils"
+
 	"golang.org/x/crypto/ssh"
 )
 
@@ -354,7 +356,7 @@ func (e *executor) uploadFile(ctx context.Context, conn *ssh.Client, transfer Tr
 	defer session.Close()
 
 	// Set up SCP command
-	scpCmd := fmt.Sprintf("scp -t %s", shellEscape(transfer.Destination))
+	scpCmd := fmt.Sprintf("scp -t %s", utils.ShellEscape(transfer.Destination))
 
 	// Get session pipes
 	stdin, err := session.StdinPipe()
@@ -413,7 +415,7 @@ func (e *executor) downloadFile(ctx context.Context, conn *ssh.Client, transfer 
 	defer session.Close()
 
 	// Set up SCP command
-	scpCmd := fmt.Sprintf("scp -f %s", shellEscape(transfer.Source))
+	scpCmd := fmt.Sprintf("scp -f %s", utils.ShellEscape(transfer.Source))
 
 	// Get session pipes
 	stdout, err := session.StdoutPipe()

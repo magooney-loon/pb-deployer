@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"pb-deployer/internal/tunnel"
+	"pb-deployer/internal/utils"
 )
 
 // deploymentManager implements the DeploymentManager interface
@@ -572,7 +573,7 @@ func (dm *deploymentManager) getCurrentVersion(ctx context.Context, deployment s
 
 	// Try to get version from version file
 	cmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("cat /opt/%s/VERSION 2>/dev/null || echo 'unknown'", shellEscape(deployment)),
+		Cmd:     fmt.Sprintf("cat /opt/%s/VERSION 2>/dev/null || echo 'unknown'", utils.ShellEscape(deployment)),
 		Sudo:    false,
 		Timeout: 10 * time.Second,
 	}
@@ -590,7 +591,7 @@ func (dm *deploymentManager) createBackup(ctx context.Context, deployment tunnel
 
 	// Create backup directory
 	cmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("mkdir -p %s", shellEscape(backupDir)),
+		Cmd:     fmt.Sprintf("mkdir -p %s", utils.ShellEscape(backupDir)),
 		Sudo:    true,
 		Timeout: 30 * time.Second,
 	}
@@ -607,7 +608,7 @@ func (dm *deploymentManager) createBackup(ctx context.Context, deployment tunnel
 	// Backup current deployment if it exists
 	if deployment.WorkingDirectory != "" {
 		cmd = tunnel.Command{
-			Cmd:     fmt.Sprintf("cp -r %s/* %s/ 2>/dev/null || true", shellEscape(deployment.WorkingDirectory), shellEscape(backupDir)),
+			Cmd:     fmt.Sprintf("cp -r %s/* %s/ 2>/dev/null || true", utils.ShellEscape(deployment.WorkingDirectory), utils.ShellEscape(backupDir)),
 			Sudo:    true,
 			Timeout: 5 * time.Minute,
 		}
@@ -623,7 +624,7 @@ func (dm *deploymentManager) createBackup(ctx context.Context, deployment tunnel
 	currentVersion, _ := dm.getCurrentVersion(ctx, deployment.Name)
 
 	cmd = tunnel.Command{
-		Cmd:     fmt.Sprintf("echo %s > %s", shellEscape(currentVersion), shellEscape(versionFile)),
+		Cmd:     fmt.Sprintf("echo %s > %s", utils.ShellEscape(currentVersion), utils.ShellEscape(versionFile)),
 		Sudo:    true,
 		Timeout: 10 * time.Second,
 	}
@@ -678,7 +679,7 @@ func (dm *deploymentManager) deployRecreate(ctx context.Context, deployment tunn
 	// Create working directory if it doesn't exist
 	if deployment.WorkingDirectory != "" {
 		cmd := tunnel.Command{
-			Cmd:     fmt.Sprintf("mkdir -p %s", shellEscape(deployment.WorkingDirectory)),
+			Cmd:     fmt.Sprintf("mkdir -p %s", utils.ShellEscape(deployment.WorkingDirectory)),
 			Sudo:    true,
 			Timeout: 30 * time.Second,
 		}
@@ -740,7 +741,7 @@ func (dm *deploymentManager) deployArtifact(ctx context.Context, deployment tunn
 
 func (dm *deploymentManager) extractTarGz(ctx context.Context, artifactPath, destPath string) error {
 	cmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("tar -xzf %s -C %s", shellEscape(artifactPath), shellEscape(destPath)),
+		Cmd:     fmt.Sprintf("tar -xzf %s -C %s", utils.ShellEscape(artifactPath), utils.ShellEscape(destPath)),
 		Sudo:    true,
 		Timeout: 10 * time.Minute,
 	}
@@ -759,7 +760,7 @@ func (dm *deploymentManager) extractTarGz(ctx context.Context, artifactPath, des
 
 func (dm *deploymentManager) extractZip(ctx context.Context, artifactPath, destPath string) error {
 	cmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("unzip -o %s -d %s", shellEscape(artifactPath), shellEscape(destPath)),
+		Cmd:     fmt.Sprintf("unzip -o %s -d %s", utils.ShellEscape(artifactPath), utils.ShellEscape(destPath)),
 		Sudo:    true,
 		Timeout: 10 * time.Minute,
 	}
@@ -778,7 +779,7 @@ func (dm *deploymentManager) extractZip(ctx context.Context, artifactPath, destP
 
 func (dm *deploymentManager) copyFile(ctx context.Context, artifactPath, destPath string) error {
 	cmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("cp %s %s/", shellEscape(artifactPath), shellEscape(destPath)),
+		Cmd:     fmt.Sprintf("cp %s %s/", utils.ShellEscape(artifactPath), utils.ShellEscape(destPath)),
 		Sudo:    true,
 		Timeout: 5 * time.Minute,
 	}
@@ -829,7 +830,7 @@ func (dm *deploymentManager) performHealthCheck(ctx context.Context, deployment 
 				// Simple file existence check
 				if deployment.WorkingDirectory != "" {
 					cmd := tunnel.Command{
-						Cmd:     fmt.Sprintf("test -d %s", shellEscape(deployment.WorkingDirectory)),
+						Cmd:     fmt.Sprintf("test -d %s", utils.ShellEscape(deployment.WorkingDirectory)),
 						Sudo:    false,
 						Timeout: 10 * time.Second,
 					}
@@ -846,7 +847,7 @@ func (dm *deploymentManager) performHealthCheck(ctx context.Context, deployment 
 
 func (dm *deploymentManager) checkHTTPHealth(ctx context.Context, url string) error {
 	cmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("curl -f -s %s > /dev/null", shellEscape(url)),
+		Cmd:     fmt.Sprintf("curl -f -s %s > /dev/null", utils.ShellEscape(url)),
 		Sudo:    false,
 		Timeout: 30 * time.Second,
 	}
@@ -910,7 +911,7 @@ func (dm *deploymentManager) updateDeploymentState(name string, state tunnel.Dep
 func (dm *deploymentManager) validateArtifact(ctx context.Context, artifactPath string) error {
 	// Check if artifact file exists
 	cmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("test -f %s", shellEscape(artifactPath)),
+		Cmd:     fmt.Sprintf("test -f %s", utils.ShellEscape(artifactPath)),
 		Sudo:    false,
 		Timeout: 10 * time.Second,
 	}
@@ -926,7 +927,7 @@ func (dm *deploymentManager) validateArtifact(ctx context.Context, artifactPath 
 
 	// Check if artifact is readable
 	cmd = tunnel.Command{
-		Cmd:     fmt.Sprintf("test -r %s", shellEscape(artifactPath)),
+		Cmd:     fmt.Sprintf("test -r %s", utils.ShellEscape(artifactPath)),
 		Sudo:    false,
 		Timeout: 10 * time.Second,
 	}
@@ -972,7 +973,7 @@ func (dm *deploymentManager) validateDependencies(ctx context.Context, dependenc
 
 func (dm *deploymentManager) validateBackupExists(ctx context.Context, backupPath string) error {
 	cmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("test -d %s", shellEscape(backupPath)),
+		Cmd:     fmt.Sprintf("test -d %s", utils.ShellEscape(backupPath)),
 		Sudo:    false,
 		Timeout: 10 * time.Second,
 	}
@@ -995,7 +996,7 @@ func (dm *deploymentManager) restoreFromBackup(ctx context.Context, deployment, 
 
 	// Create deployment directory
 	cmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("mkdir -p %s", shellEscape(deploymentPath)),
+		Cmd:     fmt.Sprintf("mkdir -p %s", utils.ShellEscape(deploymentPath)),
 		Sudo:    true,
 		Timeout: 30 * time.Second,
 	}
@@ -1011,7 +1012,7 @@ func (dm *deploymentManager) restoreFromBackup(ctx context.Context, deployment, 
 
 	// Restore files from backup
 	cmd = tunnel.Command{
-		Cmd:     fmt.Sprintf("cp -r %s/* %s/", shellEscape(backupPath), shellEscape(deploymentPath)),
+		Cmd:     fmt.Sprintf("cp -r %s/* %s/", utils.ShellEscape(backupPath), utils.ShellEscape(deploymentPath)),
 		Sudo:    true,
 		Timeout: 5 * time.Minute,
 	}
@@ -1079,7 +1080,7 @@ func (dm *deploymentManager) checkDeploymentHealth(ctx context.Context, deployme
 	// Check deployment directory
 	deploymentPath := fmt.Sprintf("/opt/%s", deployment)
 	cmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("test -d %s", shellEscape(deploymentPath)),
+		Cmd:     fmt.Sprintf("test -d %s", utils.ShellEscape(deploymentPath)),
 		Sudo:    false,
 		Timeout: 10 * time.Second,
 	}

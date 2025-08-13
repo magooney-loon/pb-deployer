@@ -3,11 +3,11 @@ package managers
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
 	"pb-deployer/internal/tunnel"
+	"pb-deployer/internal/utils"
 )
 
 // serviceManager implements the ServiceManager interface
@@ -144,7 +144,7 @@ func (sm *serviceManager) GetServiceStatus(ctx context.Context, service string) 
 
 	// Get service status
 	cmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("systemctl show %s --property=ActiveState,LoadState,SubState,UnitFileState,Description", shellEscape(service)),
+		Cmd:     fmt.Sprintf("systemctl show %s --property=ActiveState,LoadState,SubState,UnitFileState,Description", utils.ShellEscape(service)),
 		Sudo:    true,
 		Timeout: 30 * time.Second,
 	}
@@ -218,7 +218,7 @@ func (sm *serviceManager) GetServiceLogs(ctx context.Context, service string, li
 
 	// Get service logs using journalctl
 	cmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("journalctl -u %s -n %d --no-pager", shellEscape(service), lines),
+		Cmd:     fmt.Sprintf("journalctl -u %s -n %d --no-pager", utils.ShellEscape(service), lines),
 		Sudo:    true,
 		Timeout: 30 * time.Second,
 	}
@@ -277,7 +277,7 @@ func (sm *serviceManager) EnableService(ctx context.Context, service string) err
 
 	// Enable the service
 	cmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("systemctl enable %s", shellEscape(service)),
+		Cmd:     fmt.Sprintf("systemctl enable %s", utils.ShellEscape(service)),
 		Sudo:    true,
 		Timeout: 30 * time.Second,
 	}
@@ -335,7 +335,7 @@ func (sm *serviceManager) DisableService(ctx context.Context, service string) er
 
 	// Disable the service
 	cmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("systemctl disable %s", shellEscape(service)),
+		Cmd:     fmt.Sprintf("systemctl disable %s", utils.ShellEscape(service)),
 		Sudo:    true,
 		Timeout: 30 * time.Second,
 	}
@@ -400,7 +400,7 @@ func (sm *serviceManager) CreateServiceFile(ctx context.Context, service tunnel.
 
 	// Create the service file
 	cmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("cat > %s << 'EOF'\n%sEOF", shellEscape(servicePath), serviceContent),
+		Cmd:     fmt.Sprintf("cat > %s << 'EOF'\n%sEOF", utils.ShellEscape(servicePath), serviceContent),
 		Sudo:    true,
 		Timeout: 30 * time.Second,
 	}
@@ -559,7 +559,7 @@ func (sm *serviceManager) WaitForService(ctx context.Context, service string, ti
 
 func (sm *serviceManager) startService(ctx context.Context, service string) error {
 	cmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("systemctl start %s", shellEscape(service)),
+		Cmd:     fmt.Sprintf("systemctl start %s", utils.ShellEscape(service)),
 		Sudo:    true,
 		Timeout: sm.config.ActionTimeout,
 	}
@@ -578,7 +578,7 @@ func (sm *serviceManager) startService(ctx context.Context, service string) erro
 
 func (sm *serviceManager) stopService(ctx context.Context, service string) error {
 	cmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("systemctl stop %s", shellEscape(service)),
+		Cmd:     fmt.Sprintf("systemctl stop %s", utils.ShellEscape(service)),
 		Sudo:    true,
 		Timeout: sm.config.ActionTimeout,
 	}
@@ -597,7 +597,7 @@ func (sm *serviceManager) stopService(ctx context.Context, service string) error
 
 func (sm *serviceManager) restartService(ctx context.Context, service string) error {
 	cmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("systemctl restart %s", shellEscape(service)),
+		Cmd:     fmt.Sprintf("systemctl restart %s", utils.ShellEscape(service)),
 		Sudo:    true,
 		Timeout: sm.config.ActionTimeout,
 	}
@@ -616,7 +616,7 @@ func (sm *serviceManager) restartService(ctx context.Context, service string) er
 
 func (sm *serviceManager) reloadService(ctx context.Context, service string) error {
 	cmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("systemctl reload %s", shellEscape(service)),
+		Cmd:     fmt.Sprintf("systemctl reload %s", utils.ShellEscape(service)),
 		Sudo:    true,
 		Timeout: sm.config.ActionTimeout,
 	}
@@ -634,17 +634,7 @@ func (sm *serviceManager) reloadService(ctx context.Context, service string) err
 }
 
 func (sm *serviceManager) validateServiceName(service string) error {
-	if service == "" {
-		return fmt.Errorf("service name cannot be empty")
-	}
-
-	// Check for invalid characters
-	validName := regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
-	if !validName.MatchString(service) {
-		return fmt.Errorf("invalid service name: %s", service)
-	}
-
-	return nil
+	return utils.ValidateServiceName(service)
 }
 
 func (sm *serviceManager) validateServiceDefinition(service tunnel.ServiceDefinition) error {

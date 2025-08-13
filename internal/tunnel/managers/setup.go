@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"pb-deployer/internal/tunnel"
+	"pb-deployer/internal/utils"
 )
 
 // setupManager implements the SetupManager interface
@@ -189,7 +190,7 @@ func (sm *setupManager) SetupSSHKeys(ctx context.Context, user string, keys []st
 
 	// Create .ssh directory
 	createDirCmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("mkdir -p %s", shellEscape(sshDir)),
+		Cmd:     fmt.Sprintf("mkdir -p %s", utils.ShellEscape(sshDir)),
 		Sudo:    true,
 		Timeout: 30 * time.Second,
 	}
@@ -208,7 +209,7 @@ func (sm *setupManager) SetupSSHKeys(ctx context.Context, user string, keys []st
 
 	// Set .ssh directory permissions
 	chmodCmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("chmod 700 %s", shellEscape(sshDir)),
+		Cmd:     fmt.Sprintf("chmod 700 %s", utils.ShellEscape(sshDir)),
 		Sudo:    true,
 		Timeout: 30 * time.Second,
 	}
@@ -230,7 +231,7 @@ func (sm *setupManager) SetupSSHKeys(ctx context.Context, user string, keys []st
 	keysContent := strings.Join(keys, "\n") + "\n"
 
 	createKeysCmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("cat > %s << 'EOF'\n%sEOF", shellEscape(authorizedKeysPath), keysContent),
+		Cmd:     fmt.Sprintf("cat > %s << 'EOF'\n%sEOF", utils.ShellEscape(authorizedKeysPath), keysContent),
 		Sudo:    true,
 		Timeout: 30 * time.Second,
 	}
@@ -249,7 +250,7 @@ func (sm *setupManager) SetupSSHKeys(ctx context.Context, user string, keys []st
 
 	// Set authorized_keys permissions
 	chmodKeysCmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("chmod 600 %s", shellEscape(authorizedKeysPath)),
+		Cmd:     fmt.Sprintf("chmod 600 %s", utils.ShellEscape(authorizedKeysPath)),
 		Sudo:    true,
 		Timeout: 30 * time.Second,
 	}
@@ -268,7 +269,7 @@ func (sm *setupManager) SetupSSHKeys(ctx context.Context, user string, keys []st
 
 	// Set ownership of .ssh directory and contents
 	chownCmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("chown -R %s:%s %s", shellEscape(user), shellEscape(user), shellEscape(sshDir)),
+		Cmd:     fmt.Sprintf("chown -R %s:%s %s", utils.ShellEscape(user), utils.ShellEscape(user), utils.ShellEscape(sshDir)),
 		Sudo:    true,
 		Timeout: 30 * time.Second,
 	}
@@ -384,7 +385,7 @@ func (sm *setupManager) ConfigureSudo(ctx context.Context, user string, commands
 
 	// Create sudo configuration file
 	createSudoCmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("cat > %s << 'EOF'\n%sEOF", shellEscape(sudoFilePath), sudoConfig),
+		Cmd:     fmt.Sprintf("cat > %s << 'EOF'\n%sEOF", utils.ShellEscape(sudoFilePath), sudoConfig),
 		Sudo:    true,
 		Timeout: 30 * time.Second,
 	}
@@ -403,7 +404,7 @@ func (sm *setupManager) ConfigureSudo(ctx context.Context, user string, commands
 
 	// Set sudo file permissions
 	chmodSudoCmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("chmod 440 %s", shellEscape(sudoFilePath)),
+		Cmd:     fmt.Sprintf("chmod 440 %s", utils.ShellEscape(sudoFilePath)),
 		Sudo:    true,
 		Timeout: 30 * time.Second,
 	}
@@ -694,7 +695,7 @@ func (sm *setupManager) setUserDefaults(user tunnel.UserConfig) tunnel.UserConfi
 
 func (sm *setupManager) userExists(ctx context.Context, username string) (bool, error) {
 	cmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("id %s", shellEscape(username)),
+		Cmd:     fmt.Sprintf("id %s", utils.ShellEscape(username)),
 		Sudo:    false,
 		Timeout: 10 * time.Second,
 	}
@@ -715,18 +716,18 @@ func (sm *setupManager) buildCreateUserCommand(user tunnel.UserConfig) (tunnel.C
 	}
 
 	if user.HomeDir != "" {
-		args = append(args, "-d", shellEscape(user.HomeDir))
+		args = append(args, "-d", utils.ShellEscape(user.HomeDir))
 	}
 
 	if user.Shell != "" {
-		args = append(args, "-s", shellEscape(user.Shell))
+		args = append(args, "-s", utils.ShellEscape(user.Shell))
 	}
 
 	if user.SystemUser {
 		args = append(args, "-r")
 	}
 
-	args = append(args, shellEscape(user.Username))
+	args = append(args, utils.ShellEscape(user.Username))
 
 	return tunnel.Command{
 		Cmd:     strings.Join(args, " "),
@@ -737,7 +738,7 @@ func (sm *setupManager) buildCreateUserCommand(user tunnel.UserConfig) (tunnel.C
 
 func (sm *setupManager) setupHomeDirectory(ctx context.Context, user tunnel.UserConfig) error {
 	chownCmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("chown %s:%s %s", shellEscape(user.Username), shellEscape(user.Username), shellEscape(user.HomeDir)),
+		Cmd:     fmt.Sprintf("chown %s:%s %s", utils.ShellEscape(user.Username), utils.ShellEscape(user.Username), utils.ShellEscape(user.HomeDir)),
 		Sudo:    true,
 		Timeout: 30 * time.Second,
 	}
@@ -753,7 +754,7 @@ func (sm *setupManager) setupHomeDirectory(ctx context.Context, user tunnel.User
 
 	// Set home directory permissions
 	chmodCmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("chmod 755 %s", shellEscape(user.HomeDir)),
+		Cmd:     fmt.Sprintf("chmod 755 %s", utils.ShellEscape(user.HomeDir)),
 		Sudo:    true,
 		Timeout: 30 * time.Second,
 	}
@@ -773,7 +774,7 @@ func (sm *setupManager) setupHomeDirectory(ctx context.Context, user tunnel.User
 func (sm *setupManager) addUserToGroups(ctx context.Context, username string, groups []string) error {
 	for _, group := range groups {
 		cmd := tunnel.Command{
-			Cmd:     fmt.Sprintf("usermod -aG %s %s", shellEscape(group), shellEscape(username)),
+			Cmd:     fmt.Sprintf("usermod -aG %s %s", utils.ShellEscape(group), utils.ShellEscape(username)),
 			Sudo:    true,
 			Timeout: 30 * time.Second,
 		}
@@ -793,7 +794,7 @@ func (sm *setupManager) addUserToGroups(ctx context.Context, username string, gr
 
 func (sm *setupManager) getUserHomeDirectory(ctx context.Context, username string) (string, error) {
 	cmd := tunnel.Command{
-		Cmd:     fmt.Sprintf("getent passwd %s | cut -d: -f6", shellEscape(username)),
+		Cmd:     fmt.Sprintf("getent passwd %s | cut -d: -f6", utils.ShellEscape(username)),
 		Sudo:    false,
 		Timeout: 10 * time.Second,
 	}
@@ -816,7 +817,7 @@ func (sm *setupManager) createDirectory(ctx context.Context, dir tunnel.Director
 	if dir.Parents {
 		mkdirArgs = append(mkdirArgs, "-p")
 	}
-	mkdirArgs = append(mkdirArgs, shellEscape(dir.Path))
+	mkdirArgs = append(mkdirArgs, utils.ShellEscape(dir.Path))
 
 	mkdirCmd := tunnel.Command{
 		Cmd:     fmt.Sprintf("mkdir %s", strings.Join(mkdirArgs, " ")),
@@ -836,7 +837,7 @@ func (sm *setupManager) createDirectory(ctx context.Context, dir tunnel.Director
 	// Set permissions if specified
 	if dir.Permissions != "" {
 		chmodCmd := tunnel.Command{
-			Cmd:     fmt.Sprintf("chmod %s %s", shellEscape(dir.Permissions), shellEscape(dir.Path)),
+			Cmd:     fmt.Sprintf("chmod %s %s", utils.ShellEscape(dir.Permissions), utils.ShellEscape(dir.Path)),
 			Sudo:    true,
 			Timeout: 30 * time.Second,
 		}
@@ -854,7 +855,7 @@ func (sm *setupManager) createDirectory(ctx context.Context, dir tunnel.Director
 	// Set ownership if specified
 	if dir.Owner != "" && dir.Group != "" {
 		chownCmd := tunnel.Command{
-			Cmd:     fmt.Sprintf("chown %s:%s %s", shellEscape(dir.Owner), shellEscape(dir.Group), shellEscape(dir.Path)),
+			Cmd:     fmt.Sprintf("chown %s:%s %s", utils.ShellEscape(dir.Owner), utils.ShellEscape(dir.Group), utils.ShellEscape(dir.Path)),
 			Sudo:    true,
 			Timeout: 30 * time.Second,
 		}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"pb-deployer/internal/utils"
 	"strings"
 	"sync"
 	"time"
@@ -330,12 +331,12 @@ func (s *Session) prepareCommand(cmd string) string {
 
 	// Change working directory if specified
 	if s.config.WorkingDir != "" {
-		parts = append(parts, fmt.Sprintf("cd %s", shellEscape(s.config.WorkingDir)))
+		parts = append(parts, fmt.Sprintf("cd %s", utils.ShellEscape(s.config.WorkingDir)))
 	}
 
 	// Add environment variables that couldn't be set via Setenv
 	for key, value := range s.config.Environment {
-		parts = append(parts, fmt.Sprintf("export %s=%s", key, shellEscape(value)))
+		parts = append(parts, fmt.Sprintf("export %s=%s", key, utils.ShellEscape(value)))
 	}
 
 	// Add the actual command
@@ -347,19 +348,13 @@ func (s *Session) prepareCommand(cmd string) string {
 	// Wrap with sudo if needed
 	if s.config.Sudo {
 		if s.config.SudoUser != "" {
-			finalCmd = fmt.Sprintf("sudo -u %s %s", shellEscape(s.config.SudoUser), finalCmd)
+			finalCmd = fmt.Sprintf("sudo -u %s %s", utils.ShellEscape(s.config.SudoUser), finalCmd)
 		} else {
 			finalCmd = fmt.Sprintf("sudo %s", finalCmd)
 		}
 	}
 
 	return finalCmd
-}
-
-// shellEscape escapes a string for safe use in shell commands
-func shellEscape(s string) string {
-	// Simple escaping - in production, use a more robust solution
-	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
 }
 
 // ExecutorSession provides high-level command execution with session management
