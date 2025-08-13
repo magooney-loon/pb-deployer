@@ -1010,11 +1010,6 @@ func (sm *setupManager) reportProgress(ctx context.Context, update tunnel.Progre
 	}
 }
 
-// shellEscape escapes a string for safe use in shell commands
-func shellEscape(s string) string {
-	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
-}
-
 // SetConfig updates the setup manager configuration
 func (sm *setupManager) SetConfig(config tunnel.SetupConfig) {
 	sm.config = config

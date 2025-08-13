@@ -102,15 +102,164 @@ func DefaultHealthCheckConfig() *HealthCheckConfig {
 
 // DeploymentConfig holds deployment-specific configuration
 type DeploymentConfig struct {
-	AppName         string
-	DeploymentPath  string
-	ServiceName     string
-	BackupEnabled   bool
-	BackupPath      string
-	PreDeployHooks  []string
-	PostDeployHooks []string
-	HealthCheckURL  string
-	RollbackOnFail  bool
+	Strategy           DeploymentStrategy
+	MaxRetries         int
+	RetryDelay         time.Duration
+	HealthCheckTimeout time.Duration
+	BackupEnabled      bool
+	BackupPath         string
+	ValidationEnabled  bool
+	ArtifactValidation bool
+}
+
+// DeploymentStrategy represents deployment strategies
+type DeploymentStrategy string
+
+const (
+	DeploymentStrategyRolling   DeploymentStrategy = "rolling"
+	DeploymentStrategyBlueGreen DeploymentStrategy = "blue-green"
+	DeploymentStrategyCanary    DeploymentStrategy = "canary"
+	DeploymentStrategyRecreate  DeploymentStrategy = "recreate"
+)
+
+// DeploymentSpec defines a deployment specification
+type DeploymentSpec struct {
+	Name              string
+	Version           string
+	Environment       string
+	ArtifactPath      string
+	ServiceName       string
+	WorkingDirectory  string
+	PreDeployHooks    []string
+	PostDeployHooks   []string
+	HealthCheckURL    string
+	HealthCheckPath   string
+	Configuration     map[string]string
+	EnvironmentVars   map[string]string
+	Replicas          int
+	Strategy          DeploymentStrategy
+	RollbackOnFailure bool
+	Dependencies      []string
+}
+
+// DeploymentResult represents the result of a deployment
+type DeploymentResult struct {
+	Success         bool
+	Message         string
+	Version         string
+	PreviousVersion string
+	RollbackData    map[string]any
+	StartTime       time.Time
+	EndTime         time.Time
+	Duration        time.Duration
+	Steps           []DeploymentStep
+}
+
+// DeploymentStep represents a single deployment step
+type DeploymentStep struct {
+	Name      string
+	Status    StepStatus
+	Message   string
+	StartTime time.Time
+	EndTime   time.Time
+	Error     error
+}
+
+// StepStatus represents the status of a deployment step
+type StepStatus string
+
+const (
+	StepStatusPending   StepStatus = "pending"
+	StepStatusRunning   StepStatus = "running"
+	StepStatusCompleted StepStatus = "completed"
+	StepStatusFailed    StepStatus = "failed"
+	StepStatusSkipped   StepStatus = "skipped"
+)
+
+// DeploymentStatus represents the status of a deployment
+type DeploymentStatus struct {
+	Name          string
+	State         DeploymentState
+	Version       string
+	Environment   string
+	Health        HealthStatus
+	LastUpdated   time.Time
+	Replicas      DeploymentReplicas
+	Configuration map[string]string
+	Events        []DeploymentEvent
+}
+
+// DeploymentState represents deployment states
+type DeploymentState string
+
+const (
+	DeploymentStateDeploying   DeploymentState = "deploying"
+	DeploymentStateHealthy     DeploymentState = "healthy"
+	DeploymentStateUnhealthy   DeploymentState = "unhealthy"
+	DeploymentStateFailed      DeploymentState = "failed"
+	DeploymentStateRollingBack DeploymentState = "rolling_back"
+	DeploymentStateUnknown     DeploymentState = "unknown"
+)
+
+// HealthStatus represents health check status
+type HealthStatus string
+
+const (
+	HealthStatusHealthy   HealthStatus = "healthy"
+	HealthStatusUnhealthy HealthStatus = "unhealthy"
+	HealthStatusUnknown   HealthStatus = "unknown"
+)
+
+// DeploymentReplicas represents replica information
+type DeploymentReplicas struct {
+	Desired   int
+	Available int
+	Ready     int
+	Updated   int
+}
+
+// DeploymentEvent represents a deployment event
+type DeploymentEvent struct {
+	Type      string
+	Message   string
+	Timestamp time.Time
+	Reason    string
+}
+
+// DeploymentInfo provides summary information about a deployment
+type DeploymentInfo struct {
+	Name        string
+	Version     string
+	Environment string
+	State       DeploymentState
+	Health      HealthStatus
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+// DeploymentHealth represents detailed health information
+type DeploymentHealth struct {
+	Overall    HealthStatus
+	Components map[string]ComponentHealth
+	LastCheck  time.Time
+	Message    string
+}
+
+// ComponentHealth represents health of a specific component
+type ComponentHealth struct {
+	Name    string
+	Status  HealthStatus
+	Message string
+	Checks  []HealthCheck
+}
+
+// HealthCheck represents an individual health check
+type HealthCheck struct {
+	Name     string
+	Status   HealthStatus
+	Message  string
+	Duration time.Duration
+	LastRun  time.Time
 }
 
 // MonitoringConfig holds monitoring configuration

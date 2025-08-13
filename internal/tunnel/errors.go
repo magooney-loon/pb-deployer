@@ -150,6 +150,21 @@ func (e *ServiceError) Unwrap() error {
 	return e.Err
 }
 
+// DeploymentError represents deployment operation errors
+type DeploymentError struct {
+	Deployment string
+	Operation  string
+	Err        error
+}
+
+func (e *DeploymentError) Error() string {
+	return fmt.Sprintf("deployment '%s' %s failed: %v", e.Deployment, e.Operation, e.Err)
+}
+
+func (e *DeploymentError) Unwrap() error {
+	return e.Err
+}
+
 // RetryableError wraps an error to indicate it can be retried
 type RetryableError struct {
 	Err       error
@@ -330,6 +345,15 @@ func WrapServiceError(service, action string, err error) error {
 		Service: service,
 		Action:  action,
 		Err:     err,
+	}
+}
+
+// WrapDeploymentError wraps an error as a deployment error
+func WrapDeploymentError(deployment, operation string, err error) error {
+	return &DeploymentError{
+		Deployment: deployment,
+		Operation:  operation,
+		Err:        err,
 	}
 }
 

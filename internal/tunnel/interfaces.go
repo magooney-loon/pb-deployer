@@ -222,6 +222,33 @@ type ServiceManager interface {
 
 	// DisableService disables a service from starting on boot
 	DisableService(ctx context.Context, service string) error
+
+	// CreateServiceFile creates a systemd service file
+	CreateServiceFile(ctx context.Context, service ServiceDefinition) error
+
+	// WaitForService waits for a service to reach the desired state
+	WaitForService(ctx context.Context, service string, timeout time.Duration) error
+}
+
+// DeploymentManager handles application deployment operations
+type DeploymentManager interface {
+	// Deploy performs application deployment with the given specification
+	Deploy(ctx context.Context, deployment DeploymentSpec) (*DeploymentResult, error)
+
+	// Rollback rolls back a deployment to a previous version
+	Rollback(ctx context.Context, deployment string, version string) error
+
+	// ValidateDeployment validates a deployment specification
+	ValidateDeployment(ctx context.Context, deployment DeploymentSpec) error
+
+	// GetDeploymentStatus returns the current status of a deployment
+	GetDeploymentStatus(ctx context.Context, deployment string) (*DeploymentStatus, error)
+
+	// ListDeployments returns a list of all deployments
+	ListDeployments(ctx context.Context) ([]DeploymentInfo, error)
+
+	// HealthCheck performs health check on a deployment
+	HealthCheck(ctx context.Context, deployment string) (*DeploymentHealth, error)
 }
 
 // ServiceAction represents systemd service actions
@@ -243,6 +270,34 @@ type ServiceStatus struct {
 	State       string
 	Description string
 	Since       time.Time
+}
+
+// ServiceDefinition represents a systemd service definition
+type ServiceDefinition struct {
+	Name             string
+	Description      string
+	Type             string            // Service type (simple, forking, oneshot, etc.)
+	ExecStart        string            // Command to start the service
+	ExecStop         string            // Command to stop the service
+	ExecReload       string            // Command to reload the service
+	User             string            // User to run the service as
+	Group            string            // Group to run the service as
+	WorkingDirectory string            // Working directory for the service
+	Environment      map[string]string // Environment variables
+	Restart          string            // Restart policy (no, on-failure, always, etc.)
+	RestartSec       time.Duration     // Time to wait before restarting
+	After            []string          // Services to start after
+	Requires         []string          // Required services
+	WantedBy         string            // Target to enable service for
+	Enabled          bool              // Whether to enable the service
+}
+
+// ServiceConfig holds configuration for service management
+type ServiceConfig struct {
+	ActionTimeout       time.Duration // Timeout for service actions
+	StatusCheckInterval time.Duration // Interval for status checks when waiting
+	DefaultLogLines     int           // Default number of log lines to retrieve
+	MaxLogLines         int           // Maximum number of log lines allowed
 }
 
 // UserConfig contains user configuration
