@@ -10,18 +10,15 @@
 
 	let { children } = $props();
 
-	// Get reactive lockscreen state - safe for SSR
 	let lockscreen = $state({ isLocked: false, isEnabled: false });
 
 	onMount(() => {
 		injectViewTransitionStyles();
 
-		// Subscribe to lockscreen state changes in browser only
 		const unsubscribe = lockscreenState.subscribe((state) => {
 			lockscreen = state;
 		});
 
-		// Cleanup on unmount
 		return () => {
 			unsubscribe();
 		};
@@ -47,12 +44,10 @@
 	});
 </script>
 
-<!-- Show lockscreen if enabled and locked -->
 {#if lockscreen.isEnabled && lockscreen.isLocked}
 	<Lockscreen />
 {/if}
 
-<!-- Main app content (always rendered but hidden when locked) -->
 <div
 	class="min-h-screen bg-white dark:bg-gray-950 {lockscreen.isEnabled && lockscreen.isLocked
 		? 'invisible'
@@ -62,7 +57,6 @@
 	<WarningBanner size="xs" />
 	<Navigation />
 
-	<!-- Main content -->
 	<main class="mx-auto px-4 py-8 sm:px-6 lg:px-8" style="view-transition-name: main-content">
 		<div style="view-transition-name: page-content-{page.route.id}">
 			{@render children()}

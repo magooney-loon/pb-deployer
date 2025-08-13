@@ -109,14 +109,14 @@
 						<div
 							class="relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-white shadow-lg"
 						>
-							<img src="favicon.svg" alt="Icon" class="h-16 w-16" />
+							<img src="favicon.svg" alt="Icon" class="h-12 w-12" />
 						</div>
 					</div>
 				</div>
 
 				<!-- Title -->
 				<div class="mb-6 text-center">
-					<h1 class="text-2xl font-semibold text-gray-900 dark:text-gray-100">Welcome back</h1>
+					<h1 class="text-2xl font-semibold text-gray-900 dark:text-gray-100">pb-deployer</h1>
 					<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
 						Enter your password to continue
 					</p>
