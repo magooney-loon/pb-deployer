@@ -4,6 +4,7 @@ go 1.24.2
 
 require (
 	github.com/magooney-loon/pb-ext v0.0.0-20250808122604-f97449c1308f
+	github.com/pkg/sftp v1.13.9
 	github.com/pocketbase/pocketbase v0.29.1
 	golang.org/x/crypto v0.41.0
 	golang.org/x/sync v0.16.0
@@ -22,6 +23,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.3 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/kr/fs v0.1.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect

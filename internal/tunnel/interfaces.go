@@ -2,6 +2,7 @@ package tunnel
 
 import (
 	"context"
+	"os"
 	"time"
 )
 
@@ -54,6 +55,39 @@ type Executor interface {
 
 	// TransferFile transfers a file to/from the remote server
 	TransferFile(ctx context.Context, transfer Transfer) error
+}
+
+// FileTransferInterface defines advanced file transfer operations
+type FileTransferInterface interface {
+	// UploadFile uploads a file to the remote server with advanced options
+	UploadFile(ctx context.Context, localPath, remotePath string, opts *TransferOptions) error
+
+	// DownloadFile downloads a file from the remote server with advanced options
+	DownloadFile(ctx context.Context, remotePath, localPath string, opts *TransferOptions) error
+
+	// SyncDirectory synchronizes directories between local and remote
+	SyncDirectory(ctx context.Context, sourcePath, destPath string, direction TransferDirection, opts *SyncOptions) (*SyncResult, error)
+
+	// CreateRemoteFile creates a file on the remote server with content
+	CreateRemoteFile(ctx context.Context, remotePath string, content []byte, perms os.FileMode) error
+
+	// GetRemoteFileInfo retrieves information about a remote file
+	GetRemoteFileInfo(ctx context.Context, remotePath string) (os.FileInfo, error)
+
+	// RemoveRemoteFile removes a file from the remote server
+	RemoveRemoteFile(ctx context.Context, remotePath string) error
+
+	// BatchTransfer performs multiple file transfers with optional concurrency
+	BatchTransfer(ctx context.Context, operations []BatchTransferOperation, maxConcurrency int) error
+
+	// ResumeTransfer resumes a partially transferred file
+	ResumeTransfer(ctx context.Context, localPath, remotePath string, direction TransferDirection, opts *TransferOptions) error
+
+	// CleanupTempFiles removes temporary files created during failed operations
+	CleanupTempFiles(ctx context.Context, pattern string) error
+
+	// GetDiskSpace retrieves disk space information for a remote path
+	GetDiskSpace(ctx context.Context, remotePath string) (*DiskSpaceInfo, error)
 }
 
 // ConnectionConfig contains SSH connection configuration
@@ -125,6 +159,85 @@ const (
 	// TransferDownload downloads file from remote server
 	TransferDownload
 )
+
+// TransferOptions holds options for file transfer operations
+type TransferOptions struct {
+	Permissions         os.FileMode
+	Owner               string
+	Group               string
+	PreservePermissions bool
+	PreserveTimestamps  bool
+	VerifyChecksum      bool
+	ChecksumAlgorithm   ChecksumAlgorithm
+	ProgressCallback    func(transferred, total int64)
+	ChunkSize           int64
+	AtomicOperation     bool
+	CreateDirectories   bool
+	OverwriteExisting   bool
+}
+
+// SyncOptions holds options for directory synchronization
+type SyncOptions struct {
+	DeleteExtra      bool
+	PreserveLinks    bool
+	FollowLinks      bool
+	ExcludePatterns  []string
+	IncludePatterns  []string
+	DryRun           bool
+	ProgressCallback func(operation, path string, transferred, total int64)
+	Concurrency      int
+	VerifyIntegrity  bool
+}
+
+// SyncResult represents the result of a directory sync operation
+type SyncResult struct {
+	FilesTransferred int
+	FilesSkipped     int
+	FilesDeleted     int
+	BytesTransferred int64
+	StartTime        time.Time
+	EndTime          time.Time
+	Duration         time.Duration
+	Errors           []error
+}
+
+// BatchTransferOperation represents a batch file transfer operation
+type BatchTransferOperation struct {
+	LocalPath  string
+	RemotePath string
+	Direction  TransferDirection
+	Options    *TransferOptions
+}
+
+// ChecksumAlgorithm represents checksum algorithms
+type ChecksumAlgorithm string
+
+const (
+	ChecksumMD5    ChecksumAlgorithm = "md5"
+	ChecksumSHA256 ChecksumAlgorithm = "sha256"
+)
+
+// DiskSpaceInfo represents disk space information
+type DiskSpaceInfo struct {
+	Path       string
+	Filesystem string
+	Total      int64
+	Used       int64
+	Available  int64
+	MountPoint string
+}
+
+// TransferProgress represents transfer progress information
+type TransferProgress struct {
+	FileName         string
+	BytesTotal       int64
+	BytesTransferred int64
+	Percentage       float64
+	Speed            int64 // bytes per second
+	ETA              time.Duration
+	StartTime        time.Time
+	LastUpdate       time.Time
+}
 
 // Result represents command execution result
 type Result struct {
