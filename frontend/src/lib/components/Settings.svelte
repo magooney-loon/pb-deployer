@@ -213,13 +213,6 @@
 				/>
 			{/if}
 
-			<!-- Information Banner -->
-			<WarningBanner
-				message="Lockscreen Keybind: CTRL+L or CMD+L (if enabled)"
-				color="blue"
-				icon="ℹ️"
-			/>
-
 			<!-- Security Settings Card -->
 			<Card
 				title="Security Settings"
@@ -237,6 +230,12 @@
 
 				<!-- Auto-lock Settings (Nested) -->
 				{#if formData.lockscreenEnabled}
+					<!-- Information Banner -->
+					<WarningBanner
+						message="Lockscreen Keybind: CTRL+L or CMD+L (if enabled)"
+						color="blue"
+						icon="ℹ️"
+					/>
 					<div class="ml-8 space-y-6 border-l-2 border-blue-200 pl-6 dark:border-blue-800">
 						<div class="rounded-lg bg-blue-50 p-4 dark:bg-blue-950/20">
 							<FormField
@@ -392,6 +391,7 @@
 						loading={saving}
 						disabled={saving || loading}
 						color="blue"
+						variant="outline"
 						size="lg"
 					>
 						{saving ? 'Saving...' : 'Save Settings'}

@@ -68,7 +68,7 @@ func initApp() {
 		app.SetupRecovery(srv.App(), e)
 
 		go func() {
-			time.Sleep(2 * time.Second)
+			time.Sleep(690 * time.Millisecond)
 			openBrowser("http://localhost:8090")
 		}()
 
