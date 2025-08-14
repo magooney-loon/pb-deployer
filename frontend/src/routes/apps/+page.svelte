@@ -1,5 +1,5 @@
 <script lang="ts">
-	import AppList from '$lib/components/AppList.svelte';
+	import AppList from '$lib/components/main/AppList.svelte';
 </script>
 
 <svelte:head>

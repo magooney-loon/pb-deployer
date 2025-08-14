@@ -1,11 +1,11 @@
 <script lang="ts">
 	import '../app.css';
-	import Navigation from '$lib/components/Navigation.svelte';
+	import Navigation from '$lib/components/main/Navigation.svelte';
 	import { WarningBanner } from '$lib/components/partials';
 	import { injectViewTransitionStyles } from '$lib/utils/view-transitions';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import { lockscreenState, lockScreen } from '$lib/components/Settings';
+	import { lockscreenState, lockScreen } from '$lib/components/main/Settings';
 	import Lockscreen from './settings/components/Lockscreen.svelte';
 
 	let { children } = $props();

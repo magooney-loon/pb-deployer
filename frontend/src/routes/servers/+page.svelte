@@ -1,5 +1,5 @@
 <script lang="ts">
-	import ServerList from '$lib/components/ServerList.svelte';
+	import ServerList from '$lib/components/main/ServerList.svelte';
 </script>
 
 <svelte:head>

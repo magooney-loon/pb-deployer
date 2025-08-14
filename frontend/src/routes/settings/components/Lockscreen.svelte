@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { fade, fly, scale } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
-	import { unlockScreen, lockscreenState } from '$lib/components/Settings.js';
+	import { unlockScreen, lockscreenState } from '$lib/components/main/Settings.js';
 
 	let password = $state('');
 	let error = $state(false);
