@@ -1,25 +1,11 @@
-// Re-export all types
-export type {
-	Server,
-	App,
-	Version,
-	Deployment,
-	ServerRequest,
-	AppRequest,
-	ServerResponse,
-	AppResponse,
-	HealthCheckResponse,
-	SetupStep,
-	ConnectionInfo,
-	ServerStatus,
-	ConnectionDiagnostic,
-	TroubleshootResult,
-	QuickTroubleshootResult,
-	EnhancedTroubleshootResult,
-	RecoveryStep,
-	ActionableSuggestion,
-	AutoFixResult
-} from './types.js';
+// Re-export CRUD-related types from client directories
+export type { Server, ServerRequest, ServerResponse } from './client/servers/types.js';
+
+export type { App, AppRequest, AppResponse } from './client/apps/types.js';
+
+export type { Version } from './client/version/types.js';
+
+export type { Deployment } from './client/deployment/types.js';
 
 // Re-export utility functions
 export { getStatusColor, getStatusIcon, formatTimestamp } from './utils.js';
