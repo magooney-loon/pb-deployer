@@ -1,15 +1,19 @@
-import { BaseClient } from '../base.js';
+import PocketBase from 'pocketbase';
 import type { ServerRequest, Server, ServerResponse, App } from './types.js';
 
-export class ServerCrudClient extends BaseClient {
-	// Basic PocketBase CRUD operations for servers
+export class ServerCrudClient {
+	private pb: PocketBase;
+
+	constructor(pb: PocketBase) {
+		this.pb = pb;
+	}
+
 	async getServers() {
 		try {
 			const records = await this.pb.collection('servers').getFullList<Server>({
 				sort: '-created'
 			});
 
-			// Transform to match expected format
 			const result = { servers: records || [] };
 			return result;
 		} catch (error) {

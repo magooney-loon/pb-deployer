@@ -1,15 +1,19 @@
-import { BaseClient } from '../base.js';
+import PocketBase from 'pocketbase';
 import type { AppRequest, App, AppResponse, Server, Version, Deployment } from './types.js';
 
-export class AppsCrudClient extends BaseClient {
-	// Basic PocketBase CRUD operations for apps
+export class AppsCrudClient {
+	private pb: PocketBase;
+
+	constructor(pb: PocketBase) {
+		this.pb = pb;
+	}
+
 	async getApps() {
 		try {
 			const records = await this.pb.collection('apps').getFullList<App>({
 				sort: '-created'
 			});
 
-			// Transform to match expected format
 			const result = { apps: records || [] };
 			return result;
 		} catch (error) {

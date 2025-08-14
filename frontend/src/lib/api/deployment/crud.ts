@@ -1,15 +1,19 @@
-import { BaseClient } from '../base.js';
+import PocketBase from 'pocketbase';
 import type { Deployment } from './types.js';
 
-export class DeploymentCrudClient extends BaseClient {
-	// Basic PocketBase CRUD operations for deployments
+export class DeploymentCrudClient {
+	private pb: PocketBase;
+
+	constructor(pb: PocketBase) {
+		this.pb = pb;
+	}
+
 	async getDeployments() {
 		try {
 			const records = await this.pb.collection('deployments').getFullList<Deployment>({
 				sort: '-created'
 			});
 
-			// Transform to match expected format
 			const result = { deployments: records || [] };
 			return result;
 		} catch (error) {

@@ -1,15 +1,19 @@
-import { BaseClient } from '../base.js';
+import PocketBase from 'pocketbase';
 import type { Version } from './types.js';
 
-export class VersionCrudClient extends BaseClient {
-	// Basic PocketBase CRUD operations for versions
+export class VersionCrudClient {
+	private pb: PocketBase;
+
+	constructor(pb: PocketBase) {
+		this.pb = pb;
+	}
+
 	async getVersions() {
 		try {
 			const records = await this.pb.collection('versions').getFullList<Version>({
 				sort: '-created'
 			});
 
-			// Transform to match expected format
 			const result = { versions: records || [] };
 			return result;
 		} catch (error) {
