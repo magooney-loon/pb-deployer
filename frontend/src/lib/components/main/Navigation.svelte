@@ -5,7 +5,6 @@
 	import { themeStore } from '$lib/utils/theme.js';
 	import { NavigationLogic, type NavigationState } from './Navigation.js';
 	import { transitionLink, getRouteTransitionName } from '$lib/utils/navigation';
-	import { StatusBadge, getApiStatusBadge } from '$lib/components/partials';
 
 	// Create logic instance
 	const logic = new NavigationLogic(page.url.pathname);
@@ -26,9 +25,6 @@
 		const normalizePath = (p: string) => (p === '/' ? p : p.endsWith('/') ? p.slice(0, -1) : p);
 		return normalizePath(state.currentPath) === normalizePath(path);
 	}
-
-	// Derived API status badge - reactive to state changes
-	let apiStatusBadge = $derived(getApiStatusBadge(state.apiStatus));
 </script>
 
 <nav
@@ -86,16 +82,6 @@
 
 			<!-- Right side items -->
 			<div class="flex items-center space-x-3">
-				<!-- API Status -->
-				<div class="hidden items-center sm:flex">
-					<StatusBadge
-						status={apiStatusBadge.text}
-						variant={apiStatusBadge.variant}
-						dot
-						size="sm"
-					/>
-				</div>
-
 				<!-- GitHub link -->
 				<a
 					href="https://github.com/magooney-loon/pb-deployer"
@@ -169,19 +155,6 @@
 			class="border-t border-gray-200/50 bg-white/95 backdrop-blur-lg sm:hidden dark:border-gray-800/50 dark:bg-gray-950/95"
 		>
 			<div class="px-4 py-3">
-				<!-- Mobile API Status and Icons -->
-				<div
-					class="mb-3 flex items-center justify-center space-x-3 border-b border-gray-200/50 pb-3 dark:border-gray-800/50"
-				>
-					<!-- API Status -->
-					<StatusBadge
-						status="API {apiStatusBadge.text}"
-						variant={apiStatusBadge.variant}
-						dot
-						size="sm"
-					/>
-				</div>
-
 				<!-- Mobile navigation items -->
 				<div class="space-y-1">
 					{#each logic.navItems as item (item.href)}

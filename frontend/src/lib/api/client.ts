@@ -18,7 +18,6 @@ export class ApiClient extends BaseClient {
 		this._deployments = new DeploymentCrudClient(baseUrl);
 	}
 
-	// Expose CRUD clients as properties for direct access
 	get apps() {
 		return this._apps;
 	}

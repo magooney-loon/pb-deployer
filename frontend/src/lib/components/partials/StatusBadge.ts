@@ -55,30 +55,6 @@ export function getAppStatusBadge(app: App): StatusBadgeResult {
 }
 
 /**
- * Get consistent API status badge information
- */
-export function getApiStatusBadge(status: 'online' | 'offline' | 'checking'): StatusBadgeResult {
-	switch (status) {
-		case 'online':
-			return {
-				text: 'Online',
-				variant: 'success'
-			};
-		case 'offline':
-			return {
-				text: 'Offline',
-				variant: 'error'
-			};
-		case 'checking':
-		default:
-			return {
-				text: 'Checking...',
-				variant: 'warning'
-			};
-	}
-}
-
-/**
  * Get status icon for apps (emoji representation)
  */
 export function getAppStatusIcon(status: string): string {

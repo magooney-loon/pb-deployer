@@ -1,6 +1,4 @@
 import { themeStore } from '$lib/utils/theme.js';
-import { ApiClient } from '$lib/api/index.js';
-import { getApiStatusBadge } from '$lib/components/partials/index.js';
 
 export interface NavigationItem {
 	href: string;
@@ -11,13 +9,11 @@ export interface NavigationItem {
 export interface NavigationState {
 	mobileMenuOpen: boolean;
 	currentPath: string;
-	apiStatus: 'online' | 'offline' | 'checking';
 }
 
 export class NavigationLogic {
 	private state: NavigationState;
 	private stateUpdateCallback?: (state: NavigationState) => void;
-	private apiClient: ApiClient;
 
 	// Navigation items configuration
 	public readonly navItems: NavigationItem[] = [
@@ -28,18 +24,10 @@ export class NavigationLogic {
 	];
 
 	constructor(initialPath: string = '/') {
-		this.apiClient = new ApiClient();
 		this.state = {
 			mobileMenuOpen: false,
-			currentPath: this.normalizePath(initialPath),
-			apiStatus: 'checking'
+			currentPath: this.normalizePath(initialPath)
 		};
-
-		// Start API health checking only in browser
-		if (typeof window !== 'undefined') {
-			this.checkApiHealth();
-			this.startHealthChecking();
-		}
 	}
 
 	public getState(): NavigationState {
@@ -87,48 +75,5 @@ export class NavigationLogic {
 	public handleNavItemClick(href: string): void {
 		this.updateCurrentPath(href);
 		this.closeMobileMenu();
-	}
-
-	public getApiStatusBadge() {
-		return getApiStatusBadge(this.state.apiStatus);
-	}
-
-	// API Health checking methods
-	public async checkApiHealth(): Promise<void> {
-		// Only check API health in browser context
-		if (typeof window === 'undefined') {
-			return;
-		}
-
-		try {
-			this.updateState({ apiStatus: 'checking' });
-
-			// Use the existing API client for health check
-			await this.apiClient.getHealth();
-			this.updateState({ apiStatus: 'online' });
-		} catch (error) {
-			console.warn('API health check failed:', error);
-			this.updateState({ apiStatus: 'offline' });
-		}
-	}
-
-	private healthCheckInterval?: number;
-
-	private startHealthChecking(): void {
-		// Only start health checking in browser context
-		if (typeof window === 'undefined') {
-			return;
-		}
-
-		// Check every 30 seconds
-		this.healthCheckInterval = window.setInterval(() => {
-			this.checkApiHealth();
-		}, 30000);
-	}
-
-	public destroy(): void {
-		if (typeof window !== 'undefined' && this.healthCheckInterval) {
-			clearInterval(this.healthCheckInterval);
-		}
 	}
 }

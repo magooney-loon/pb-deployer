@@ -17,7 +17,6 @@ export { default as WarningBanner } from './WarningBanner.svelte';
 export {
 	getServerStatusBadge,
 	getAppStatusBadge,
-	getApiStatusBadge,
 	getAppStatusIcon,
 	formatTimestamp,
 	type StatusBadgeVariant,
