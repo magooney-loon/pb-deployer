@@ -2,15 +2,25 @@
 	import { onMount } from 'svelte';
 	import { AppListLogic, type AppListState } from './AppList.js';
 	import DeleteModal from '$lib/components/modals/DeleteModal.svelte';
+	import AppCreateModal from '$lib/components/modals/AppCreateModal.svelte';
 	import {
 		Button,
 		ErrorAlert,
-		FormField,
 		EmptyState,
 		LoadingSpinner,
-		Card,
 		StatusBadge
 	} from '$lib/components/partials';
+
+	// Define the app form data type
+	interface AppFormData {
+		name: string;
+		server_id: string;
+		domain: string;
+		remote_path: string;
+		service_name: string;
+		version_number: string;
+		version_notes: string;
+	}
 
 	// Create logic instance
 	const logic = new AppListLogic();
@@ -27,6 +37,21 @@
 	onMount(async () => {
 		await logic.initialize();
 	});
+
+	// Handle app creation from modal
+	async function handleCreateApp(appData: AppFormData): Promise<void> {
+		// Update the logic's newApp state with the form data
+		logic.updateNewApp('name', appData.name);
+		logic.updateNewApp('server_id', appData.server_id);
+		logic.updateNewApp('domain', appData.domain);
+		logic.updateNewApp('remote_path', appData.remote_path);
+		logic.updateNewApp('service_name', appData.service_name);
+		logic.updateNewApp('version_number', appData.version_number);
+		logic.updateNewApp('version_notes', appData.version_notes);
+
+		await logic.createApp();
+		logic.toggleCreateForm(); // Close the modal
+	}
 </script>
 
 <div class="mb-8 flex items-center justify-between">
@@ -38,11 +63,11 @@
 	</div>
 	<Button
 		variant="outline"
-		icon={state.showCreateForm ? 'x' : '+'}
+		icon="+"
 		onclick={() => logic.toggleCreateForm()}
 		disabled={availableServers.length === 0}
 	>
-		{state.showCreateForm ? 'Cancel' : 'Add App'}
+		Add App
 	</Button>
 </div>
 
@@ -57,148 +82,6 @@
 
 {#if state.error}
 	<ErrorAlert message={state.error} type="error" onDismiss={() => logic.dismissError()} />
-{/if}
-
-{#if state.showCreateForm}
-	<Card title="Add New Application" class="mb-6">
-		<form
-			onsubmit={(e) => {
-				e.preventDefault();
-				logic.createApp();
-			}}
-			class="space-y-6"
-		>
-			<!-- Basic App Information -->
-			<div class="space-y-4">
-				<h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">App Configuration</h3>
-				<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-					<FormField
-						id="app-name"
-						label="App Name"
-						value={state.newApp.name}
-						placeholder="my-app"
-						helperText="Used for directory and service naming"
-						required
-						oninput={(e) => logic.updateNewApp('name', (e.target as HTMLInputElement).value)}
-					/>
-
-					<FormField
-						id="server-select"
-						label="Server"
-						type="select"
-						value={state.newApp.server_id}
-						placeholder="Select a server"
-						options={availableServers.map((server) => ({
-							value: server.id,
-							label: `${server.name} (${server.host})`
-						}))}
-						required
-						onchange={(e) => logic.updateNewApp('server_id', (e.target as HTMLSelectElement).value)}
-					/>
-
-					<FormField
-						id="domain"
-						label="Domain"
-						value={state.newApp.domain}
-						placeholder="myapp.example.com"
-						helperText="The domain where your app will be accessible"
-						class="md:col-span-2"
-						required
-						oninput={(e) => logic.updateNewApp('domain', (e.target as HTMLInputElement).value)}
-					/>
-
-					<FormField
-						id="remote-path"
-						label="Remote Path (Optional)"
-						value={state.newApp.remote_path}
-						placeholder="/opt/pocketbase/apps/{state.newApp.name || 'app-name'}"
-						oninput={(e) => logic.updateNewApp('remote_path', (e.target as HTMLInputElement).value)}
-					/>
-
-					<FormField
-						id="service-name"
-						label="Service Name (Optional)"
-						value={state.newApp.service_name}
-						placeholder="pocketbase-{state.newApp.name || 'app-name'}"
-						oninput={(e) =>
-							logic.updateNewApp('service_name', (e.target as HTMLInputElement).value)}
-					/>
-				</div>
-			</div>
-
-			<!-- Version Information -->
-			<div class="space-y-4">
-				<h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Initial Version</h3>
-				<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-					<FormField
-						id="version-number"
-						label="Version Number"
-						value={state.newApp.version_number}
-						placeholder="1.0.0"
-						helperText="Semantic versioning recommended"
-						required
-						oninput={(e) =>
-							logic.updateNewApp('version_number', (e.target as HTMLInputElement).value)}
-					/>
-
-					<FormField
-						id="version-notes"
-						label="Version Notes"
-						value={state.newApp.version_notes}
-						placeholder="Initial release"
-						helperText="Describe this version"
-						oninput={(e) =>
-							logic.updateNewApp('version_notes', (e.target as HTMLInputElement).value)}
-					/>
-				</div>
-			</div>
-
-			<div class="rounded-md bg-blue-50 p-4 dark:bg-blue-950">
-				<div class="flex">
-					<div class="flex-shrink-0">
-						<svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-							<path
-								fill-rule="evenodd"
-								d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-								clip-rule="evenodd"
-							/>
-						</svg>
-					</div>
-					<div class="ml-3">
-						<h3 class="text-sm font-medium text-blue-800 dark:text-blue-200">CRUD Only Mode</h3>
-						<div class="mt-2 text-sm text-blue-700 dark:text-blue-300">
-							<p>
-								This creates the app entry in the database. For file uploads and deployments, use
-								external tools or the version management system.
-							</p>
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<div class="flex space-x-3">
-				<Button
-					variant="outline"
-					type="submit"
-					disabled={state.creating}
-					icon={state.creating ? '🔄' : undefined}
-				>
-					{state.creating ? 'Creating...' : 'Create App'}
-				</Button>
-				<Button
-					variant="secondary"
-					color="gray"
-					onclick={() => {
-						logic.toggleCreateForm();
-						logic.resetForm();
-					}}
-					disabled={state.creating}
-				>
-					Cancel
-				</Button>
-			</div>
-		</form>
-	</Card>
 {/if}
 
 {#if state.loading}
@@ -321,6 +204,15 @@
 		<Button variant="outline" size="sm" icon="🔄" onclick={() => logic.loadApps()}>Refresh</Button>
 	</div>
 {/if}
+
+<!-- App Create Modal -->
+<AppCreateModal
+	open={state.showCreateForm}
+	servers={state.servers}
+	creating={state.creating}
+	onclose={() => logic.toggleCreateForm()}
+	oncreate={handleCreateApp}
+/>
 
 <!-- Delete App Modal -->
 <DeleteModal

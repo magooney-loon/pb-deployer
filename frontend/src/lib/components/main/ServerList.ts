@@ -46,7 +46,7 @@ export class ServerListLogic {
 				host: '',
 				port: 22,
 				root_username: 'root',
-				app_username: 'deploy',
+				app_username: 'pocketbase',
 				use_ssh_agent: true,
 				manual_key_path: ''
 			},

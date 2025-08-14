@@ -3,15 +3,25 @@
 	import { formatTimestamp } from '$lib/api/index.js';
 	import { ServerListLogic, type ServerListState } from './ServerList.js';
 	import DeleteModal from '$lib/components/modals/DeleteModal.svelte';
+	import ServerCreateModal from '$lib/components/modals/ServerCreateModal.svelte';
 	import {
 		Button,
 		ErrorAlert,
-		FormField,
 		EmptyState,
 		LoadingSpinner,
-		Card,
 		StatusBadge
 	} from '$lib/components/partials';
+
+	// Define the server form data type
+	interface ServerFormData {
+		name: string;
+		host: string;
+		port: number;
+		root_username: string;
+		app_username: string;
+		use_ssh_agent: boolean;
+		manual_key_path: string;
+	}
 
 	// Create logic instance
 	const logic = new ServerListLogic();
@@ -29,6 +39,21 @@
 	onDestroy(async () => {
 		await logic.cleanup();
 	});
+
+	// Handle server creation from modal
+	async function handleCreateServer(serverData: ServerFormData): Promise<void> {
+		// Update the logic's newServer state with the form data
+		logic.updateNewServer('name', serverData.name);
+		logic.updateNewServer('host', serverData.host);
+		logic.updateNewServer('port', serverData.port);
+		logic.updateNewServer('root_username', serverData.root_username);
+		logic.updateNewServer('app_username', serverData.app_username);
+		logic.updateNewServer('use_ssh_agent', serverData.use_ssh_agent);
+		logic.updateNewServer('manual_key_path', serverData.manual_key_path);
+
+		await logic.createServer();
+		logic.toggleCreateForm(); // Close the modal
+	}
 </script>
 
 <div class="mb-8 flex items-center justify-between">
@@ -49,107 +74,6 @@
 
 {#if state.error}
 	<ErrorAlert message={state.error} type="error" onDismiss={() => logic.dismissError()} />
-{/if}
-
-{#if state.showCreateForm}
-	<Card title="Add New Server" class="mb-6">
-		<form
-			onsubmit={(e) => {
-				e.preventDefault();
-				logic.createServer();
-			}}
-			class="space-y-4"
-		>
-			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-				<FormField
-					id="name"
-					label="Name"
-					value={state.newServer.name}
-					placeholder="Production Server"
-					required
-					oninput={(e) => logic.updateNewServer('name', (e.target as HTMLInputElement).value)}
-				/>
-
-				<FormField
-					id="host"
-					label="VPS IP"
-					value={state.newServer.host}
-					placeholder="192.168.1.100"
-					required
-					oninput={(e) => logic.updateNewServer('host', (e.target as HTMLInputElement).value)}
-				/>
-
-				<FormField
-					id="port"
-					label="SSH Port"
-					type="number"
-					value={state.newServer.port}
-					min={1}
-					max={65535}
-					oninput={(e) =>
-						logic.updateNewServer('port', parseInt((e.target as HTMLInputElement).value) || 22)}
-				/>
-
-				<FormField
-					id="root_username"
-					label="Root Username"
-					value={state.newServer.root_username}
-					oninput={(e) =>
-						logic.updateNewServer('root_username', (e.target as HTMLInputElement).value)}
-				/>
-
-				<FormField
-					id="app_username"
-					label="App Username"
-					value={state.newServer.app_username}
-					oninput={(e) =>
-						logic.updateNewServer('app_username', (e.target as HTMLInputElement).value)}
-				/>
-
-				<FormField
-					id="use_ssh_agent"
-					label="Use SSH Agent"
-					type="checkbox"
-					checked={state.newServer.use_ssh_agent}
-					onchange={(e) =>
-						logic.updateNewServer('use_ssh_agent', (e.target as HTMLInputElement).checked)}
-				/>
-			</div>
-
-			{#if !state.newServer.use_ssh_agent}
-				<FormField
-					id="manual_key_path"
-					label="Private Key Path"
-					value={state.newServer.manual_key_path}
-					placeholder="/home/user/.ssh/id_rsa"
-					oninput={(e) =>
-						logic.updateNewServer('manual_key_path', (e.target as HTMLInputElement).value)}
-				/>
-			{/if}
-
-			<div class="flex space-x-3">
-				<Button
-					variant="outline"
-					type="submit"
-					disabled={state.creating}
-					icon={state.creating ? '🔄' : undefined}
-				>
-					{state.creating ? 'Creating...' : 'Create Server'}
-				</Button>
-				<Button
-					variant="outline"
-					color="gray"
-					onclick={() => {
-						logic.toggleCreateForm();
-						logic.resetForm();
-					}}
-					disabled={state.creating}
-				>
-					Cancel
-				</Button>
-			</div>
-		</form>
-	</Card>
 {/if}
 
 {#if state.loading}
@@ -248,6 +172,14 @@
 		</Button>
 	</div>
 {/if}
+
+<!-- Server Create Modal -->
+<ServerCreateModal
+	open={state.showCreateForm}
+	creating={state.creating}
+	onclose={() => logic.toggleCreateForm()}
+	oncreate={handleCreateServer}
+/>
 
 <!-- Delete Server Modal -->
 <DeleteModal
