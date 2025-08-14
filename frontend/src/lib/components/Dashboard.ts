@@ -74,8 +74,8 @@ export class DashboardLogic {
 			this.updateState({ loading: true, error: null });
 
 			const [serversResponse, appsResponse] = await Promise.all([
-				this.api.getServers(),
-				this.api.getApps()
+				this.api.servers.getServers(),
+				this.api.apps.getApps()
 			]);
 
 			const servers = serversResponse.servers || [];

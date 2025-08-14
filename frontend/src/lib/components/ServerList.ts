@@ -73,7 +73,7 @@ export class ServerListLogic {
 	public async loadServers(): Promise<void> {
 		try {
 			this.updateState({ loading: true, error: null });
-			const response = await this.api.getServers();
+			const response = await this.api.servers.getServers();
 			const servers = response.servers || [];
 			this.updateState({ servers });
 		} catch (err) {
@@ -98,7 +98,7 @@ export class ServerListLogic {
 				manual_key_path: this.state.newServer.manual_key_path
 			};
 
-			const server = await this.api.createServer(serverData);
+			const server = await this.api.servers.createServer(serverData);
 			const servers = [...this.state.servers, server];
 
 			this.updateState({
@@ -126,7 +126,7 @@ export class ServerListLogic {
 
 	private async loadRelatedApps(serverId: string): Promise<void> {
 		try {
-			const response = await this.api.getAppsByServer(serverId);
+			const response = await this.api.apps.getAppsByServer(serverId);
 			this.updateState({ apps: response.apps || [] });
 		} catch (err) {
 			console.warn('Failed to load related apps:', err);
@@ -137,7 +137,7 @@ export class ServerListLogic {
 	public async confirmDeleteServer(id: string): Promise<void> {
 		try {
 			this.updateState({ deleting: true, error: null });
-			await this.api.deleteServer(id);
+			await this.api.servers.deleteServer(id);
 
 			const servers = this.state.servers.filter((s) => s.id !== id);
 			this.updateState({

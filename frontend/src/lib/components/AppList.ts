@@ -82,7 +82,7 @@ export class AppListLogic {
 	public async loadApps(): Promise<void> {
 		try {
 			this.updateState({ loading: true, error: null });
-			const response = await this.api.getApps();
+			const response = await this.api.apps.getApps();
 			const apps = response.apps || [];
 			this.updateState({ apps });
 		} catch (err) {
@@ -95,7 +95,7 @@ export class AppListLogic {
 
 	public async loadServers(): Promise<void> {
 		try {
-			const response = await this.api.getServers();
+			const response = await this.api.servers.getServers();
 			const servers = response.servers || [];
 			this.updateState({ servers });
 		} catch (err) {
@@ -121,11 +121,11 @@ export class AppListLogic {
 				service_name: this.state.newApp.service_name || `pocketbase-${this.state.newApp.name}`
 			};
 
-			const app = await this.api.createApp(appData);
+			const app = await this.api.apps.createApp(appData);
 
 			// Step 2: Create initial version (optional)
 			if (this.state.newApp.version_number) {
-				await this.api.createVersion({
+				await this.api.versions.createVersion({
 					app_id: app.id,
 					version_number: this.state.newApp.version_number,
 					notes: this.state.newApp.version_notes
@@ -164,7 +164,7 @@ export class AppListLogic {
 	public async confirmDeleteApp(id: string): Promise<void> {
 		try {
 			this.updateState({ deleting: true, error: null });
-			await this.api.deleteApp(id);
+			await this.api.apps.deleteApp(id);
 
 			const apps = this.state.apps.filter((a) => a.id !== id);
 			this.updateState({
