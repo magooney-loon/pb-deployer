@@ -2,9 +2,6 @@ package main
 
 import (
 	"log"
-	"os/exec"
-	"runtime"
-	"time"
 
 	app "github.com/magooney-loon/pb-ext/core"
 	"github.com/pocketbase/pocketbase/apis"
@@ -30,11 +27,6 @@ func initApp() {
 		e.Router.Bind(apis.BodyLimit(209715200))
 
 		app.SetupRecovery(srv.App(), e)
-
-		go func() {
-			time.Sleep(690 * time.Millisecond)
-			openBrowser("http://localhost:8090")
-		}()
 
 		return e.Next()
 	})
@@ -62,16 +54,4 @@ func registerCollections(app core.App) {
 
 func registerHandlers(app core.App) {
 	handlers.RegisterHandlers(app)
-}
-
-func openBrowser(url string) {
-	if runtime.GOOS != "linux" {
-		return
-	}
-
-	if err := exec.Command("xdg-open", url).Start(); err == nil {
-		log.Printf("Browser launched for URL: %s", url)
-	} else {
-		log.Printf("Failed to open browser for URL: %s", url)
-	}
 }
