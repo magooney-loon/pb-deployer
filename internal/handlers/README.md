@@ -12,6 +12,16 @@ REST API handlers for PocketBase application deployment management with real-tim
          │                       │                       │                       │
          ▼                       ▼                       ▼                       ▼
     SSH Operations        Service Management       File Management        Process Tracking
+
+                                    Manager Services
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  Setup Manager  │    │ Service Manager │    │Security Manager │    │Deployment Mgr   │
+│   /api/v1/setup │    │ /api/v1/services│    │/api/v1/security │    │/api/v1/deployments│
+└─────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │                       │
+         ▼                       ▼                       ▼                       ▼
+   User & Directory        Systemd Services        SSH & Firewall         App Deployment
+   Package Management      Log Management          Fail2ban & Audit       Health & Rollback
 ```
 
 ## API Endpoints
@@ -35,6 +45,12 @@ POST   /servers/{id}/security   # Security hardening
 ```http
 GET    /servers/{id}/setup-ws   # Setup progress WebSocket
 GET    /servers/{id}/security-ws # Security progress WebSocket
+```
+
+**Manager Integration**
+```http
+POST   /servers/{id}/managers/setup    # Integrated setup via Setup Manager
+POST   /servers/{id}/managers/security # Integrated security via Security Manager
 ```
 
 ### Apps (`/api/apps`)
@@ -130,6 +146,44 @@ POST   /deployments/cleanup     # Cleanup old deployments (?keep_days=90, ?dry_r
 **Real-time Progress**
 ```http
 GET    /deployments/{id}/ws     # Deployment progress WebSocket
+```
+
+### Manager Services (`/api/v1/*`)
+
+**Setup Manager**
+```http
+POST   /setup/users             # Create system users
+POST   /setup/users/{username}/ssh-keys # Configure SSH keys
+POST   /setup/directories       # Create directories
+POST   /setup/system-users      # Complete user setup
+GET    /setup/users             # List users
+```
+
+**Service Manager**
+```http
+POST   /services/{name}/action  # Start/stop/restart services
+GET    /services/{name}         # Service status
+GET    /services/{name}/logs    # Service logs
+POST   /services                # Create service files
+GET    /services                # List services
+```
+
+**Security Manager**
+```http
+POST   /security/lockdown       # Full security lockdown
+POST   /security/firewall       # Configure firewall
+POST   /security/fail2ban       # Setup fail2ban
+GET    /security/audit          # Security audit
+GET    /security/status         # Security status
+```
+
+**Deployment Manager**
+```http
+POST   /deployments             # Deploy application
+POST   /deployments/{name}/rollback # Rollback deployment
+GET    /deployments/{name}      # Deployment status
+POST   /deployments/validate    # Validate deployment
+GET    /deployments/{name}/health # Health check
 ```
 
 ## Request/Response Formats
@@ -257,9 +311,15 @@ All long-running operations support real-time progress via PocketBase realtime s
 
 ### Server Lifecycle
 1. **Fresh Server**: `setup_complete=false, security_locked=false`
-2. **Setup**: POST `/servers/{id}/setup` → `setup_complete=true`
-3. **Security**: POST `/servers/{id}/security` → `security_locked=true`
-4. **Ready**: Can deploy applications
+2. **Setup**: POST `/servers/{id}/setup` → Setup Manager creates users, directories, installs packages
+3. **Security**: POST `/servers/{id}/security` → Security Manager lockdown, firewall, fail2ban
+4. **Ready**: `setup_complete=true, security_locked=true` → Can deploy applications
+
+### Manager Integration Workflow
+1. **Server Setup**: Handlers → Setup Manager → User/directory creation, package installation
+2. **Security Lockdown**: Handlers → Security Manager → SSH hardening, firewall, intrusion prevention
+3. **App Deployment**: Handlers → Deployment Manager → Service management, health checks
+4. **Service Management**: Handlers → Service Manager → Systemd operations, log retrieval
 
 ### App Deployment Flow
 1. **Create Version**: Upload binary + public files as ZIP
@@ -343,6 +403,31 @@ sshService := ssh.GetSSHService()
 err := sshService.RunServerSetup(server, progressChan)
 ```
 
+### Manager Service Integration
+```go
+// Setup Manager Integration
+setupMgr := managers.GetSetupManager(sshService)
+err := setupMgr.CreateSystemUser(server, userConfig)
+err := setupMgr.SetupDirectories(server, dirConfigs)
+err := setupMgr.InstallPackages(server, packages)
+
+// Service Manager Integration  
+serviceMgr := managers.GetServiceManager(sshService)
+err := serviceMgr.ManageService(server, serviceName, "restart")
+status := serviceMgr.GetServiceStatus(server, serviceName)
+logs := serviceMgr.GetServiceLogs(server, serviceName, 100)
+
+// Security Manager Integration
+securityMgr := managers.GetSecurityManager(sshService)
+err := securityMgr.ApplySecurityLockdown(server, securityConfig)
+audit := securityMgr.PerformSecurityAudit(server)
+
+// Deployment Manager Integration
+deployMgr := managers.GetDeploymentManager(sshService, serviceMgr)
+err := deployMgr.Deploy(server, deploymentSpec)
+health := deployMgr.CheckHealth(server, appName)
+```
+
 ### PocketBase Integration
 ```go
 // Database operations
@@ -373,19 +458,28 @@ server := &models.Server{
 ```go
 func RegisterHandlers(app core.App) {
     apiGroup := e.Router.Group("/api")
+    v1Group := e.Router.Group("/api/v1")
+    
+    // Core handlers
     server.RegisterServerHandlers(app, apiGroup)
     apps.RegisterAppsHandlers(app, apiGroup)
     version.RegisterVersionHandlers(app, apiGroup)
     deployment.RegisterDeploymentHandlers(app, apiGroup)
+    
+    // Manager handlers
+    setup.RegisterSetupManagerHandlers(app, v1Group)
+    service.RegisterServiceManagerHandlers(app, v1Group)
+    security.RegisterSecurityManagerHandlers(app, v1Group)
+    deploymentv1.RegisterDeploymentManagerHandlers(app, v1Group)
 }
 ```
 
 ### Progress Monitoring
 ```go
-progressChan := make(chan ssh.SetupStep, 10)
+progressChan := make(chan ProgressUpdate, 10)
 go func() {
-    for step := range progressChan {
-        notifySetupProgress(app, serverID, step)
+    for update := range progressChan {
+        notifyProgress(app, update.Operation, update.ServerID, update)
     }
 }()
 ```
@@ -441,12 +535,25 @@ if err != nil {
 ## Deployment Patterns
 
 ### First Deployment
-Requires superuser credentials for initial PocketBase admin setup:
+Traditional approach requires superuser credentials:
 ```json
 {
   "version_id": "abc123",
   "superuser_email": "admin@example.com",
   "superuser_password": "secure_password"
+}
+```
+
+Manager-based deployment with automated setup:
+```json
+{
+  "name": "my-app",
+  "version": "1.0.0",
+  "environment": "production",
+  "strategy": "rolling",
+  "artifact_path": "/path/to/deployment.zip",
+  "service_name": "pocketbase-my-app",
+  "health_check_url": "http://localhost:8080/api/health"
 }
 ```
 
@@ -514,7 +621,8 @@ Uses same deployment mechanism with previous version:
 - **Privilege Escalation**: Automatic sudo for privileged operations
 - **Audit Trail**: All privileged operations logged
 
-### Authentication
-- **SSH Key Management**: Automatic key setup and validation
+### Connection Management
+- **SSH Key Management**: Automatic key setup and validation via Setup Manager
 - **Host Key Handling**: Automatic acceptance with security logging
-- **Connection Validation**: Pre-security lockdown validation
+- **Connection Validation**: Pre-security lockdown validation via Security Manager
+- **Local Tool Access**: Direct manager service access (no authentication required)
