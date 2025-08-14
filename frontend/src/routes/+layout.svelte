@@ -2,9 +2,8 @@
 	import '../app.css';
 	import Navigation from '$lib/components/main/Navigation.svelte';
 	import { WarningBanner } from '$lib/components/partials';
-	import { injectViewTransitionStyles } from '$lib/utils/view-transitions';
+
 	import { onMount } from 'svelte';
-	import { page } from '$app/state';
 	import { lockscreenState, lockScreen } from '$lib/components/main/Settings';
 	import Lockscreen from './settings/components/Lockscreen.svelte';
 
@@ -13,8 +12,6 @@
 	let lockscreen = $state({ isLocked: false, isEnabled: false });
 
 	onMount(() => {
-		injectViewTransitionStyles();
-
 		const unsubscribe = lockscreenState.subscribe((state) => {
 			lockscreen = state;
 		});
@@ -49,16 +46,14 @@
 {/if}
 
 <div
-	class="min-h-screen bg-white dark:bg-gray-950 {lockscreen.isEnabled && lockscreen.isLocked
-		? 'invisible'
-		: ''}"
+	class={lockscreen.isEnabled && lockscreen.isLocked ? 'invisible' : ''}
 	aria-hidden={lockscreen.isEnabled && lockscreen.isLocked}
 >
 	<WarningBanner size="xs" />
 	<Navigation />
 
-	<main class="mx-auto px-4 py-8 sm:px-6 lg:px-8" style="view-transition-name: main-content">
-		<div style="view-transition-name: page-content-{page.route.id}">
+	<main class="mx-auto px-4 py-8 sm:px-6 lg:px-8">
+		<div>
 			{@render children()}
 		</div>
 	</main>
