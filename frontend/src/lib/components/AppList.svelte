@@ -1,15 +1,14 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { AppListLogic, type AppListState } from './AppList.js';
+	import DeleteModal from '$lib/components/modals/DeleteModal.svelte';
 	import {
 		Button,
 		ErrorAlert,
 		FormField,
 		EmptyState,
 		LoadingSpinner,
-		Card,
-		FileUpload,
-		ProgressBar
+		Card
 	} from '$lib/components/partials';
 
 	// Create logic instance
@@ -61,181 +60,143 @@
 
 {#if state.showCreateForm}
 	<Card title="Add New Application" class="mb-6">
-		{#if state.creating}
+		<form
+			onsubmit={(e) => {
+				e.preventDefault();
+				logic.createApp();
+			}}
+			class="space-y-6"
+		>
+			<!-- Basic App Information -->
 			<div class="space-y-4">
-				<div class="text-center">
-					<h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Creating Application</h3>
-					<p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{state.currentStep}</p>
+				<h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">App Configuration</h3>
+				<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+					<FormField
+						id="app-name"
+						label="App Name"
+						value={state.newApp.name}
+						placeholder="my-app"
+						helperText="Used for directory and service naming"
+						required
+						oninput={(e) => logic.updateNewApp('name', (e.target as HTMLInputElement).value)}
+					/>
+
+					<FormField
+						id="server-select"
+						label="Server"
+						type="select"
+						value={state.newApp.server_id}
+						placeholder="Select a server"
+						options={availableServers.map((server) => ({
+							value: server.id,
+							label: `${server.name} (${server.host})`
+						}))}
+						required
+						onchange={(e) => logic.updateNewApp('server_id', (e.target as HTMLSelectElement).value)}
+					/>
+
+					<FormField
+						id="domain"
+						label="Domain"
+						value={state.newApp.domain}
+						placeholder="myapp.example.com"
+						helperText="The domain where your app will be accessible"
+						class="md:col-span-2"
+						required
+						oninput={(e) => logic.updateNewApp('domain', (e.target as HTMLInputElement).value)}
+					/>
+
+					<FormField
+						id="remote-path"
+						label="Remote Path (Optional)"
+						value={state.newApp.remote_path}
+						placeholder="/opt/pocketbase/apps/{state.newApp.name || 'app-name'}"
+						oninput={(e) => logic.updateNewApp('remote_path', (e.target as HTMLInputElement).value)}
+					/>
+
+					<FormField
+						id="service-name"
+						label="Service Name (Optional)"
+						value={state.newApp.service_name}
+						placeholder="pocketbase-{state.newApp.name || 'app-name'}"
+						oninput={(e) =>
+							logic.updateNewApp('service_name', (e.target as HTMLInputElement).value)}
+					/>
 				</div>
-				<ProgressBar value={state.uploadProgress} label="Progress" color="blue" animated={true} />
 			</div>
-		{:else}
-			<form
-				onsubmit={(e) => {
-					e.preventDefault();
-					logic.createApp();
-				}}
-				class="space-y-6"
-			>
-				<!-- Basic App Information -->
-				<div class="space-y-4">
-					<h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">App Configuration</h3>
-					<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-						<FormField
-							id="app-name"
-							label="App Name"
-							value={state.newApp.name}
-							placeholder="my-app"
-							helperText="Used for directory and service naming"
-							required
-							oninput={(e) => logic.updateNewApp('name', (e.target as HTMLInputElement).value)}
-						/>
 
-						<FormField
-							id="server-select"
-							label="Server"
-							type="select"
-							value={state.newApp.server_id}
-							placeholder="Select a server"
-							options={availableServers.map((server) => ({
-								value: server.id,
-								label: `${server.name} (${server.host})`
-							}))}
-							required
-							onchange={(e) =>
-								logic.updateNewApp('server_id', (e.target as HTMLSelectElement).value)}
-						/>
+			<!-- Version Information -->
+			<div class="space-y-4">
+				<h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Initial Version</h3>
+				<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+					<FormField
+						id="version-number"
+						label="Version Number"
+						value={state.newApp.version_number}
+						placeholder="1.0.0"
+						helperText="Semantic versioning recommended"
+						required
+						oninput={(e) =>
+							logic.updateNewApp('version_number', (e.target as HTMLInputElement).value)}
+					/>
 
-						<FormField
-							id="domain"
-							label="Domain"
-							value={state.newApp.domain}
-							placeholder="myapp.example.com"
-							helperText="The domain where your app will be accessible"
-							class="md:col-span-2"
-							required
-							oninput={(e) => logic.updateNewApp('domain', (e.target as HTMLInputElement).value)}
-						/>
-
-						<FormField
-							id="remote-path"
-							label="Remote Path (Optional)"
-							value={state.newApp.remote_path}
-							placeholder="/opt/pocketbase/apps/{state.newApp.name || 'app-name'}"
-							oninput={(e) =>
-								logic.updateNewApp('remote_path', (e.target as HTMLInputElement).value)}
-						/>
-
-						<FormField
-							id="service-name"
-							label="Service Name (Optional)"
-							value={state.newApp.service_name}
-							placeholder="pocketbase-{state.newApp.name || 'app-name'}"
-							oninput={(e) =>
-								logic.updateNewApp('service_name', (e.target as HTMLInputElement).value)}
-						/>
-					</div>
+					<FormField
+						id="version-notes"
+						label="Version Notes"
+						value={state.newApp.version_notes}
+						placeholder="Initial release"
+						helperText="Describe this version"
+						oninput={(e) =>
+							logic.updateNewApp('version_notes', (e.target as HTMLInputElement).value)}
+					/>
 				</div>
+			</div>
 
-				<!-- Version Information -->
-				<div class="space-y-4">
-					<h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Initial Version</h3>
-					<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-						<FormField
-							id="version-number"
-							label="Version Number"
-							value={state.newApp.version_number}
-							placeholder="1.0.0"
-							helperText="Semantic versioning recommended"
-							required
-							oninput={(e) =>
-								logic.updateNewApp('version_number', (e.target as HTMLInputElement).value)}
-						/>
-
-						<FormField
-							id="version-notes"
-							label="Version Notes"
-							value={state.newApp.version_notes}
-							placeholder="Initial release"
-							helperText="Describe this version"
-							oninput={(e) =>
-								logic.updateNewApp('version_notes', (e.target as HTMLInputElement).value)}
-						/>
+			<div class="rounded-md bg-blue-50 p-4 dark:bg-blue-950">
+				<div class="flex">
+					<div class="flex-shrink-0">
+						<svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+							<path
+								fill-rule="evenodd"
+								d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+								clip-rule="evenodd"
+							/>
+						</svg>
 					</div>
-				</div>
-
-				<!-- File Uploads -->
-				<div class="space-y-4">
-					<h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Required Files</h3>
-					<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-						<FileUpload
-							id="pocketbase-binary"
-							label="PocketBase Binary"
-							maxSize={100 * 1024 * 1024}
-							helperText="Upload the PocketBase executable file (any file type accepted)"
-							value={state.newApp.pocketbase_binary}
-							onFileSelect={(file) => logic.updateBinaryFile(file)}
-							onError={(error) => logic.setError(error)}
-							required
-						/>
-
-						<FileUpload
-							id="pb-public-folder"
-							label="pb_public Folder"
-							directory={true}
-							maxSize={50 * 1024 * 1024}
-							helperText="Select your pb_public folder containing your app's frontend files"
-							value={state.newApp.pb_public_folder}
-							onFileSelect={(files) => logic.updatePublicFolder(files)}
-							onError={(error) => logic.setError(error)}
-							required
-						/>
-					</div>
-					<div class="rounded-md bg-blue-50 p-4 dark:bg-blue-950">
-						<div class="flex">
-							<div class="flex-shrink-0">
-								<svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-									<path
-										fill-rule="evenodd"
-										d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-										clip-rule="evenodd"
-									/>
-								</svg>
-							</div>
-							<div class="ml-3">
-								<h3 class="text-sm font-medium text-blue-800 dark:text-blue-200">
-									First-time setup
-								</h3>
-								<div class="mt-2 text-sm text-blue-700 dark:text-blue-300">
-									<p>This is the first version of your app. You need to provide:</p>
-									<ul class="mt-1 list-disc pl-5">
-										<li>PocketBase binary - the executable file for your platform</li>
-										<li>pb_public folder - your app's frontend files and subdirectories</li>
-									</ul>
-								</div>
-							</div>
+					<div class="ml-3">
+						<h3 class="text-sm font-medium text-blue-800 dark:text-blue-200">CRUD Only Mode</h3>
+						<div class="mt-2 text-sm text-blue-700 dark:text-blue-300">
+							<p>
+								This creates the app entry in the database. For file uploads and deployments, use
+								external tools or the version management system.
+							</p>
 						</div>
 					</div>
 				</div>
+			</div>
 
-				<div class="flex space-x-3">
-					<Button variant="outline" type="submit" disabled={state.creating}>
-						{state.creating ? 'Creating...' : 'Create App'}
-					</Button>
-					<Button
-						variant="secondary"
-						color="gray"
-						onclick={() => {
-							logic.toggleCreateForm();
-							logic.resetForm();
-						}}
-						disabled={state.creating}
-					>
-						Cancel
-					</Button>
-				</div>
-			</form>
-		{/if}
+			<div class="flex space-x-3">
+				<Button
+					variant="outline"
+					type="submit"
+					disabled={state.creating}
+					icon={state.creating ? '🔄' : undefined}
+				>
+					{state.creating ? 'Creating...' : 'Create App'}
+				</Button>
+				<Button
+					variant="secondary"
+					color="gray"
+					onclick={() => {
+						logic.toggleCreateForm();
+						logic.resetForm();
+					}}
+					disabled={state.creating}
+				>
+					Cancel
+				</Button>
+			</div>
+		</form>
 	</Card>
 {/if}
 
@@ -329,49 +290,6 @@
 							<td class="space-x-1 px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
 								<Button
 									variant="ghost"
-									color="green"
-									size="sm"
-									onclick={() => logic.checkHealth(app.id)}
-									disabled={state.checkingHealth.has(app.id)}
-									icon={state.checkingHealth.has(app.id) ? '🔄' : '💚'}
-								>
-									Health
-								</Button>
-
-								{#if app.status === 'offline'}
-									<Button
-										variant="ghost"
-										color="blue"
-										size="sm"
-										onclick={() => logic.startApp(app.id)}
-										icon="▶️"
-									>
-										Start
-									</Button>
-								{:else}
-									<Button
-										variant="ghost"
-										color="yellow"
-										size="sm"
-										onclick={() => logic.stopApp(app.id)}
-										icon="⏹️"
-									>
-										Stop
-									</Button>
-								{/if}
-
-								<Button
-									variant="ghost"
-									color="gray"
-									size="sm"
-									onclick={() => logic.restartApp(app.id)}
-									icon="🔄"
-								>
-									Restart
-								</Button>
-
-								<Button
-									variant="ghost"
 									size="sm"
 									onclick={() => logic.openApp(app.domain)}
 									icon="🔗"
@@ -403,3 +321,13 @@
 		<Button variant="outline" size="sm" icon="🔄" onclick={() => logic.loadApps()}>Refresh</Button>
 	</div>
 {/if}
+
+<!-- Delete App Modal -->
+<DeleteModal
+	open={state.showDeleteModal}
+	item={state.appToDelete}
+	itemType="app"
+	loading={state.deleting}
+	onclose={() => logic.closeDeleteModal()}
+	onconfirm={(id) => logic.confirmDeleteApp(id)}
+/>

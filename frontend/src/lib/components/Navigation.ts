@@ -1,5 +1,5 @@
 import { themeStore } from '$lib/utils/theme.js';
-import { ApiClient } from '$lib/api/client.js';
+import { ApiClient } from '$lib/api/index.js';
 
 export interface NavigationItem {
 	href: string;

@@ -7,7 +7,7 @@ import (
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 
-	"pb-deployer/internal/handlers"
+	"pb-deployer/internal/api"
 	"pb-deployer/internal/models"
 )
 
@@ -53,5 +53,5 @@ func registerCollections(app core.App) {
 }
 
 func registerHandlers(app core.App) {
-	handlers.RegisterHandlers(app)
+	api.RegisterHandlers(app)
 }

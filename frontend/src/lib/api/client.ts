@@ -1,219 +1,128 @@
+import { AppsCrudClient } from './apps/index.js';
+import { ServerCrudClient } from './servers/index.js';
+import { VersionCrudClient } from './version/index.js';
+import { DeploymentCrudClient } from './deployment/index.js';
 import { BaseClient } from './base.js';
-import { ServerClient } from './client/server.js';
-import { AppsClient } from './client/apps.js';
-import { VersionClient } from './client/version.js';
-import { DeploymentClient } from './client/deployment.js';
-import type {
-	ServerRequest,
-	AppRequest,
-	Server,
-	App,
-	Version,
-	ServerResponse,
-	AppResponse,
-	ServerStatus,
-	HealthCheckResponse,
-	SetupStep,
-	TroubleshootResult,
-	QuickTroubleshootResult,
-	EnhancedTroubleshootResult,
-	AutoFixResult,
-	Deployment
-} from './types.js';
+import type { AppRequest } from './apps/types.js';
+import type { ServerRequest } from './servers/types.js';
 
 export class ApiClient extends BaseClient {
-	private serverClient: ServerClient;
-	private appsClient: AppsClient;
-	private versionClient: VersionClient;
-	private deploymentClient: DeploymentClient;
+	private apps: AppsCrudClient;
+	private servers: ServerCrudClient;
+	private versions: VersionCrudClient;
+	private deployments: DeploymentCrudClient;
 
 	constructor(baseUrl: string = 'http://localhost:8090') {
 		super(baseUrl);
-		this.serverClient = new ServerClient(baseUrl);
-		this.appsClient = new AppsClient(baseUrl);
-		this.versionClient = new VersionClient(baseUrl);
-		this.deploymentClient = new DeploymentClient(baseUrl);
+		this.apps = new AppsCrudClient(baseUrl);
+		this.servers = new ServerCrudClient(baseUrl);
+		this.versions = new VersionCrudClient(baseUrl);
+		this.deployments = new DeploymentCrudClient(baseUrl);
 	}
 
-	// Server methods - delegate to ServerClient
-	async getServers() {
-		return this.serverClient.getServers();
-	}
-
-	async getServer(id: string): Promise<ServerResponse> {
-		return this.serverClient.getServer(id);
-	}
-
-	async createServer(data: ServerRequest): Promise<Server> {
-		return this.serverClient.createServer(data);
-	}
-
-	async updateServer(id: string, data: Partial<ServerRequest>): Promise<Server> {
-		return this.serverClient.updateServer(id, data);
-	}
-
-	async deleteServer(id: string) {
-		return this.serverClient.deleteServer(id);
-	}
-
-	async testServerConnection(id: string) {
-		return this.serverClient.testServerConnection(id);
-	}
-
-	async runServerSetup(id: string) {
-		return this.serverClient.runServerSetup(id);
-	}
-
-	async applySecurityLockdown(id: string) {
-		return this.serverClient.applySecurityLockdown(id);
-	}
-
-	async troubleshootServer(id: string): Promise<TroubleshootResult> {
-		return this.serverClient.troubleshootServer(id);
-	}
-
-	async quickTroubleshootServer(id: string): Promise<QuickTroubleshootResult> {
-		return this.serverClient.quickTroubleshootServer(id);
-	}
-
-	async enhancedTroubleshootServer(serverId: string): Promise<EnhancedTroubleshootResult> {
-		return this.serverClient.enhancedTroubleshootServer(serverId);
-	}
-
-	async autoFixServerIssues(serverId: string): Promise<AutoFixResult> {
-		return this.serverClient.autoFixServerIssues(serverId);
-	}
-
-	async getServerStatus(serverId: string): Promise<ServerStatus> {
-		return this.serverClient.getServerStatus(serverId);
-	}
-
-	async subscribeToSetupProgress(
-		serverId: string,
-		callback: (data: SetupStep) => void
-	): Promise<() => void> {
-		return this.serverClient.subscribeToSetupProgress(serverId, callback);
-	}
-
-	async subscribeToSecurityProgress(
-		serverId: string,
-		callback: (data: SetupStep) => void
-	): Promise<() => void> {
-		return this.serverClient.subscribeToSecurityProgress(serverId, callback);
-	}
-
-	async unsubscribeFromAll(): Promise<void> {
-		return this.serverClient.unsubscribeFromAll();
-	}
-
-	// App methods - delegate to AppsClient
+	// App methods
 	async getApps() {
-		return this.appsClient.getApps();
+		return this.apps.getApps();
 	}
 
-	async getApp(id: string): Promise<AppResponse> {
-		return this.appsClient.getApp(id);
+	async getApp(id: string) {
+		return this.apps.getApp(id);
 	}
 
-	async createApp(data: AppRequest): Promise<App> {
-		return this.appsClient.createApp(data);
+	async createApp(data: AppRequest) {
+		return this.apps.createApp(data);
 	}
 
-	async updateApp(id: string, data: Partial<AppRequest>): Promise<App> {
-		return this.appsClient.updateApp(id, data);
+	async updateApp(id: string, data: Partial<AppRequest>) {
+		return this.apps.updateApp(id, data);
 	}
 
 	async deleteApp(id: string) {
-		return this.appsClient.deleteApp(id);
+		return this.apps.deleteApp(id);
 	}
 
 	async getAppsByServer(serverId: string) {
-		return this.appsClient.getAppsByServer(serverId);
+		return this.apps.getAppsByServer(serverId);
 	}
 
-	async checkAppHealth(id: string): Promise<HealthCheckResponse> {
-		return this.appsClient.checkAppHealth(id);
+	// Server methods
+	async getServers() {
+		return this.servers.getServers();
 	}
 
-	async runAppHealthCheck(id: string): Promise<HealthCheckResponse> {
-		return this.appsClient.runAppHealthCheck(id);
+	async getServer(id: string) {
+		return this.servers.getServer(id);
 	}
 
-	async startApp(id: string) {
-		return this.appsClient.startApp(id);
+	async createServer(data: ServerRequest) {
+		return this.servers.createServer(data);
 	}
 
-	async stopApp(id: string) {
-		return this.appsClient.stopApp(id);
+	async updateServer(id: string, data: Partial<ServerRequest>) {
+		return this.servers.updateServer(id, data);
 	}
 
-	async restartApp(id: string) {
-		return this.appsClient.restartApp(id);
+	async deleteServer(id: string) {
+		return this.servers.deleteServer(id);
 	}
 
-	// Version methods - delegate to VersionClient
-	async getAppVersions(id: string) {
-		return this.versionClient.getAppVersions(id);
+	// Version methods
+	async getVersions() {
+		return this.versions.getVersions();
 	}
 
-	async createVersion(
-		appId: string,
-		data: { version_number: string; notes?: string }
-	): Promise<Version> {
-		return this.versionClient.createVersion(appId, data);
+	async getVersion(id: string) {
+		return this.versions.getVersion(id);
 	}
 
-	async uploadVersionFiles(versionId: string, binaryFile: File, publicFiles: File[]) {
-		return this.versionClient.uploadVersionFiles(versionId, binaryFile, publicFiles);
+	async createVersion(data: { app_id: string; version_number: string; notes?: string }) {
+		return this.versions.createVersion(data);
 	}
 
-	async uploadVersionWithFolder(
-		versionId: string,
-		binaryFile: File,
-		folderFiles: FileList | File[]
+	async updateVersion(
+		id: string,
+		data: Partial<{ version_number: string; notes: string; deployment_zip: string }>
 	) {
-		return this.versionClient.uploadVersionWithFolder(versionId, binaryFile, folderFiles);
+		return this.versions.updateVersion(id, data);
 	}
 
-	validatePublicFolderStructure(files: File[]) {
-		return this.versionClient.validatePublicFolderStructure(files);
+	async deleteVersion(id: string) {
+		return this.versions.deleteVersion(id);
 	}
 
-	// Deployment methods - delegate to DeploymentClient
-	async getAppDeployments(id: string) {
-		return this.deploymentClient.getAppDeployments(id);
+	async getAppVersions(appId: string) {
+		return this.versions.getAppVersions(appId);
 	}
 
-	async getDeployment(id: string): Promise<Deployment> {
-		return this.deploymentClient.getDeployment(id);
+	// Deployment methods
+	async getDeployments() {
+		return this.deployments.getDeployments();
 	}
 
-	async createDeployment(appId: string, versionId: string): Promise<Deployment> {
-		return this.deploymentClient.createDeployment(appId, versionId);
+	async getDeployment(id: string) {
+		return this.deployments.getDeployment(id);
 	}
 
-	async getDeploymentLogs(id: string) {
-		return this.deploymentClient.getDeploymentLogs(id);
+	async createDeployment(data: { app_id: string; version_id: string; status?: string }) {
+		return this.deployments.createDeployment(data);
 	}
 
-	async getDeploymentStatus(id: string) {
-		return this.deploymentClient.getDeploymentStatus(id);
+	async updateDeployment(
+		id: string,
+		data: Partial<{ status: string; logs: string; started_at: string; completed_at: string }>
+	) {
+		return this.deployments.updateDeployment(id, data);
 	}
 
-	// Direct access to specialized clients for advanced usage
-	get servers() {
-		return this.serverClient;
+	async deleteDeployment(id: string) {
+		return this.deployments.deleteDeployment(id);
 	}
 
-	get apps() {
-		return this.appsClient;
+	async getAppDeployments(appId: string) {
+		return this.deployments.getAppDeployments(appId);
 	}
 
-	get versions() {
-		return this.versionClient;
-	}
-
-	get deployments() {
-		return this.deploymentClient;
+	async getVersionDeployments(versionId: string) {
+		return this.deployments.getVersionDeployments(versionId);
 	}
 }

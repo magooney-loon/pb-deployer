@@ -1,18 +1,15 @@
-// Re-export CRUD-related types from client directories
-export type { Server, ServerRequest, ServerResponse } from './client/servers/types.js';
-
-export type { App, AppRequest, AppResponse } from './client/apps/types.js';
-
-export type { Version } from './client/version/types.js';
-
-export type { Deployment } from './client/deployment/types.js';
-
-// Re-export utility functions
-export { getStatusColor, getStatusIcon, formatTimestamp } from './utils.js';
-
-// Export main client class
 export { ApiClient } from './client.js';
+export { BaseClient } from './base.js';
+export { formatTimestamp, getStatusColor, getStatusIcon } from './utils.js';
 
-// Create and export singleton instance for backward compatibility
-import { ApiClient } from './client.js';
-export const api = new ApiClient();
+// Export all types
+export type { App, AppRequest, AppResponse } from './apps/types.js';
+export type { Server, ServerRequest, ServerResponse, ServerStatus, SetupStep, ConnectionDiagnostic, TroubleshootResult, QuickTroubleshootResult, EnhancedTroubleshootResult, RecoveryStep, ActionableSuggestion, AutoFixResult, ConnectionInfo } from './servers/types.js';
+export type { Version } from './version/types.js';
+export type { Deployment } from './deployment/types.js';
+
+// Export CRUD clients for advanced usage
+export { AppsCrudClient } from './apps/index.js';
+export { ServerCrudClient } from './servers/index.js';
+export { VersionCrudClient } from './version/index.js';
+export { DeploymentCrudClient } from './deployment/index.js';

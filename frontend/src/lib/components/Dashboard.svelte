@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { DashboardLogic, type DashboardState } from './Dashboard.js';
-	import type { Server, App } from '../api.js';
+	import type { Server, App } from '../api/index.js';
 	import {
 		ErrorAlert,
 		LoadingSpinner,

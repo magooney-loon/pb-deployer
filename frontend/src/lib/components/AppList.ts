@@ -1,4 +1,5 @@
-import { api, type App, type Server, getStatusIcon, formatTimestamp } from './../api.js';
+import { ApiClient } from '../api/index.js';
+import type { App, AppRequest, Server } from '../api/index.js';
 
 export interface AppFormData {
 	name: string;
@@ -9,9 +10,6 @@ export interface AppFormData {
 	// Version info for first-time creation
 	version_number: string;
 	version_notes: string;
-	// File uploads
-	pocketbase_binary: File | null;
-	pb_public_folder: File[] | null;
 }
 
 export interface AppListState {
@@ -20,18 +18,20 @@ export interface AppListState {
 	loading: boolean;
 	error: string | null;
 	showCreateForm: boolean;
-	checkingHealth: Set<string>;
 	newApp: AppFormData;
 	creating: boolean;
-	uploadProgress: number;
-	currentStep: string;
+	deleting: boolean;
+	showDeleteModal: boolean;
+	appToDelete: App | null;
 }
 
 export class AppListLogic {
 	private state: AppListState;
 	private stateUpdateCallback?: (state: AppListState) => void;
+	private api: ApiClient;
 
 	constructor() {
+		this.api = new ApiClient();
 		this.state = this.getInitialState();
 	}
 
@@ -42,7 +42,6 @@ export class AppListLogic {
 			loading: true,
 			error: null,
 			showCreateForm: false,
-			checkingHealth: new Set(),
 			newApp: {
 				name: '',
 				server_id: '',
@@ -50,13 +49,12 @@ export class AppListLogic {
 				remote_path: '',
 				service_name: '',
 				version_number: '1.0.0',
-				version_notes: 'Initial version',
-				pocketbase_binary: null,
-				pb_public_folder: null
+				version_notes: 'Initial version'
 			},
 			creating: false,
-			uploadProgress: 0,
-			currentStep: ''
+			deleting: false,
+			showDeleteModal: false,
+			appToDelete: null
 		};
 	}
 
@@ -84,7 +82,7 @@ export class AppListLogic {
 	public async loadApps(): Promise<void> {
 		try {
 			this.updateState({ loading: true, error: null });
-			const response = await api.getApps();
+			const response = await this.api.getApps();
 			const apps = response.apps || [];
 			this.updateState({ apps });
 		} catch (err) {
@@ -97,7 +95,7 @@ export class AppListLogic {
 
 	public async loadServers(): Promise<void> {
 		try {
-			const response = await api.getServers();
+			const response = await this.api.getServers();
 			const servers = response.servers || [];
 			this.updateState({ servers });
 		} catch (err) {
@@ -110,13 +108,11 @@ export class AppListLogic {
 		try {
 			this.updateState({
 				creating: true,
-				error: null,
-				currentStep: 'Creating app...',
-				uploadProgress: 0
+				error: null
 			});
 
 			// Step 1: Create the app
-			const appData = {
+			const appData: AppRequest = {
 				name: this.state.newApp.name,
 				server_id: this.state.newApp.server_id,
 				domain: this.state.newApp.domain,
@@ -125,43 +121,23 @@ export class AppListLogic {
 				service_name: this.state.newApp.service_name || `pocketbase-${this.state.newApp.name}`
 			};
 
-			const app = await api.createApp(appData);
-			this.updateState({
-				currentStep: 'Creating initial version...',
-				uploadProgress: 25
-			});
+			const app = await this.api.createApp(appData);
 
-			// Step 2: Create initial version
-			const version = await api.createVersion(app.id, {
-				version_number: this.state.newApp.version_number,
-				notes: this.state.newApp.version_notes
-			});
-
-			this.updateState({
-				currentStep: 'Uploading files...',
-				uploadProgress: 50
-			});
-
-			// Step 3: Upload files
-			await api.uploadVersionWithFolder(
-				version.id,
-				this.state.newApp.pocketbase_binary!,
-				this.state.newApp.pb_public_folder!
-			);
-
-			this.updateState({
-				currentStep: 'Finalizing...',
-				uploadProgress: 100
-			});
+			// Step 2: Create initial version (optional)
+			if (this.state.newApp.version_number) {
+				await this.api.createVersion({
+					app_id: app.id,
+					version_number: this.state.newApp.version_number,
+					notes: this.state.newApp.version_notes
+				});
+			}
 
 			// Update apps list
 			const apps = [...this.state.apps, app];
 			this.updateState({
 				apps,
 				showCreateForm: false,
-				creating: false,
-				currentStep: '',
-				uploadProgress: 0
+				creating: false
 			});
 			this.resetForm();
 			return true;
@@ -169,44 +145,45 @@ export class AppListLogic {
 			const error = err instanceof Error ? err.message : 'Failed to create app';
 			this.updateState({
 				error,
-				creating: false,
-				currentStep: '',
-				uploadProgress: 0
+				creating: false
 			});
 			return false;
 		}
 	}
 
-	public async deleteApp(id: string): Promise<void> {
-		if (!confirm('Are you sure you want to delete this app?')) return;
-
-		try {
-			await api.deleteApp(id);
-			const apps = this.state.apps.filter((a) => a.id !== id);
-			this.updateState({ apps });
-		} catch (err) {
-			const error = err instanceof Error ? err.message : 'Failed to delete app';
-			this.updateState({ error });
+	public deleteApp(id: string): void {
+		const app = this.state.apps.find((a) => a.id === id);
+		if (app) {
+			this.updateState({
+				showDeleteModal: true,
+				appToDelete: app
+			});
 		}
 	}
 
-	public async checkHealth(id: string): Promise<void> {
+	public async confirmDeleteApp(id: string): Promise<void> {
 		try {
-			const checkingHealth = new Set(this.state.checkingHealth);
-			checkingHealth.add(id);
-			this.updateState({ checkingHealth });
+			this.updateState({ deleting: true, error: null });
+			await this.api.deleteApp(id);
 
-			await api.runAppHealthCheck(id);
-			setTimeout(async () => {
-				await this.loadApps(); // Refresh to get updated status
-			}, 2000);
+			const apps = this.state.apps.filter((a) => a.id !== id);
+			this.updateState({
+				apps,
+				showDeleteModal: false,
+				appToDelete: null,
+				deleting: false
+			});
 		} catch (err) {
-			alert(`Health check failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-		} finally {
-			const checkingHealth = new Set(this.state.checkingHealth);
-			checkingHealth.delete(id);
-			this.updateState({ checkingHealth });
+			const error = err instanceof Error ? err.message : 'Failed to delete app';
+			this.updateState({ error, deleting: false });
 		}
+	}
+
+	public closeDeleteModal(): void {
+		this.updateState({
+			showDeleteModal: false,
+			appToDelete: null
+		});
 	}
 
 	public resetForm(): void {
@@ -218,13 +195,9 @@ export class AppListLogic {
 				remote_path: '',
 				service_name: '',
 				version_number: '1.0.0',
-				version_notes: 'Initial version',
-				pocketbase_binary: null,
-				pb_public_folder: null
+				version_notes: 'Initial version'
 			},
-			creating: false,
-			uploadProgress: 0,
-			currentStep: ''
+			creating: false
 		});
 	}
 
@@ -254,11 +227,20 @@ export class AppListLogic {
 	public getAppStatusBadge(app: App): { text: string; color: string } {
 		switch (app.status) {
 			case 'online':
-				return { text: 'Online', color: 'bg-green-100 text-green-800' };
+				return {
+					text: 'Online',
+					color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+				};
 			case 'offline':
-				return { text: 'Offline', color: 'bg-red-100 text-red-800' };
+				return {
+					text: 'Offline',
+					color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+				};
 			default:
-				return { text: 'Unknown', color: 'bg-gray-100 text-gray-800' };
+				return {
+					text: 'Unknown',
+					color: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+				};
 		}
 	}
 
@@ -268,68 +250,21 @@ export class AppListLogic {
 
 	// Helper methods for the component
 	public formatTimestamp(timestamp: string): string {
-		return formatTimestamp(timestamp);
+		try {
+			return new Date(timestamp).toLocaleString();
+		} catch {
+			return timestamp;
+		}
 	}
 
 	public getStatusIcon(status: string): string {
-		return getStatusIcon(status);
-	}
-
-	// File handling methods
-	public updateBinaryFile(file: File | File[] | null): void {
-		const singleFile = Array.isArray(file) ? file[0] : file;
-		this.updateState({
-			newApp: { ...this.state.newApp, pocketbase_binary: singleFile }
-		});
-	}
-
-	public updatePublicFolder(files: File | File[] | null): void {
-		const fileArray = Array.isArray(files) ? files : files ? [files] : null;
-		this.updateState({
-			newApp: { ...this.state.newApp, pb_public_folder: fileArray }
-		});
-	}
-
-	public updateVersionNumber(version: string): void {
-		this.updateState({
-			newApp: { ...this.state.newApp, version_number: version }
-		});
-	}
-
-	public updateVersionNotes(notes: string): void {
-		this.updateState({
-			newApp: { ...this.state.newApp, version_notes: notes }
-		});
-	}
-
-	// App service management
-	public async startApp(id: string): Promise<void> {
-		try {
-			await api.startApp(id);
-			await this.loadApps(); // Refresh to get updated status
-		} catch (err) {
-			const error = err instanceof Error ? err.message : 'Failed to start app';
-			this.updateState({ error });
-		}
-	}
-
-	public async stopApp(id: string): Promise<void> {
-		try {
-			await api.stopApp(id);
-			await this.loadApps(); // Refresh to get updated status
-		} catch (err) {
-			const error = err instanceof Error ? err.message : 'Failed to stop app';
-			this.updateState({ error });
-		}
-	}
-
-	public async restartApp(id: string): Promise<void> {
-		try {
-			await api.restartApp(id);
-			await this.loadApps(); // Refresh to get updated status
-		} catch (err) {
-			const error = err instanceof Error ? err.message : 'Failed to restart app';
-			this.updateState({ error });
+		switch (status) {
+			case 'online':
+				return '🟢';
+			case 'offline':
+				return '🔴';
+			default:
+				return '⚪';
 		}
 	}
 }

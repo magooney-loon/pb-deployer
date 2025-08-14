@@ -1,11 +1,8 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { formatTimestamp } from '../api.js';
+	import { formatTimestamp } from '../api/index.js';
 	import { ServerListLogic, type ServerListState } from './ServerList.js';
-	import ConnectionTestModal from '$lib/components/modals/ConnectionTestModal.svelte';
-	import DeleteServerModal from '$lib/components/modals/DeleteServerModal.svelte';
-	import ProgressModal from '$lib/components/modals/ProgressModal.svelte';
-	import TroubleshootModal from '$lib/components/modals/TroubleshootModal.svelte';
+	import DeleteModal from '$lib/components/modals/DeleteModal.svelte';
 	import {
 		Button,
 		ErrorAlert,
@@ -130,7 +127,14 @@
 			{/if}
 
 			<div class="flex space-x-3">
-				<Button variant="outline" type="submit">Create Server</Button>
+				<Button
+					variant="outline"
+					type="submit"
+					disabled={state.creating}
+					icon={state.creating ? '🔄' : undefined}
+				>
+					{state.creating ? 'Creating...' : 'Create Server'}
+				</Button>
 				<Button
 					variant="outline"
 					color="gray"
@@ -138,6 +142,7 @@
 						logic.toggleCreateForm();
 						logic.resetForm();
 					}}
+					disabled={state.creating}
 				>
 					Cancel
 				</Button>
@@ -201,41 +206,11 @@
 								</div>
 							</td>
 							<td class="px-6 py-4 whitespace-nowrap">
-								<div class="space-y-1">
-									<span
-										class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {statusBadge.color}"
-									>
-										{statusBadge.text}
-									</span>
-
-									<!-- Setup Progress -->
-									{#if server.id in state.setupProgress}
-										{@const steps = state.setupProgress[server.id] || []}
-										<div class="space-y-1 text-xs">
-											{#each steps.slice(-3) as step, index (step.timestamp + index)}
-												<div class="flex items-center space-x-1 text-blue-600 dark:text-blue-400">
-													<span>{logic.getProgressStepIcon(step.status)}</span>
-													<span class="max-w-32 truncate">{step.message}</span>
-												</div>
-											{/each}
-										</div>
-									{/if}
-
-									<!-- Security Progress -->
-									{#if server.id in state.securityProgress}
-										{@const steps = state.securityProgress[server.id] || []}
-										<div class="space-y-1 text-xs">
-											{#each steps.slice(-3) as step, index (step.timestamp + index)}
-												<div
-													class="flex items-center space-x-1 text-purple-600 dark:text-purple-400"
-												>
-													<span>{logic.getProgressStepIcon(step.status)}</span>
-													<span class="max-w-32 truncate">{step.message}</span>
-												</div>
-											{/each}
-										</div>
-									{/if}
-								</div>
+								<span
+									class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {statusBadge.color}"
+								>
+									{statusBadge.text}
+								</span>
 							</td>
 							<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
 								<div>Root: {server.root_username}</div>
@@ -250,59 +225,11 @@
 								{formatTimestamp(server.created)}
 							</td>
 							<td class="space-x-2 px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
-								{#if server.setup_complete}
-									<Button
-										variant="ghost"
-										size="sm"
-										onclick={() => logic.testConnection(server.id)}
-										disabled={state.testingConnection.has(server.id)}
-										icon={state.testingConnection.has(server.id) ? '🔄' : '🔌'}
-									>
-										{state.testingConnection.has(server.id) ? 'Testing...' : 'Test Connection'}
-									</Button>
-
-									<Button
-										variant="ghost"
-										size="sm"
-										onclick={() => logic.troubleshootConnection(server.id)}
-										disabled={state.troubleshooting.has(server.id)}
-										icon={state.troubleshooting.has(server.id) ? '🔄' : '🔍'}
-									>
-										{state.troubleshooting.has(server.id) ? 'Diagnosing...' : 'Troubleshoot'}
-									</Button>
-								{/if}
-
-								{#if !server.setup_complete}
-									<Button
-										variant="ghost"
-										color="green"
-										size="sm"
-										onclick={() => logic.runSetup(server.id)}
-										disabled={state.runningSetup.has(server.id)}
-										icon={state.runningSetup.has(server.id) ? '🔄' : '⚙️'}
-									>
-										{state.runningSetup.has(server.id) ? 'Setting Up...' : 'Run Setup'}
-									</Button>
-								{:else if !server.security_locked}
-									<Button
-										variant="ghost"
-										color="purple"
-										size="sm"
-										onclick={() => logic.applySecurity(server.id)}
-										disabled={state.applyingSecurity.has(server.id)}
-										icon={state.applyingSecurity.has(server.id) ? '🔄' : '🔒'}
-									>
-										{state.applyingSecurity.has(server.id) ? 'Securing...' : 'Secure (Optional)'}
-									</Button>
-								{/if}
-
 								<Button
 									variant="ghost"
 									color="red"
 									size="sm"
 									onclick={() => logic.deleteServer(server.id)}
-									disabled={state.runningSetup.has(server.id) ||
-										state.applyingSecurity.has(server.id)}
 									icon="🗑️"
 								>
 									Delete
@@ -325,56 +252,14 @@
 	</div>
 {/if}
 
-<!-- Connection Test Modal -->
-<ConnectionTestModal
-	open={state.showConnectionModal}
-	result={state.connectionTestResult}
-	serverName={state.testedServerName}
-	loading={state.connectionTestLoading}
-	onclose={() => logic.closeConnectionModal()}
-/>
-
 <!-- Delete Server Modal -->
-<DeleteServerModal
+<DeleteModal
 	open={state.showDeleteModal}
-	server={state.serverToDelete}
-	apps={state.apps}
+	item={state.serverToDelete}
+	itemType="server"
 	loading={state.deleting}
+	relatedItems={state.apps}
+	relatedItemsType="apps"
 	onclose={() => logic.closeDeleteModal()}
 	onconfirm={(id) => logic.confirmDeleteServer(id)}
-/>
-
-<!-- Setup Progress Modal -->
-<ProgressModal
-	bind:show={state.showSetupProgressModal}
-	title="Server Setup Progress - {state.currentProgressServerName}"
-	progress={state.currentProgressServerId
-		? state.setupProgress[state.currentProgressServerId] || []
-		: []}
-	onClose={() => logic.closeSetupProgressModal()}
-	loading={state.runningSetup.has(state.currentProgressServerId || '')}
-	operationInProgress={logic.isSetupInProgress(state.currentProgressServerId)}
-/>
-
-<!-- Security Progress Modal -->
-<ProgressModal
-	bind:show={state.showSecurityProgressModal}
-	title="Security Lockdown Progress - {state.currentProgressServerName}"
-	progress={state.currentProgressServerId
-		? state.securityProgress[state.currentProgressServerId] || []
-		: []}
-	onClose={() => logic.closeSecurityProgressModal()}
-	loading={state.applyingSecurity.has(state.currentProgressServerId || '')}
-	operationInProgress={logic.isSecurityInProgress(state.currentProgressServerId)}
-/>
-
-<!-- Troubleshoot Modal -->
-<TroubleshootModal
-	open={state.showTroubleshootModal}
-	result={state.troubleshootResult}
-	serverName={state.troubleshootServerName}
-	loading={state.troubleshootLoading}
-	onclose={() => logic.closeTroubleshootModal()}
-	onretry={() => logic.retryTroubleshoot()}
-	onquicktest={() => logic.quickTroubleshoot()}
 />

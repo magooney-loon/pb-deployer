@@ -1,4 +1,4 @@
-import { api, type Server, type App, getStatusIcon } from './../api.js';
+import { ApiClient, type Server, type App, getStatusIcon } from '../api/index.js';
 
 export interface DashboardState {
 	servers: Server[];
@@ -38,8 +38,10 @@ export class DashboardLogic {
 	private stateUpdateCallback?: (state: DashboardState) => void;
 	private refreshInterval?: number;
 	private countdownInterval?: number;
+	private api: ApiClient;
 
 	constructor() {
+		this.api = new ApiClient();
 		this.state = this.getInitialState();
 	}
 
@@ -71,7 +73,10 @@ export class DashboardLogic {
 		try {
 			this.updateState({ loading: true, error: null });
 
-			const [serversResponse, appsResponse] = await Promise.all([api.getServers(), api.getApps()]);
+			const [serversResponse, appsResponse] = await Promise.all([
+				this.api.getServers(),
+				this.api.getApps()
+			]);
 
 			const servers = serversResponse.servers || [];
 			const apps = appsResponse.apps || [];
