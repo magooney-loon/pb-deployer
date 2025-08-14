@@ -1,6 +1,6 @@
-import { ApiClient } from '../api/index.js';
-import type { Server, ServerRequest } from '../api/index.js';
-import { getServerStatusBadge } from './partials/index.js';
+import { ApiClient } from '$lib/api/index.js';
+import type { Server, ServerRequest } from '$lib/api/index.js';
+import { getServerStatusBadge } from '$lib/components/partials/index.js';
 
 export interface ServerFormData {
 	name: string;

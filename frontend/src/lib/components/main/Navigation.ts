@@ -1,6 +1,6 @@
 import { themeStore } from '$lib/utils/theme.js';
 import { ApiClient } from '$lib/api/index.js';
-import { getApiStatusBadge } from './partials/index.js';
+import { getApiStatusBadge } from '$lib/components/partials/index.js';
 
 export interface NavigationItem {
 	href: string;

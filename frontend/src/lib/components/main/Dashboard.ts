@@ -1,5 +1,5 @@
-import { ApiClient, type Server, type App } from '../api/index.js';
-import { getServerStatusBadge, getAppStatusIcon } from './partials/index.js';
+import { ApiClient, type Server, type App } from '$lib/api/index.js';
+import { getServerStatusBadge, getAppStatusIcon } from '$lib/components/partials/index.js';
 
 export interface DashboardState {
 	servers: Server[];

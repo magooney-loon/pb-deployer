@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { DashboardLogic, type DashboardState } from './Dashboard.js';
-	import type { Server, App } from '../api/index.js';
+	import type { Server, App } from '$lib/api/index.js';
 	import {
 		ErrorAlert,
 		LoadingSpinner,
@@ -9,7 +9,7 @@
 		StatusBadge,
 		Card,
 		RecentItemsCard
-	} from './partials/index.js';
+	} from '$lib/components/partials/index.js';
 
 	// Create logic instance
 	const logic = new DashboardLogic();

@@ -1,4 +1,4 @@
-import type { Server, App } from '../../api/index.js';
+import type { Server, App } from '$lib/api/index.js';
 
 // Common status badge variant type
 export type StatusBadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'gray';

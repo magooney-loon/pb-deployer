@@ -1,6 +1,10 @@
-import { ApiClient } from '../api/index.js';
-import type { App, AppRequest, Server } from '../api/index.js';
-import { getAppStatusBadge, getAppStatusIcon, formatTimestamp } from './partials/index.js';
+import { ApiClient } from '$lib/api/index.js';
+import type { App, AppRequest, Server } from '$lib/api/index.js';
+import {
+	getAppStatusBadge,
+	getAppStatusIcon,
+	formatTimestamp
+} from '$lib/components/partials/index.js';
 
 export interface AppFormData {
 	name: string;
