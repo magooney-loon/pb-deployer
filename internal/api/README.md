@@ -2,28 +2,6 @@
 
 REST API handlers for PocketBase application deployment management with real-time WebSocket support.
 
-## Architecture
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│     Servers     │───▶│      Apps       │───▶│    Versions     │───▶│   Deployments   │
-│   /api/servers  │    │   /api/apps     │    │  /api/versions  │    │ /api/deployments│
-└─────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │                       │
-         ▼                       ▼                       ▼                       ▼
-    SSH Operations        Service Management       File Management        Process Tracking
-
-                                    Manager Services
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  Setup Manager  │    │ Service Manager │    │Security Manager │    │Deployment Mgr   │
-│   /api/v1/setup │    │ /api/v1/services│    │/api/v1/security │    │/api/v1/deployments│
-└─────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │                       │
-         ▼                       ▼                       ▼                       ▼
-   User & Directory        Systemd Services        SSH & Firewall         App Deployment
-   Package Management      Log Management          Fail2ban & Audit       Health & Rollback
-```
-
 ## API Endpoints
 
 ### Servers (`/api/servers`)
