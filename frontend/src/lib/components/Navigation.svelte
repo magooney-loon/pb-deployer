@@ -5,6 +5,7 @@
 	import { themeStore } from '$lib/utils/theme.js';
 	import { NavigationLogic, type NavigationState } from './Navigation.js';
 	import { transitionLink, getRouteTransitionName } from '$lib/utils/navigation';
+	import { StatusBadge, getApiStatusBadge } from '$lib/components/partials';
 
 	// Create logic instance
 	const logic = new NavigationLogic(page.url.pathname);
@@ -25,6 +26,9 @@
 		const normalizePath = (p: string) => (p === '/' ? p : p.endsWith('/') ? p.slice(0, -1) : p);
 		return normalizePath(state.currentPath) === normalizePath(path);
 	}
+
+	// Derived API status badge - reactive to state changes
+	let apiStatusBadge = $derived(getApiStatusBadge(state.apiStatus));
 </script>
 
 <nav
@@ -84,30 +88,12 @@
 			<div class="flex items-center space-x-3">
 				<!-- API Status -->
 				<div class="hidden items-center sm:flex">
-					<div
-						class="flex items-center space-x-1.5 rounded-full border px-2.5 py-1 text-xs font-medium
-						{state.apiStatus === 'online'
-							? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/50 dark:text-emerald-300'
-							: state.apiStatus === 'offline'
-								? 'border-red-200 bg-red-50 text-red-700 dark:border-red-800/50 dark:bg-red-950/50 dark:text-red-300'
-								: 'border-yellow-200 bg-yellow-50 text-yellow-700 dark:border-yellow-800/50 dark:bg-yellow-950/50 dark:text-yellow-300'}"
-					>
-						<div
-							class="h-1.5 w-1.5 rounded-full
-							{state.apiStatus === 'online'
-								? 'bg-emerald-500'
-								: state.apiStatus === 'offline'
-									? 'bg-red-500'
-									: 'animate-pulse bg-yellow-500'}"
-						></div>
-						<span>
-							{state.apiStatus === 'online'
-								? 'Online'
-								: state.apiStatus === 'offline'
-									? 'Offline'
-									: 'Checking...'}
-						</span>
-					</div>
+					<StatusBadge
+						status={apiStatusBadge.text}
+						variant={apiStatusBadge.variant}
+						dot
+						size="sm"
+					/>
 				</div>
 
 				<!-- GitHub link -->
@@ -188,30 +174,12 @@
 					class="mb-3 flex items-center justify-center space-x-3 border-b border-gray-200/50 pb-3 dark:border-gray-800/50"
 				>
 					<!-- API Status -->
-					<div
-						class="flex items-center space-x-1.5 rounded-full border px-2.5 py-1 text-xs font-medium
-						{state.apiStatus === 'online'
-							? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/50 dark:text-emerald-300'
-							: state.apiStatus === 'offline'
-								? 'border-red-200 bg-red-50 text-red-700 dark:border-red-800/50 dark:bg-red-950/50 dark:text-red-300'
-								: 'border-yellow-200 bg-yellow-50 text-yellow-700 dark:border-yellow-800/50 dark:bg-yellow-950/50 dark:text-yellow-300'}"
-					>
-						<div
-							class="h-1.5 w-1.5 rounded-full
-							{state.apiStatus === 'online'
-								? 'bg-emerald-500'
-								: state.apiStatus === 'offline'
-									? 'bg-red-500'
-									: 'animate-pulse bg-yellow-500'}"
-						></div>
-						<span>
-							{state.apiStatus === 'online'
-								? 'API Online'
-								: state.apiStatus === 'offline'
-									? 'API Offline'
-									: 'Checking API...'}
-						</span>
-					</div>
+					<StatusBadge
+						status="API {apiStatusBadge.text}"
+						variant={apiStatusBadge.variant}
+						dot
+						size="sm"
+					/>
 				</div>
 
 				<!-- Mobile navigation items -->

@@ -88,20 +88,13 @@
 				}}
 			>
 				{#snippet children(server: Server)}
+					{@const serverBadge = logic.getServerStatusBadge(server)}
 					<div class="flex-1">
 						<div class="flex items-center">
 							<span class="text-sm font-medium text-gray-900 dark:text-gray-100">
 								{server.name}
 							</span>
-							{#if server.setup_complete}
-								{#if server.security_locked}
-									<StatusBadge status="Ready + Secured" variant="success" class="ml-2" />
-								{:else}
-									<StatusBadge status="Ready" variant="success" class="ml-2" />
-								{/if}
-							{:else}
-								<StatusBadge status="New" variant="error" class="ml-2" />
-							{/if}
+							<StatusBadge status={serverBadge.text} variant={serverBadge.variant} class="ml-2" />
 						</div>
 						<div class="text-xs text-gray-500 dark:text-gray-400">
 							{server.host}:{server.port}

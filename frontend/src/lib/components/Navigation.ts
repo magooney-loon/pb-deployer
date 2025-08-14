@@ -1,5 +1,6 @@
 import { themeStore } from '$lib/utils/theme.js';
 import { ApiClient } from '$lib/api/index.js';
+import { getApiStatusBadge } from './partials/index.js';
 
 export interface NavigationItem {
 	href: string;
@@ -86,6 +87,10 @@ export class NavigationLogic {
 	public handleNavItemClick(href: string): void {
 		this.updateCurrentPath(href);
 		this.closeMobileMenu();
+	}
+
+	public getApiStatusBadge() {
+		return getApiStatusBadge(this.state.apiStatus);
 	}
 
 	// API Health checking methods

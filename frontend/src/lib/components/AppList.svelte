@@ -8,7 +8,8 @@
 		FormField,
 		EmptyState,
 		LoadingSpinner,
-		Card
+		Card,
+		StatusBadge
 	} from '$lib/components/partials';
 
 	// Create logic instance
@@ -274,12 +275,11 @@
 								<div class="text-xs text-gray-500 dark:text-gray-400">{app.remote_path}</div>
 							</td>
 							<td class="px-6 py-4 whitespace-nowrap">
-								<span
-									class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {statusBadge.color}"
-								>
-									{logic.getStatusIcon(app.status)}
-									{statusBadge.text}
-								</span>
+								<StatusBadge
+									status="{logic.getStatusIcon(app.status)} {statusBadge.text}"
+									variant={statusBadge.variant}
+									dot
+								/>
 							</td>
 							<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
 								{app.current_version || 'Not deployed'}

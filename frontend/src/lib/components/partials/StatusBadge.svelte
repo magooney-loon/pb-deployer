@@ -36,7 +36,7 @@
 			'bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:ring-amber-800',
 		error:
 			'bg-red-50 text-red-700 ring-1 ring-red-200 dark:bg-red-950 dark:text-red-300 dark:ring-red-800',
-		info: 'bg-gray-50 text-gray-700 ring-1 ring-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:ring-gray-700',
+		info: 'bg-blue-50 text-blue-700 ring-1 ring-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:ring-blue-800',
 		gray: 'bg-gray-50 text-gray-600 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:ring-gray-700',
 		custom: customColors
 			? `${customColors.bg} ${customColors.text}`
@@ -48,7 +48,7 @@
 		success: 'bg-emerald-500',
 		warning: 'bg-amber-500',
 		error: 'bg-red-500',
-		info: 'bg-gray-500',
+		info: 'bg-blue-500',
 		gray: 'bg-gray-400',
 		custom: customColors?.bg || 'bg-gray-400'
 	};

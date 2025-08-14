@@ -1,4 +1,5 @@
-import { ApiClient, type Server, type App, getStatusIcon } from '../api/index.js';
+import { ApiClient, type Server, type App } from '../api/index.js';
+import { getServerStatusBadge, getAppStatusIcon } from './partials/index.js';
 
 export interface DashboardState {
 	servers: Server[];
@@ -191,7 +192,11 @@ export class DashboardLogic {
 
 	// Helper methods for the component
 	public getStatusIcon(status: string): string {
-		return getStatusIcon(status);
+		return getAppStatusIcon(status);
+	}
+
+	public getServerStatusBadge(server: Server) {
+		return getServerStatusBadge(server);
 	}
 
 	public hasData(): boolean {

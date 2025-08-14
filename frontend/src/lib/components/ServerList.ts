@@ -1,5 +1,6 @@
 import { ApiClient } from '../api/index.js';
 import type { Server, ServerRequest } from '../api/index.js';
+import { getServerStatusBadge } from './partials/index.js';
 
 export interface ServerFormData {
 	name: string;
@@ -128,8 +129,7 @@ export class ServerListLogic {
 		try {
 			const response = await this.api.apps.getAppsByServer(serverId);
 			this.updateState({ apps: response.apps || [] });
-		} catch (err) {
-			console.warn('Failed to load related apps:', err);
+		} catch {
 			this.updateState({ apps: [] });
 		}
 	}
@@ -189,23 +189,8 @@ export class ServerListLogic {
 		});
 	}
 
-	public getServerStatusBadge(server: Server): { text: string; color: string } {
-		if (server.setup_complete && server.security_locked) {
-			return {
-				text: 'Secured',
-				color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-			};
-		} else if (server.setup_complete) {
-			return {
-				text: 'Ready',
-				color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-			};
-		} else {
-			return {
-				text: 'Not Setup',
-				color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-			};
-		}
+	public getServerStatusBadge(server: Server) {
+		return getServerStatusBadge(server);
 	}
 
 	public async cleanup(): Promise<void> {

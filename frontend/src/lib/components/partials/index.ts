@@ -12,3 +12,14 @@ export { default as ProgressBar } from './ProgressBar.svelte';
 export { default as EmptyState } from './EmptyState.svelte';
 export { default as DataTable } from './DataTable.svelte';
 export { default as WarningBanner } from './WarningBanner.svelte';
+
+// Export status utilities
+export {
+	getServerStatusBadge,
+	getAppStatusBadge,
+	getApiStatusBadge,
+	getAppStatusIcon,
+	formatTimestamp,
+	type StatusBadgeVariant,
+	type StatusBadgeResult
+} from './StatusBadge.js';

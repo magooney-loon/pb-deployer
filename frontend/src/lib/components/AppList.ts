@@ -1,5 +1,6 @@
 import { ApiClient } from '../api/index.js';
 import type { App, AppRequest, Server } from '../api/index.js';
+import { getAppStatusBadge, getAppStatusIcon, formatTimestamp } from './partials/index.js';
 
 export interface AppFormData {
 	name: string;
@@ -98,8 +99,7 @@ export class AppListLogic {
 			const response = await this.api.servers.getServers();
 			const servers = response.servers || [];
 			this.updateState({ servers });
-		} catch (err) {
-			console.error('Failed to load servers for dropdown:', err);
+		} catch {
 			this.updateState({ servers: [] });
 		}
 	}
@@ -224,24 +224,8 @@ export class AppListLogic {
 		return this.state.servers.filter((s) => s.setup_complete);
 	}
 
-	public getAppStatusBadge(app: App): { text: string; color: string } {
-		switch (app.status) {
-			case 'online':
-				return {
-					text: 'Online',
-					color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-				};
-			case 'offline':
-				return {
-					text: 'Offline',
-					color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-				};
-			default:
-				return {
-					text: 'Unknown',
-					color: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-				};
-		}
+	public getAppStatusBadge(app: App) {
+		return getAppStatusBadge(app);
 	}
 
 	public openApp(domain: string): void {
@@ -250,21 +234,10 @@ export class AppListLogic {
 
 	// Helper methods for the component
 	public formatTimestamp(timestamp: string): string {
-		try {
-			return new Date(timestamp).toLocaleString();
-		} catch {
-			return timestamp;
-		}
+		return formatTimestamp(timestamp);
 	}
 
 	public getStatusIcon(status: string): string {
-		switch (status) {
-			case 'online':
-				return '🟢';
-			case 'offline':
-				return '🔴';
-			default:
-				return '⚪';
-		}
+		return getAppStatusIcon(status);
 	}
 }

@@ -9,7 +9,8 @@
 		FormField,
 		EmptyState,
 		LoadingSpinner,
-		Card
+		Card,
+		StatusBadge
 	} from '$lib/components/partials';
 
 	// Create logic instance
@@ -206,11 +207,7 @@
 								</div>
 							</td>
 							<td class="px-6 py-4 whitespace-nowrap">
-								<span
-									class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {statusBadge.color}"
-								>
-									{statusBadge.text}
-								</span>
+								<StatusBadge status={statusBadge.text} variant={statusBadge.variant} />
 							</td>
 							<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
 								<div>Root: {server.root_username}</div>
