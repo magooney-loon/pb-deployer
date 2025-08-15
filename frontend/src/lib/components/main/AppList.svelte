@@ -41,7 +41,7 @@
 	}
 </script>
 
-<div class="mb-8 flex items-center justify-between">
+<header class="mb-8 flex items-center justify-between">
 	<div>
 		<h1 class="text-3xl font-semibold text-gray-900 dark:text-gray-100">Applications</h1>
 		<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
@@ -56,7 +56,7 @@
 	>
 		Add App
 	</Button>
-</div>
+</header>
 
 {#if availableServers.length === 0 && !state.showCreateForm}
 	<Toast type="warning" message="You need at least one server configured." dismissible={false} />

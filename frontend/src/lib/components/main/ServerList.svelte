@@ -44,7 +44,7 @@
 	}
 </script>
 
-<div class="mb-8 flex items-center justify-between">
+<header class="mb-8 flex items-center justify-between">
 	<div>
 		<h1 class="text-3xl font-semibold text-gray-900 dark:text-gray-100">Servers</h1>
 		<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
@@ -58,7 +58,7 @@
 	>
 		{state.showCreateForm ? 'Cancel' : 'Add Server'}
 	</Button>
-</div>
+</header>
 
 {#if state.error}
 	<Toast message={state.error} type="error" onDismiss={() => logic.dismissError()} />
