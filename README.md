@@ -2,11 +2,11 @@
 
 # <img src="frontend/static/favicon.svg" width="32" height="32" style="vertical-align: middle;"> pb-deployer
 
-Deployment automation for PocketBase applications w/ comprehensive observability.
+Deployment automation for PocketBase applications w/ GUI.
 
 ## Overview
 
-Automates the complete lifecycle of deploying PocketBase apps to production servers with modern Go architecture:
+Automates the complete lifecycle of deploying PocketBase apps to production servers:
 - **Server Setup**: Automated SSH user creation, directory structure, security hardening
 - **Deployment**: SFTP transfer protocol && systemd service management
 - **Security**: UFW firewall, fail2ban, SSH lockdown with specialized managers
@@ -23,14 +23,14 @@ Automates the complete lifecycle of deploying PocketBase apps to production serv
 
 ## Key Features
 
-- **Modern Architecture**: Dependency injection, no singletons, clean interfaces
-- **SSH Connection Pooling**: Persistent connections with automatic health monitoring
-- **Specialized Managers**: Domain-specific operations (setup, security, services, deployment)
-- **Comprehensive Tracing**: Full observability with structured logging and metrics
-- **Security-Aware Operations**: Automatic transition from root to app user after lockdown
-- **Zero-Downtime Deployments**: Staging directory with atomic swaps
-- **Real-time Progress**: WebSocket updates with detailed operation tracking
-- **Type-Safe Configuration**: Generic config management with validation
-- **Automatic Backup/Rollback**: Safe production deployments with version tracking
+- Dependency injection, no singletons, clean interfaces
+- Persistent connections with automatic health monitoring
+- Domain-specific operations (setup, security, services, deployment)
+- Full observability with structured logging and metrics
+- Automatic transition from root to app user after lockdown
+- Staging directory with atomic swaps
+- WebSocket updates with detailed operation tracking
+- Generic config management with validation
+- Safe production deployments with version tracking
 
 See `internal/*/README.md` for detailed component documentation.
