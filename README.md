@@ -15,6 +15,8 @@ Automates the complete lifecycle of deploying PocketBase apps to production serv
 git clone https://github.com/magooney-loon/pb-deployer
 cd pb-deployer
 go run cmd/scripts/main.go --install
+// then
+go run cmd/scripts/main.go
 ```
 
 ## Core Workflow
