@@ -26,7 +26,7 @@ const (
 
 func main() {
 	// Define command line flags
-	installDeps := flag.Bool("install", false, "Install frontend dependencies")
+	installDeps := flag.Bool("install", false, "Install project dependencies")
 	buildOnly := flag.Bool("build-only", false, "Build frontend without running the server")
 	runOnly := flag.Bool("run-only", false, "Run the server without building the frontend")
 	production := flag.Bool("production", false, "Create a production build in dist folder")
@@ -57,14 +57,6 @@ func main() {
 	}
 
 	printStep("📁", "Project root: %s", rootDir)
-
-	// Install Go dependencies if requested
-	if *installDeps {
-		if err := installGoDependencies(rootDir); err != nil {
-			printError("Go dependency installation failed: %v", err)
-			os.Exit(1)
-		}
-	}
 
 	// Handle production build
 	if *production {
@@ -114,13 +106,6 @@ func productionBuild(rootDir string, installDeps bool, distDir string) error {
 	}
 	printSuccess("Output directory prepared: %s", outputDir)
 
-	// Install Go dependencies if requested
-	if installDeps {
-		if err := installGoDependencies(rootDir); err != nil {
-			return fmt.Errorf("Go dependency installation failed: %w", err)
-		}
-	}
-
 	// Build frontend
 	if err := buildFrontendProduction(rootDir, installDeps); err != nil {
 		return fmt.Errorf("frontend production build failed: %w", err)
@@ -150,7 +135,7 @@ func buildFrontend(rootDir string, installDeps bool) error {
 	}
 
 	if installDeps {
-		if err := installDependencies(frontendDir); err != nil {
+		if err := installDependencies(rootDir, frontendDir); err != nil {
 			return err
 		}
 	}
@@ -183,7 +168,10 @@ func validateFrontendSetup(frontendDir string) error {
 	return nil
 }
 
-func installGoDependencies(rootDir string) error {
+func installDependencies(rootDir, frontendDir string) error {
+	printStep("📦", "Installing dependencies...")
+
+	// Install Go dependencies first
 	printStep("🏗️", "Installing Go dependencies...")
 
 	// Run go mod tidy first
@@ -212,23 +200,19 @@ func installGoDependencies(rootDir string) error {
 	}
 	printSuccess("Go modules downloaded in %s", time.Since(start).Round(time.Millisecond))
 
-	return nil
-}
-
-func installDependencies(frontendDir string) error {
+	// Install frontend dependencies
 	printStep("📦", "Installing frontend dependencies...")
-
-	cmd := exec.Command("npm", "install")
+	cmd = exec.Command("npm", "install")
 	cmd.Dir = frontendDir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	start := time.Now()
+	start = time.Now()
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("npm install failed: %w", err)
 	}
 
-	printSuccess("Dependencies installed in %s", time.Since(start).Round(time.Millisecond))
+	printSuccess("Frontend dependencies installed in %s", time.Since(start).Round(time.Millisecond))
 	return nil
 }
 

@@ -23,3 +23,4 @@ go run cmd/scripts/main.go --install
 | `go run cmd/scripts/main.go --run-only` | ▶️ **Run Only** | Skips build, just runs server |
 | `go run cmd/scripts/main.go --production` | 🚀 **Production Build** | Creates optimized dist package |
 | `go run cmd/scripts/main.go --production --dist <dir>` | 📁 **Custom Output** | Production build to custom dir |
+| `go run cmd/scripts/main.go --help` | ❓ **Show Help** | Displays all available flags and options |
