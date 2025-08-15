@@ -8,7 +8,7 @@ Production deployment automation for PocketBase applications with SSH server man
 
 Automates the complete lifecycle of deploying PocketBase apps to production servers with modern Go architecture:
 - **Server Setup**: Automated SSH user creation, directory structure, security hardening
-- **Deployment**: Efficient file transfer with systemd service management
+- **Deployment**: SFTP transfer protocol && systemd service management
 - **Security**: UFW firewall, fail2ban, SSH lockdown with specialized managers
 - **Observability**: Comprehensive tracing, connection pooling, health monitoring
 - **Configuration**: Type-safe config management with validation and retry logic
