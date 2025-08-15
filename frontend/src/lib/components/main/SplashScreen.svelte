@@ -18,7 +18,7 @@
 
 			<!-- App Name -->
 			<div class="text-center">
-				<h1 class="mb-2 text-2xl font-bold text-white sm:text-3xl">PB Deployer</h1>
+				<h1 class="mb-2 text-2xl font-bold text-white sm:text-3xl">pb-deployer</h1>
 				<p class="text-sm text-gray-300 sm:text-base">Loading...</p>
 			</div>
 

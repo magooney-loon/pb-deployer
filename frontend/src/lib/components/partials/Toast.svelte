@@ -58,7 +58,7 @@
 
 {#if isVisible}
 	<div
-		class="fixed bottom-4 left-1/2 z-50 mx-4 w-full max-w-sm -translate-x-1/2 rounded-lg p-3 md:right-4 md:left-auto md:mx-0 md:translate-x-0 {styles.container} {className}"
+		class="fixed right-4 bottom-4 left-4 z-50 mx-auto max-w-sm rounded-lg p-3 {styles.container} {className}"
 	>
 		<div class="flex items-center gap-3">
 			<div class="flex-shrink-0">

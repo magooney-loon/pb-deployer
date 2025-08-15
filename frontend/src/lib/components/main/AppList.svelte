@@ -65,7 +65,7 @@
 </div>
 
 {#if availableServers.length === 0 && !state.showCreateForm}
-	<Toast type="warning" message="You need at least one server ready." dismissible={false} />
+	<Toast type="warning" message="You need at least one server configured." dismissible={false} />
 {/if}
 
 {#if state.error}
