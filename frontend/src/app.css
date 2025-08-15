@@ -57,8 +57,13 @@
 /* Geometric Background Pattern */
 .geometric-bg {
 	position: relative;
-	background-image: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23000000' fill-opacity='0.12'%3E%3Ccircle cx='12' cy='12' r='0.5'/%3E%3C/g%3E%3C/svg%3E");
-	background-size: 24px 24px;
+	background:
+		url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23000000' fill-opacity='0.12'%3E%3Ccircle cx='12' cy='12' r='0.5'/%3E%3C/g%3E%3C/svg%3E"),
+		linear-gradient(135deg, #f9fafb 0%, #f3f4f6 50%, #f9fafb 100%);
+	background-size:
+		24px 24px,
+		200% 200%;
+	animation: breathing-background 6s ease-in-out infinite;
 }
 
 .geometric-bg::before {
@@ -75,7 +80,12 @@
 }
 
 [data-theme='dark'] .geometric-bg {
-	background-image: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.10'%3E%3Ccircle cx='12' cy='12' r='0.5'/%3E%3C/g%3E%3C/svg%3E");
+	background:
+		url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.10'%3E%3Ccircle cx='12' cy='12' r='0.5'/%3E%3C/g%3E%3C/svg%3E"),
+		linear-gradient(135deg, #000000 0%, #030303 50%, #000000 100%);
+	background-size:
+		24px 24px,
+		200% 200%;
 }
 
 [data-theme='dark'] .geometric-bg::before {
@@ -89,5 +99,19 @@
 	}
 	50% {
 		opacity: 1;
+	}
+}
+
+@keyframes breathing-background {
+	0%,
+	100% {
+		background-position:
+			0% 0%,
+			0% 50%;
+	}
+	50% {
+		background-position:
+			0% 0%,
+			100% 50%;
 	}
 }
