@@ -170,14 +170,14 @@
 </script>
 
 <div class="space-y-8">
-	<!-- Page Header -->
-	<header>
-		<h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Settings</h1>
-		<p class="mt-2 text-gray-600 dark:text-gray-400">
-			Configure security, notifications, and application preferences
-		</p>
-	</header>
-
+	<div class="mb-8 flex items-center justify-between">
+		<div>
+			<h1 class="text-3xl font-semibold text-gray-900 dark:text-gray-100">Settings</h1>
+			<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+				Configure security, notifications, and application preferences
+			</p>
+		</div>
+	</div>
 	{#if loading}
 		<div class="flex justify-center py-12">
 			<LoadingSpinner text="Loading settings..." size="lg" />
