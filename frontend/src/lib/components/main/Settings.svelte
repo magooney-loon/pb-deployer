@@ -245,8 +245,8 @@
 
 		<!-- Notification Settings Card -->
 		<Card
-			title="Notification Settings"
-			subtitle="Configure Telegram notifications for deployments and system events"
+			title="TODO:Notification Settings"
+			subtitle="TODO:Configure Telegram notifications events"
 			class="space-y-6"
 		>
 			<!-- Enable Notifications Toggle -->
@@ -255,7 +255,7 @@
 				label="Enable Notifications"
 				type="checkbox"
 				bind:checked={formData.notificationsEnabled}
-				helperText="Send notifications for important events via Telegram"
+				helperText="TODO:Send notifications via Telegram"
 			/>
 
 			{#if formData.notificationsEnabled}
