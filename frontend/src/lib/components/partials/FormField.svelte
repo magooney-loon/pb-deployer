@@ -80,6 +80,8 @@
 				class="checkbox"
 				class:error={isError}
 				{onchange}
+				autocomplete="off"
+				data-form-type="other"
 				{...restProps}
 			/>
 			<div class="checkbox-content">
@@ -122,6 +124,8 @@
 						class="input select"
 						class:error={isError}
 						{onchange}
+						autocomplete="off"
+						data-form-type="other"
 						{...restProps}
 					>
 						{#if placeholder}
@@ -148,6 +152,10 @@
 						class:error={isError}
 						{oninput}
 						{onchange}
+						autocomplete="off"
+						autocapitalize="off"
+						spellcheck="false"
+						data-form-type="other"
 						{...restProps}
 					></textarea>
 				{:else}
@@ -166,6 +174,11 @@
 						class:error={isError}
 						{oninput}
 						{onchange}
+						autocomplete="off"
+						autocorrect="off"
+						autocapitalize="off"
+						spellcheck="false"
+						data-form-type="other"
 						{...restProps}
 					/>
 				{/if}

@@ -79,7 +79,14 @@
 
 <Modal {open} title="Add New Application" size="xl" closeable={!creating} onclose={handleClose}>
 	<div class="max-h-[70vh] overflow-y-auto">
-		<form id="app-form" onsubmit={handleSubmit} class="space-y-8">
+		<form
+			id="app-form"
+			onsubmit={handleSubmit}
+			class="space-y-8"
+			autocomplete="off"
+			novalidate
+			data-form-type="other"
+		>
 			<!-- App Configuration -->
 			<div class="space-y-4">
 				<div class="border-b border-gray-200 pb-2 dark:border-gray-700">

@@ -71,7 +71,14 @@
 
 <Modal {open} title="Add New Server" size="xl" closeable={!creating} onclose={handleClose}>
 	<div class="max-h-[70vh] overflow-y-auto">
-		<form id="server-form" onsubmit={handleSubmit} class="space-y-8">
+		<form
+			id="server-form"
+			onsubmit={handleSubmit}
+			class="space-y-8"
+			autocomplete="off"
+			novalidate
+			data-form-type="other"
+		>
 			<!-- Server Connection Details -->
 			<div class="space-y-4">
 				<div class="border-b border-gray-200 pb-2 dark:border-gray-700">
@@ -170,6 +177,8 @@
 								bind:checked={formData.use_ssh_agent}
 								disabled={creating}
 								class="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+								autocomplete="off"
+								data-form-type="other"
 							/>
 							<div class="flex-1">
 								<div class="font-medium text-gray-900 dark:text-gray-100">Use SSH Agent</div>
