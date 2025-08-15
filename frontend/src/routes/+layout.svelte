@@ -1,23 +1,30 @@
 <script lang="ts">
 	import '../app.css';
+	import { fade } from 'svelte/transition';
 	import Navigation from '$lib/components/main/Navigation.svelte';
 	import { WarningBanner } from '$lib/components/partials';
-
 	import { onMount } from 'svelte';
 	import { lockscreenState, lockScreen } from '$lib/components/main/Settings';
 	import Lockscreen from './settings/components/Lockscreen.svelte';
+	import SplashScreen from '$lib/components/main/SplashScreen.svelte';
+	import { splashScreen, splashScreenState } from '$lib/components/main/SplashScreen';
 
 	let { children } = $props();
 
 	let lockscreen = $state({ isLocked: false, isEnabled: false });
+	let splashState = $derived($splashScreenState);
 
 	onMount(() => {
 		const unsubscribe = lockscreenState.subscribe((state) => {
 			lockscreen = state;
 		});
 
+		// Start the splash screen loading
+		splashScreen.startLoading();
+
 		return () => {
 			unsubscribe();
+			splashScreen.stopLoading();
 		};
 	});
 
@@ -41,20 +48,23 @@
 	});
 </script>
 
-{#if lockscreen.isEnabled && lockscreen.isLocked}
+{#if splashState.isLoading}
+	<SplashScreen />
+{:else if lockscreen.isEnabled && lockscreen.isLocked}
 	<Lockscreen />
+{:else}
+	<div>
+		<WarningBanner size="xs" />
+		<WarningBanner
+			message="Lockscreen Keybind: CTRL+L or CMD+L (if enabled)"
+			color="blue"
+			icon="ℹ️"
+		/>
+		<Navigation />
+		<main in:fade class="mx-auto px-4 py-8 sm:px-6 lg:px-8">
+			<div>
+				{@render children()}
+			</div>
+		</main>
+	</div>
 {/if}
-
-<div
-	class={lockscreen.isEnabled && lockscreen.isLocked ? 'invisible' : ''}
-	aria-hidden={lockscreen.isEnabled && lockscreen.isLocked}
->
-	<WarningBanner size="xs" />
-	<Navigation />
-
-	<main class="mx-auto px-4 py-8 sm:px-6 lg:px-8">
-		<div>
-			{@render children()}
-		</div>
-	</main>
-</div>

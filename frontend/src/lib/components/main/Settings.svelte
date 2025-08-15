@@ -7,9 +7,9 @@
 		Button,
 		LoadingSpinner,
 		ErrorAlert,
-		StatusBadge,
-		WarningBanner
+		StatusBadge
 	} from '$lib/components/partials';
+	import { slide } from 'svelte/transition';
 
 	// State management
 	let settings: SettingsData | null = $state(null);
@@ -230,13 +230,11 @@
 
 				<!-- Auto-lock Settings (Nested) -->
 				{#if formData.lockscreenEnabled}
-					<!-- Information Banner -->
-					<WarningBanner
-						message="Lockscreen Keybind: CTRL+L or CMD+L (if enabled)"
-						color="blue"
-						icon="ℹ️"
-					/>
-					<div class="ml-8 space-y-6 border-l-2 border-blue-200 pl-6 dark:border-blue-800">
+					<div
+						in:slide={{}}
+						out:slide={{}}
+						class="ml-8 space-y-6 border-l-2 border-blue-200 pl-6 dark:border-blue-800"
+					>
 						<div class="rounded-lg bg-blue-50 p-4 dark:bg-blue-950/20">
 							<FormField
 								id="auto-lock-enabled"
@@ -279,7 +277,11 @@
 				/>
 
 				{#if formData.notificationsEnabled}
-					<div class="ml-8 space-y-6 border-l-2 border-green-200 pl-6 dark:border-green-800">
+					<div
+						in:slide={{}}
+						out:slide={{}}
+						class="ml-8 space-y-6 border-l-2 border-green-200 pl-6 dark:border-green-800"
+					>
 						<div class="rounded-lg bg-green-50 p-6 dark:bg-green-950/20">
 							<!-- Telegram Configuration -->
 							<div class="space-y-6">

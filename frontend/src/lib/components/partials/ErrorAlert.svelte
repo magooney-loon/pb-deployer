@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { slide } from 'svelte/transition';
 	let {
 		message,
 		title = 'Error',
@@ -64,7 +65,7 @@
 	let styles = $derived(typeStyles[type]);
 </script>
 
-<div class="mb-6 rounded-lg p-4 {styles.container} {className}">
+<div in:slide={{}} out:slide={{}} class="mb-6 rounded-lg p-4 {styles.container} {className}">
 	<div class="flex">
 		<div class="flex-shrink-0">
 			<span class={styles.icon}>{currentIcon}</span>
