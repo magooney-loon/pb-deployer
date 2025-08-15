@@ -58,7 +58,6 @@
 		}
 	}
 
-	// Focus input on mount
 	let inputElement: HTMLInputElement | undefined = $state();
 	$effect(() => {
 		if (inputElement) {

@@ -4,7 +4,6 @@
 	import { quintOut } from 'svelte/easing';
 	import MarkdownRenderer from './components/MarkdownRenderer.svelte';
 
-	// Define sections with their metadata
 	const sections = [
 		{
 			id: 'getting-started',
@@ -49,7 +48,6 @@
 	let loadingContent: Record<string, boolean> = $state({});
 	let showScrollTop = $state(false);
 
-	// Load markdown content for a specific section
 	async function loadSectionContent(sectionId: string) {
 		if (sectionContent[sectionId] || loadingContent[sectionId]) return;
 
@@ -76,23 +74,19 @@
 		}
 	}
 
-	// Toggle section open/closed
 	function toggleSection(sectionId: string) {
 		if (openSections.has(sectionId)) {
 			openSections.delete(sectionId);
 		} else {
 			openSections.add(sectionId);
-			// Load content when opening
 			loadSectionContent(sectionId);
 		}
 	}
 
-	// Load initial content for getting-started
 	$effect(() => {
 		loadSectionContent('getting-started');
 	});
 
-	// Scroll to top functionality
 	$effect(() => {
 		if (typeof window !== 'undefined') {
 			const handleScroll = () => {

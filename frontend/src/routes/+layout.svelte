@@ -19,7 +19,6 @@
 			lockscreen = state;
 		});
 
-		// Start the splash screen loading
 		splashScreen.startLoading();
 
 		return () => {
