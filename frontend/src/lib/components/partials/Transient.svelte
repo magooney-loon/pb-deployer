@@ -29,6 +29,9 @@
 		transition: all 0.3s ease;
 		padding-bottom: 1rem;
 		box-sizing: border-box;
+		animation: breathing 8s ease-in-out infinite;
+		transform-origin: bottom center;
+		background-size: 400% 100%;
 	}
 
 	/* Data-theme attribute based theming support */
@@ -60,6 +63,35 @@
 			rgba(255, 255, 255, 0.08) 90%,
 			rgba(255, 255, 255, 0.1) 100%
 		) !important;
+	}
+
+	/* Subtle looping animations */
+	@keyframes breathing {
+		0%,
+		100% {
+			opacity: 1;
+			transform: scaleY(1);
+		}
+		50% {
+			opacity: 0.85;
+			transform: scaleY(0.98);
+		}
+	}
+
+	@keyframes wave {
+		0%,
+		100% {
+			background-position: 0% 0%;
+		}
+		25% {
+			background-position: 100% 0%;
+		}
+		50% {
+			background-position: 200% 0%;
+		}
+		75% {
+			background-position: 100% 0%;
+		}
 	}
 
 	/* Responsive adjustments */
