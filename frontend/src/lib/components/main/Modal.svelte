@@ -49,8 +49,8 @@
 	<!-- Backdrop -->
 	<div
 		class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm"
-		in:fade={{ duration: 150, easing: quintOut }}
-		out:fade={{ duration: 100 }}
+		in:fade={{ duration: 250, easing: quintOut }}
+		out:fade={{ duration: 200 }}
 	>
 		<!-- Modal Container -->
 		<div class="flex min-h-full items-center justify-center p-4">
@@ -59,8 +59,8 @@
 				role="dialog"
 				aria-modal="true"
 				tabindex="-1"
-				in:fly={{ y: 32, duration: 200, easing: quintOut }}
-				out:fly={{ y: 8, duration: 150, easing: quintOut }}
+				in:fly={{ y: 32, duration: 300, easing: quintOut }}
+				out:fly={{ y: 8, duration: 250, easing: quintOut }}
 			>
 				<!-- Header -->
 				{#if state.title || state.closeable}

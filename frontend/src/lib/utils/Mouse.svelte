@@ -27,6 +27,7 @@
 	let trail = $state<TrailDot[]>([]);
 	let ripples = $state<Ripple[]>([]);
 	let mounted = $state<boolean>(false);
+	let isTouchDevice = $state<boolean>(false);
 	let animationId = 0;
 
 	const TRAIL_LENGTH: number = 9;
@@ -129,6 +130,16 @@
 	}
 
 	onMount(() => {
+		// Detect touch devices and disable mouse effects
+		isTouchDevice =
+			'ontouchstart' in window ||
+			navigator.maxTouchPoints > 0 ||
+			/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+		if (isTouchDevice) {
+			return;
+		}
+
 		mounted = true;
 
 		// Listen to mouse events on window with passive listeners for better performance
@@ -162,33 +173,35 @@
 	});
 </script>
 
-<div class="mouse-container">
-	<!-- Trail dots -->
-	{#each trail as dot, index (dot.id)}
-		<div
-			class="trail-dot"
-			style="
+{#if !isTouchDevice}
+	<div class="mouse-container">
+		<!-- Trail dots -->
+		{#each trail as dot, index (dot.id)}
+			<div
+				class="trail-dot"
+				style="
 				left: {dot.x - 3}px;
 				top: {dot.y - 3}px;
 				opacity: {((TRAIL_LENGTH - index) / TRAIL_LENGTH) * 0.4};
 				transform: scale({((TRAIL_LENGTH - index) / TRAIL_LENGTH) * 0.7});
 			"
-		></div>
-	{/each}
+			></div>
+		{/each}
 
-	<!-- Ripple effects -->
-	{#each ripples as ripple (ripple.id)}
-		<div
-			class="ripple"
-			style="
+		<!-- Ripple effects -->
+		{#each ripples as ripple (ripple.id)}
+			<div
+				class="ripple"
+				style="
 				left: {ripple.x}px;
 				top: {ripple.y}px;
 				opacity: {ripple.opacity};
 				transform: translate(-50%, -50%) scale({ripple.scale});
 			"
-		></div>
-	{/each}
-</div>
+			></div>
+		{/each}
+	</div>
+{/if}
 
 <style>
 	.mouse-container {
