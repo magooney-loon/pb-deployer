@@ -8,6 +8,7 @@
 	import Lockscreen from './settings/components/Lockscreen.svelte';
 	import SplashScreen from '$lib/components/main/SplashScreen.svelte';
 	import { splashScreen, splashScreenState } from '$lib/components/main/SplashScreen';
+	import Mouse from '$lib/utils/Mouse.svelte';
 
 	let { children } = $props();
 
@@ -68,3 +69,5 @@
 		</main>
 	</div>
 {/if}
+
+<Mouse />

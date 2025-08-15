@@ -1,6 +1,6 @@
 {
-	"name": "PB Deployer",
-	"short_name": "PB Deployer",
+	"name": "pb-deployer",
+	"short_name": "pb-deployer",
 	"description": "PocketBase deployment tool",
 	"start_url": "/",
 	"display": "standalone",
