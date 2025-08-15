@@ -56,6 +56,7 @@
 	<div>
 		<WarningBanner size="xs" />
 		<WarningBanner
+			size="xs"
 			message="Lockscreen Keybind: CTRL+L or CMD+L (if enabled)"
 			color="blue"
 			icon="ℹ️"
