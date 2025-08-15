@@ -2,6 +2,15 @@
 
 Shared utility functions for common operations across pb-deployer.
 
+## Features
+
+- **Shell Safety**: Proper escaping for shell commands
+- **Type Safety**: Generic configuration management
+- **Validation**: Comprehensive input validation
+- **Error Handling**: Structured error wrapping and retry logic
+- **Performance**: Zero-dependency, optimized implementations
+- **Testing**: Easy to mock and test individual functions
+
 ## Core Functions
 
 ```go
@@ -97,12 +106,3 @@ type BaseConfigManager[T any] struct {
 
 func NewConfigManager[T any](filepath string, validator func(T) error) *BaseConfigManager[T]
 ```
-
-## Features
-
-- **Shell Safety**: Proper escaping for shell commands
-- **Type Safety**: Generic configuration management
-- **Validation**: Comprehensive input validation
-- **Error Handling**: Structured error wrapping and retry logic
-- **Performance**: Zero-dependency, optimized implementations
-- **Testing**: Easy to mock and test individual functions

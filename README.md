@@ -2,10 +2,6 @@
 
 # <img src="frontend/static/favicon.svg" width="32" height="32" style="vertical-align: middle;"> pb-deployer
 
-Deployment automation for PocketBase applications w/ GUI.
-
-## Overview
-
 Automates the complete lifecycle of deploying PocketBase apps to production servers:
 - **Server Setup**: Automated SSH user creation, directory structure, security hardening
 - **Deployment**: SFTP transfer protocol && systemd service management
@@ -15,7 +11,7 @@ Automates the complete lifecycle of deploying PocketBase apps to production serv
 
 ## Core Workflow
 
-1. **Server Registration**: Add SSH credentials and connection details
+1. **Server Registration**: Add remote host connection details
 2. **Server Setup**: Automated user creation and directory structure (`/opt/pocketbase/apps/`)
 3. **Security Lockdown**: Firewall, fail2ban, disable root SSH
 4. **App Deployment**: Upload binary + static files, systemd service creation

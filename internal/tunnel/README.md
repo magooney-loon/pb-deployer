@@ -2,6 +2,17 @@
 
 Modern SSH client library with dependency injection, connection pooling, and specialized managers.
 
+## Features
+
+- **Dependency Injection**: No singletons, clean architecture
+- **Connection Pooling**: Efficient connection reuse and health monitoring
+- **Specialized Managers**: Domain-specific operations (setup, security, services, deployment)
+- **Advanced File Transfer**: Parallel transfers, resume support, integrity checks
+- **Health Monitoring**: Real-time connection health and automatic recovery
+- **Context Support**: Proper cancellation and timeout handling
+- **Structured Errors**: Typed errors with retry logic
+- **Comprehensive Tracing**: Full observability with structured tracing
+
 ## Core Interfaces
 
 ```go
@@ -167,25 +178,14 @@ func TestExecutor(t *testing.T) {
     mockPool := &mockPool{}
     mockClient := &mockClient{}
     tracerFactory := tracer.SetupTestTracing(t)
-    
+
     mockPool.On("Get", mock.Anything, "test").Return(mockClient, nil)
     mockClient.On("Execute", mock.Anything, "echo test").Return("test", nil)
-    
+
     executor := tunnel.NewExecutor(mockPool, tracerFactory.CreateSSHTracer())
     result, err := executor.RunCommand(ctx, tunnel.Command{Cmd: "echo test"})
-    
+
     assert.NoError(t, err)
     assert.Equal(t, "test", result.Output)
 }
 ```
-
-## Features
-
-- **Dependency Injection**: No singletons, clean architecture
-- **Connection Pooling**: Efficient connection reuse and health monitoring
-- **Specialized Managers**: Domain-specific operations (setup, security, services, deployment)
-- **Advanced File Transfer**: Parallel transfers, resume support, integrity checks
-- **Health Monitoring**: Real-time connection health and automatic recovery
-- **Context Support**: Proper cancellation and timeout handling
-- **Structured Errors**: Typed errors with retry logic
-- **Comprehensive Tracing**: Full observability with structured tracing

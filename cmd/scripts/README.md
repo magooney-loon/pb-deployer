@@ -1,12 +1,25 @@
-## ⚡ Quick Reference
+### Basic Development Build
+```bash
+go run cmd/scripts/main.go
+```
 
-| Command | Description |
-|---------|-------------|
-| `go run cmd/scripts/main.go` | 🔄 Build + Run |
-| `go run cmd/scripts/main.go --install` | 📦 Install + Build + Run |
-| `go run cmd/scripts/main.go --build-only` | 🔨 Build Only |
-| `go run cmd/scripts/main.go --run-only` | ▶️ Run Only |
-| `go run cmd/scripts/main.go --production` | 🚀 Production Build |
-| `go run cmd/scripts/main.go --production --dist <dir>` | 📁 Custom Dist |
+### Production Build
+```bash
+go run cmd/scripts/main.go --production
+```
 
----
+### Install Dependencies + Build
+```bash
+go run cmd/scripts/main.go --install
+```
+
+## 📋 Command Reference
+
+| Command | Description | Example Output |
+|---------|-------------|----------------|
+| `go run cmd/scripts/main.go` | 🔄 **Development Build** | Builds frontend + starts server |
+| `go run cmd/scripts/main.go --install` | 📦 **Install + Build** | Downloads deps + builds + runs |
+| `go run cmd/scripts/main.go --build-only` | 🔨 **Build Only** | Just builds, doesn't run server |
+| `go run cmd/scripts/main.go --run-only` | ▶️ **Run Only** | Skips build, just runs server |
+| `go run cmd/scripts/main.go --production` | 🚀 **Production Build** | Creates optimized dist package |
+| `go run cmd/scripts/main.go --production --dist <dir>` | 📁 **Custom Output** | Production build to custom dir |

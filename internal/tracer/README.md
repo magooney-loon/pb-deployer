@@ -2,6 +2,17 @@
 
 Modern tracing and observability library with dependency injection for SSH operations.
 
+## Features
+
+- **Dependency Injection**: Clean architecture, no singletons
+- **Context Propagation**: Traces flow through operations
+- **Multiple Formatters**: Console, JSON, compact output
+- **Sampling Control**: Probability and custom sampling strategies
+- **Performance Optimized**: Zero-allocation paths, async export
+- **Domain-Specific**: SSH, Pool, Security, Service specialized tracers
+- **Rich Metadata**: Structured fields and events
+- **Error Correlation**: Automatic error recording and correlation
+
 ## Core Interfaces
 
 ```go
@@ -127,11 +138,11 @@ if err != nil {
 func TestWithTracing(t *testing.T) {
     factory := tracer.SetupTestTracing(t)
     defer factory.Shutdown(context.Background())
-    
+
     sshTracer := factory.CreateSSHTracer()
     span := sshTracer.TraceConnection(ctx, "localhost", 22, "test")
     defer span.End()
-    
+
     // Test operations...
 }
 
@@ -141,14 +152,3 @@ func (m *mockTracer) StartSpan(ctx context.Context, op string) tracer.Span {
     return tracer.NewNoOpSpan()
 }
 ```
-
-## Features
-
-- **Dependency Injection**: Clean architecture, no singletons
-- **Context Propagation**: Traces flow through operations
-- **Multiple Formatters**: Console, JSON, compact output
-- **Sampling Control**: Probability and custom sampling strategies
-- **Performance Optimized**: Zero-allocation paths, async export
-- **Domain-Specific**: SSH, Pool, Security, Service specialized tracers
-- **Rich Metadata**: Structured fields and events
-- **Error Correlation**: Automatic error recording and correlation
