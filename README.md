@@ -9,6 +9,14 @@ Automates the complete lifecycle of deploying PocketBase apps to production serv
 - **Observability**: Comprehensive tracing, connection pooling, health monitoring
 - **Configuration**: Type-safe config management with validation and retry logic
 
+## 🚀 Quick Start
+
+```bash
+git clone https://github.com/magooney-loon/pb-deployer
+cd pb-deployer
+go run cmd/scripts/main.go --install
+```
+
 ## Core Workflow
 
 1. **Server Registration**: Add remote host connection details
