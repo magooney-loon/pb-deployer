@@ -1,6 +1,10 @@
 @import 'tailwindcss';
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
+:global(body) {
+	overflow-x: hidden;
+}
+
 /* Custom Scrollbar Styles */
 /* Webkit browsers (Chrome, Safari, Edge) */
 ::-webkit-scrollbar {

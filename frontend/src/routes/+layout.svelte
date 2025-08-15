@@ -58,9 +58,3 @@
 		</div>
 	</main>
 </div>
-
-<style>
-	:global(body) {
-		overflow-x: hidden;
-	}
-</style>

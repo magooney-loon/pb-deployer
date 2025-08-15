@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { slide } from 'svelte/transition';
 	let {
 		message = 'Always close this application using Ctrl+C to prevent data loss and ensure proper cleanup.',
 		icon = '⚠️',
@@ -51,7 +52,7 @@
 </script>
 
 {#if !isDismissed}
-	<div class={bannerClasses} role="alert">
+	<div in:slide={{}} out:slide={{}} class={bannerClasses} role="alert">
 		<div class="mx-auto flex max-w-7xl items-center justify-between gap-2">
 			<div class="flex min-w-0 flex-1 items-center gap-2">
 				{#if icon}
