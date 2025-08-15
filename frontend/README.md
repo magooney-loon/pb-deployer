@@ -16,11 +16,11 @@ go run cmd/scripts/main.go --production
 ```
 
 ## Architecture
-
-- **`src/lib/components/partials/`**: Reusable UI components (Button, DataTable, FormField, etc.)
+- **`src/lib/components/main/`**: Main page components (Dashboard,Servers,Apps,etc)
+- **`src/lib/components/partials/`**: UI components (Button, DataTable, FormField, etc.)
+- **`src/lib/components/modals/`**: Dedicated modals (inherited from partials Modal)
+- **`src/lib/api`**: Route style API client factory
 - **`src/routes/`**: SvelteKit routing with layout inheritance
-- **`src/lib/stores/`**: Reactive state management
-- **WebSocket client**: Real-time deployment status updates
 - **Type definitions**: Shared interfaces with backend services
 
 ## Component System
