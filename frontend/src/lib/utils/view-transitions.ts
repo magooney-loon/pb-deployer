@@ -1,3 +1,6 @@
+// Firefox slacking..
+// https://developer.mozilla.org/en-US/docs/Web/API/View_Transition_API#css.at-rules.view-transition
+
 let isSupported: boolean | null = null;
 let stylesInjected = false;
 
