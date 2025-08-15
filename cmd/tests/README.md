@@ -72,17 +72,3 @@ go run cmd/tests/main.go
 
 - **0**: All tests passed successfully
 - **1**: One or more tests failed
-
-Perfect for CI/CD integration:
-```bash
-go run ./cmd/tests && echo "Deploy to production!" || echo "Fix tests first!"
-```
-
-## 📁 Project Structure
-
-```
-cmd/tests/
-├── main.go     # Main orchestrator entry point
-├── utils.go    # Test execution utilities and formatting
-└── README.md   # This file
-```
