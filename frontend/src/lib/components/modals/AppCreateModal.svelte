@@ -313,7 +313,7 @@
 	</div>
 
 	{#snippet footer()}
-		<div class="flex justify-end space-x-3 border-t border-gray-200 pt-4 dark:border-gray-700">
+		<div class="flex justify-end space-x-3">
 			<Button
 				variant="secondary"
 				color="gray"

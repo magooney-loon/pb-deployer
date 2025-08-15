@@ -19,26 +19,25 @@
 
 	const typeStyles = {
 		error: {
-			container: 'bg-red-600/50 backdrop-blur-sm text-white shadow-xl border border-red-500',
+			container: 'bg-red-600 text-white shadow-xl border border-red-500',
 			icon: 'text-red-100',
 			message: 'text-red-100',
 			button: 'text-red-200 hover:text-white hover:bg-red-500/20 rounded-full'
 		},
 		warning: {
-			container: 'bg-amber-600/50 backdrop-blur-sm text-white shadow-xl border border-amber-500',
+			container: 'bg-amber-600 text-white shadow-xl border border-amber-500',
 			icon: 'text-amber-100',
 			message: 'text-amber-100',
 			button: 'text-amber-200 hover:text-white hover:bg-amber-500/20 rounded-full'
 		},
 		info: {
-			container: 'bg-blue-600/50 backdrop-blur-sm text-white shadow-xl border border-blue-500',
+			container: 'bg-blue-600 text-white shadow-xl border border-blue-500',
 			icon: 'text-blue-100',
 			message: 'text-blue-100',
 			button: 'text-blue-200 hover:text-white hover:bg-blue-500/20 rounded-full'
 		},
 		success: {
-			container:
-				'bg-emerald-600/50 backdrop-blur-sm text-white shadow-xl border border-emerald-500',
+			container: 'bg-emerald-600 text-white shadow-xl border border-emerald-500',
 			icon: 'text-emerald-100',
 			message: 'text-emerald-100',
 			button: 'text-emerald-200 hover:text-white hover:bg-emerald-500/20 rounded-full'

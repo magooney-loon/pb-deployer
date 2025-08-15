@@ -120,7 +120,7 @@
 						value={formData.port}
 						min={1}
 						max={65535}
-						disabled={creating}
+						disabled={true}
 						oninput={(e) => (formData.port = parseInt((e.target as HTMLInputElement).value) || 22)}
 						helperText="Default SSH port is 22"
 					/>
@@ -142,9 +142,9 @@
 						label="Root Username"
 						value={formData.root_username}
 						placeholder="root"
-						disabled={creating}
+						disabled={true}
 						oninput={(e) => (formData.root_username = (e.target as HTMLInputElement).value)}
-						helperText="Username with sudo privileges"
+						helperText="Username with sudo privileges (locked)"
 					/>
 
 					<FormField
@@ -152,9 +152,9 @@
 						label="Application Username"
 						value={formData.app_username}
 						placeholder="app"
-						disabled={creating}
+						disabled={true}
 						oninput={(e) => (formData.app_username = (e.target as HTMLInputElement).value)}
-						helperText="Non-privileged user for running applications"
+						helperText="Non-privileged user for running applications (locked)"
 					/>
 				</div>
 			</div>
@@ -256,7 +256,7 @@
 	</div>
 
 	{#snippet footer()}
-		<div class="flex justify-end space-x-3 border-t border-gray-200 pt-4 dark:border-gray-700">
+		<div class="flex justify-end space-x-3">
 			<Button
 				variant="secondary"
 				color="gray"
