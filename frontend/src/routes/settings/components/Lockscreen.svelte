@@ -92,7 +92,7 @@
 						<div
 							class="relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-white shadow-lg"
 						>
-							<img src="/favicon.svg" alt="Icon" class="h-12 w-12" />
+							<img src="/favicon.svg" alt="Icon" class="h-24 w-24" />
 						</div>
 					</div>
 				</div>
