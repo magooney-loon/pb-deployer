@@ -210,6 +210,7 @@ func RunTestSuite(packages []string) TestSuite {
 func GetTestPackages() []string {
 	return []string{
 		"./internal/utils",
+		"./internal/tracer",
 		// Add more packages here as they are created
 		// "./internal/config",
 		// "./internal/deployment",

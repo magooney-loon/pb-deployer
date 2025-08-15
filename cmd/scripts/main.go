@@ -30,13 +30,23 @@ func main() {
 	buildOnly := flag.Bool("build-only", false, "Build frontend without running the server")
 	runOnly := flag.Bool("run-only", false, "Run the server without building the frontend")
 	production := flag.Bool("production", false, "Create a production build in dist folder")
+	testOnly := flag.Bool("test-only", false, "Run test suite and generate reports only")
 	distDir := flag.String("dist", "dist", "Output directory for production build")
+	help := flag.Bool("help", false, "Show help and usage information")
 	flag.Parse()
+
+	// Show help if requested
+	if *help {
+		showHelp()
+		return
+	}
 
 	// Show banner
 	operation := "DEVELOPMENT"
 	if *production {
 		operation = "PRODUCTION"
+	} else if *testOnly {
+		operation = "TESTING"
 	}
 	printBanner(operation)
 
@@ -57,6 +67,16 @@ func main() {
 	}
 
 	printStep("📁", "Project root: %s", rootDir)
+
+	// Handle test-only mode
+	if *testOnly {
+		if err := testOnlyMode(rootDir, *distDir); err != nil {
+			printError("Test suite failed: %v", err)
+			os.Exit(1)
+		}
+		printTestSummary(time.Since(startTime))
+		return
+	}
 
 	// Handle production build
 	if *production {
@@ -114,6 +134,11 @@ func productionBuild(rootDir string, installDeps bool, distDir string) error {
 	// Copy to dist
 	if err := copyFrontendToDist(rootDir, outputDir); err != nil {
 		return fmt.Errorf("failed to copy frontend to dist: %w", err)
+	}
+
+	// Run test suite and generate report
+	if err := runTestSuiteAndGenerateReport(rootDir, outputDir); err != nil {
+		return fmt.Errorf("test suite failed: %w", err)
 	}
 
 	// Build server binary
@@ -279,6 +304,98 @@ func copyFrontendToDist(rootDir, outputDir string) error {
 	return nil
 }
 
+func runTestSuiteAndGenerateReport(rootDir, outputDir string) error {
+	printStep("🧪", "Running test suite...")
+
+	// Create test reports directory
+	reportsDir := filepath.Join(outputDir, "test-reports")
+	if err := os.MkdirAll(reportsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create test reports directory: %w", err)
+	}
+
+	start := time.Now()
+
+	// Run the test suite with JSON output for detailed report
+	reportFile := filepath.Join(reportsDir, "test-report.json")
+	cmd := exec.Command("go", "test", "-json", "./...")
+	cmd.Dir = rootDir
+
+	// Capture output for both display and file
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// Save the failed test output anyway
+		if writeErr := os.WriteFile(reportFile, output, 0644); writeErr != nil {
+			printWarning("Failed to write test report: %v", writeErr)
+		}
+		return fmt.Errorf("test suite failed: %w", err)
+	}
+
+	// Write JSON report
+	if err := os.WriteFile(reportFile, output, 0644); err != nil {
+		return fmt.Errorf("failed to write test report: %w", err)
+	}
+
+	// Run our custom test suite for summary
+	summaryFile := filepath.Join(reportsDir, "test-summary.txt")
+	cmd = exec.Command("go", "run", "./cmd/tests")
+	cmd.Dir = rootDir
+
+	summaryOutput, err := cmd.CombinedOutput()
+	if err != nil {
+		// Save the failed summary anyway
+		if writeErr := os.WriteFile(summaryFile, summaryOutput, 0644); writeErr != nil {
+			printWarning("Failed to write test summary: %v", writeErr)
+		}
+		return fmt.Errorf("test suite summary failed: %w", err)
+	}
+
+	// Write summary report
+	if err := os.WriteFile(summaryFile, summaryOutput, 0644); err != nil {
+		return fmt.Errorf("failed to write test summary: %w", err)
+	}
+
+	// Generate coverage report
+	coverageFile := filepath.Join(reportsDir, "coverage.out")
+	htmlCoverageFile := filepath.Join(reportsDir, "coverage.html")
+
+	cmd = exec.Command("go", "test", "-coverprofile="+coverageFile, "./...")
+	cmd.Dir = rootDir
+	if err := cmd.Run(); err != nil {
+		printWarning("Failed to generate coverage report: %v", err)
+	} else {
+		// Generate HTML coverage report
+		cmd = exec.Command("go", "tool", "cover", "-html="+coverageFile, "-o", htmlCoverageFile)
+		cmd.Dir = rootDir
+		if err := cmd.Run(); err != nil {
+			printWarning("Failed to generate HTML coverage report: %v", err)
+		}
+	}
+
+	duration := time.Since(start)
+	printSuccess("Test suite completed in %s", duration.Round(time.Millisecond))
+	printSuccess("Test reports generated in '%s'", filepath.Join(outputDir, "test-reports"))
+
+	return nil
+}
+
+func testOnlyMode(rootDir, distDir string) error {
+	printHeader("🧪 TEST SUITE EXECUTION")
+
+	// Create output directory for test reports
+	outputDir := filepath.Join(rootDir, distDir)
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	// Run test suite and generate report
+	if err := runTestSuiteAndGenerateReport(rootDir, outputDir); err != nil {
+		return fmt.Errorf("test suite failed: %w", err)
+	}
+
+	printSuccess("✅ Test suite completed! Reports are in '%s/test-reports'", distDir)
+	return nil
+}
+
 func buildServerBinary(rootDir, outputDir string) error {
 	printStep("🏗️", "Building server binary...")
 
@@ -421,8 +538,76 @@ func printBuildSummary(duration time.Duration, isProduction bool) {
 		fmt.Printf("\n%sOutput:%s\n", Gray, Reset)
 		fmt.Printf("  %spb-deployer%s binary\n", Green, Reset)
 		fmt.Printf("  %spb_public/%s directory\n", Green, Reset)
+		fmt.Printf("  %stest-reports/%s directory\n", Green, Reset)
 		fmt.Printf("  %sdist/%s location\n", Cyan, Reset)
 	}
+
+	fmt.Printf("\n")
+}
+
+func printTestSummary(duration time.Duration) {
+	fmt.Printf("\n%sTest Suite Complete%s\n", Bold, Reset)
+	fmt.Printf("%s%s%s\n", Gray, strings.Repeat("─", 19), Reset)
+
+	fmt.Printf("\n%sType:%s     %sTesting%s\n", Gray, Reset, Green, Reset)
+	fmt.Printf("%sDuration:%s %s%s%s\n", Gray, Reset, Cyan, duration.Round(time.Millisecond), Reset)
+	fmt.Printf("%sTarget:%s   %s%s/%s%s\n", Gray, Reset, Purple, runtime.GOOS, runtime.GOARCH, Reset)
+
+	fmt.Printf("\n%sOutput:%s\n", Gray, Reset)
+	fmt.Printf("  %stest-summary.txt%s report\n", Green, Reset)
+	fmt.Printf("  %stest-report.json%s detailed data\n", Green, Reset)
+	fmt.Printf("  %scoverage.html%s interactive report\n", Green, Reset)
+	fmt.Printf("  %scoverage.out%s coverage data\n", Green, Reset)
+
+	fmt.Printf("\n")
+}
+
+func showHelp() {
+	fmt.Printf("\n%s▲ pb-deployer%s %sv1.0.0%s\n", Bold, Reset, Gray, Reset)
+	fmt.Printf("%sModern deployment automation tool%s\n\n", Gray, Reset)
+
+	fmt.Printf("%sUSAGE:%s\n", Bold, Reset)
+	fmt.Printf("  go run ./cmd/scripts [options]\n\n")
+
+	fmt.Printf("%sOPTIONS:%s\n", Bold, Reset)
+	fmt.Printf("  %s--help%s          Show this help message\n", Green, Reset)
+	fmt.Printf("  %s--install%s       Install all project dependencies (Go + npm)\n", Green, Reset)
+	fmt.Printf("  %s--production%s    Create production build with all assets\n", Green, Reset)
+	fmt.Printf("  %s--test-only%s     Run test suite and generate reports only\n", Green, Reset)
+	fmt.Printf("  %s--build-only%s    Build frontend without starting server\n", Green, Reset)
+	fmt.Printf("  %s--run-only%s      Start server without building frontend\n", Green, Reset)
+	fmt.Printf("  %s--dist%s DIR      Output directory for production build (default: dist)\n", Green, Reset)
+
+	fmt.Printf("\n%sEXAMPLES:%s\n", Bold, Reset)
+	fmt.Printf("  %s# Development - build frontend and start server%s\n", Gray, Reset)
+	fmt.Printf("  go run ./cmd/scripts\n\n")
+
+	fmt.Printf("  %s# Install dependencies first%s\n", Gray, Reset)
+	fmt.Printf("  go run ./cmd/scripts --install\n\n")
+
+	fmt.Printf("  %s# Production build with tests%s\n", Gray, Reset)
+	fmt.Printf("  go run ./cmd/scripts --production\n\n")
+
+	fmt.Printf("  %s# Run test suite only%s\n", Gray, Reset)
+	fmt.Printf("  go run ./cmd/scripts --test-only\n\n")
+
+	fmt.Printf("  %s# Custom dist directory%s\n", Gray, Reset)
+	fmt.Printf("  go run ./cmd/scripts --production --dist=release\n\n")
+
+	fmt.Printf("%sPRODUCTION OUTPUT:%s\n", Bold, Reset)
+	fmt.Printf("  %spb-deployer%s       - Server binary\n", Green, Reset)
+	fmt.Printf("  %spb_public/%s        - Frontend assets\n", Green, Reset)
+	fmt.Printf("  %stest-reports/%s     - Test results and coverage\n", Green, Reset)
+	fmt.Printf("    %s├── test-summary.txt%s   - Human-readable summary\n", Cyan, Reset)
+	fmt.Printf("    %s├── test-report.json%s   - Detailed JSON results\n", Cyan, Reset)
+	fmt.Printf("    %s├── coverage.html%s      - Interactive coverage report\n", Cyan, Reset)
+	fmt.Printf("    %s└── coverage.out%s       - Coverage profile data\n", Cyan, Reset)
+
+	fmt.Printf("\n%sREQUIREMENTS:%s\n", Bold, Reset)
+	fmt.Printf("  %s• Go%s 1.21+ for backend development\n", Green, Reset)
+	fmt.Printf("  %s• Node.js%s 18+ for frontend build process\n", Green, Reset)
+	fmt.Printf("  %s• npm%s for frontend dependency management\n", Green, Reset)
+	fmt.Printf("  %s• Git%s for version control operations\n", Green, Reset)
 
 	fmt.Printf("\n")
 }
