@@ -52,7 +52,6 @@
 		logic.updateNewServer('manual_key_path', serverData.manual_key_path);
 
 		await logic.createServer();
-		logic.toggleCreateForm(); // Close the modal
 	}
 </script>
 

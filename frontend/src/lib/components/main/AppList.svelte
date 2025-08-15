@@ -50,7 +50,6 @@
 		logic.updateNewApp('version_notes', appData.version_notes);
 
 		await logic.createApp();
-		logic.toggleCreateForm(); // Close the modal
 	}
 </script>
 
