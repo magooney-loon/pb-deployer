@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { SvelteSet } from 'svelte/reactivity';
-	import { fly, slide } from 'svelte/transition';
+	import { slide, fly } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
 	import MarkdownRenderer from './components/MarkdownRenderer.svelte';
 
@@ -168,8 +168,9 @@
 				<!-- Section Content -->
 				{#if openSections.has(section.id)}
 					<div
+						in:slide={{ duration: 300, easing: quintOut }}
+						out:slide={{ duration: 300, easing: quintOut }}
 						class="border-t border-gray-200 dark:border-gray-800"
-						transition:slide={{ duration: 300, easing: quintOut }}
 					>
 						<div class="p-6 pt-4">
 							{#if sectionContent[section.id]}

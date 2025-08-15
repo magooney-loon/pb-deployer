@@ -10,6 +10,7 @@
 		StatusBadge
 	} from '$lib/components/partials';
 	import { slide } from 'svelte/transition';
+	import { quintOut } from 'svelte/easing';
 
 	// State management
 	let settings: SettingsData | null = $state(null);
@@ -231,8 +232,8 @@
 				<!-- Auto-lock Settings (Nested) -->
 				{#if formData.lockscreenEnabled}
 					<div
-						in:slide={{}}
-						out:slide={{}}
+						in:slide={{ duration: 300, easing: quintOut }}
+						out:slide={{ duration: 300, easing: quintOut }}
 						class="ml-8 space-y-6 border-l-2 border-blue-200 pl-6 dark:border-blue-800"
 					>
 						<div class="rounded-lg bg-blue-50 p-4 dark:bg-blue-950/20">
@@ -278,8 +279,8 @@
 
 				{#if formData.notificationsEnabled}
 					<div
-						in:slide={{}}
-						out:slide={{}}
+						in:slide={{ duration: 300, easing: quintOut }}
+						out:slide={{ duration: 300, easing: quintOut }}
 						class="ml-8 space-y-6 border-l-2 border-green-200 pl-6 dark:border-green-800"
 					>
 						<div class="rounded-lg bg-green-50 p-6 dark:bg-green-950/20">
