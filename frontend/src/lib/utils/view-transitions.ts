@@ -54,14 +54,14 @@ export function injectViewTransitionStyles(): void {
 			}
 			100% {
 				opacity: 0;
-				transform: scale(0.98);
+				transform: scale(0.9);
 			}
 		}
 
 		@keyframes enhanced-fade-in {
 			0% {
 				opacity: 0;
-				transform: scale(1.02);
+				transform: scale(1.08);
 			}
 			100% {
 				opacity: 1;
@@ -134,9 +134,7 @@ function cleanupWillChange(): void {
 			element.style.willChange = '';
 		}
 	});
-}
-
-/**
+} /**
  * Start a view transition with the given callback
  * Falls back to immediate execution if View Transition API is not supported
  */
