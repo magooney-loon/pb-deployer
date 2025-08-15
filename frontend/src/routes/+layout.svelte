@@ -2,7 +2,7 @@
 	import '../app.css';
 	import { fade } from 'svelte/transition';
 	import Navigation from '$lib/components/main/Navigation.svelte';
-	import { WarningBanner, Transient } from '$lib/components/partials';
+	import { WarningBanner } from '$lib/components/partials';
 	import { onMount } from 'svelte';
 	import { lockscreenState, lockScreen } from '$lib/components/main/Settings';
 	import Lockscreen from './settings/components/Lockscreen.svelte';
@@ -66,6 +66,5 @@
 				{@render children()}
 			</div>
 		</main>
-		<Transient />
 	</div>
 {/if}
