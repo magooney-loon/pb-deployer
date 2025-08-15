@@ -2,7 +2,7 @@
 
 # <img src="frontend/static/favicon.svg" width="32" height="32" style="vertical-align: middle;"> pb-deployer
 
-Production deployment automation for PocketBase applications with SSH server management, security hardening, and comprehensive observability.
+Deployment automation for PocketBase applications w/ comprehensive observability.
 
 ## Overview
 
