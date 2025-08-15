@@ -1,15 +1,6 @@
 # pb-deployer Frontend
 
-Modern SvelteKit dashboard for deployment orchestration with real-time WebSocket updates and component-driven architecture.
-
-## Features
-
-- **Real-time Operations**: WebSocket integration for live deployment tracking
-- **Component Library**: Comprehensive partial components with consistent design system
-- **Type-safe Architecture**: TypeScript throughout with validated interfaces
-- **Responsive Design**: Mobile-first approach with Tailwind CSS
-- **Performance Optimized**: SvelteKit SSR with adaptive rendering
-- **State Management**: Reactive stores with persistent session handling
+Svelte/Kit 5 component-driven architecture.
 
 ## Quick Start
 
