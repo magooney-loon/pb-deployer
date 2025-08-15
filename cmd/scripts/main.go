@@ -350,9 +350,9 @@ func checkSystemRequirements() error {
 
 	for _, req := range requirements {
 		if checkCommand(req.command, req.args...) {
-			printInfo("  ✅ %s available", req.name)
+			printInfo("%s available", req.name)
 		} else {
-			printWarning("  ❌ %s missing", req.name)
+			printWarning("%s missing", req.name)
 			missing = append(missing, req.name)
 		}
 	}
@@ -371,80 +371,58 @@ func checkCommand(command string, args ...string) bool {
 
 // Visual output functions
 func printBanner(operation string) {
-	banner := `
- ██████╗ ██████╗       ██████╗ ███████╗██████╗ ██╗      ██████╗ ██╗   ██╗███████╗██████╗
- ██╔══██╗██╔══██╗      ██╔══██╗██╔════╝██╔══██╗██║     ██╔═══██╗╚██╗ ██╔╝██╔════╝██╔══██╗
- ██████╔╝██████╔╝█████╗██║  ██║█████╗  ██████╔╝██║     ██║   ██║ ╚████╔╝ █████╗  ██████╔╝
- ██╔═══╝ ██╔══██╗╚════╝██║  ██║██╔══╝  ██╔═══╝ ██║     ██║   ██║  ╚██╔╝  ██╔══╝  ██╔══██╗
- ██║     ██████╔╝      ██████╔╝███████╗██║     ███████╗╚██████╔╝   ██║   ███████╗██║  ██║
- ╚═╝     ╚═════╝       ╚═════╝ ╚══════╝╚═╝     ╚══════╝ ╚═════╝    ╚═╝   ╚══════╝╚═╝  ╚═╝`
-
-	fmt.Printf("%s%s%s\n", Cyan, banner, Reset)
-	fmt.Printf("%s%s                                🚀 %s BUILD SYSTEM 🚀%s\n", Bold, Yellow, operation, Reset)
-	fmt.Printf("%s                                      v1.0.0%s\n\n", Gray, Reset)
+	fmt.Printf("\n%s▲ pb-deployer%s %sv1.0.0%s\n", Bold, Reset, Gray, Reset)
+	fmt.Printf("%s%s%s\n\n", Gray, strings.ToLower(operation), Reset)
 }
 
 func printHeader(title string) {
-	fmt.Printf("\n%s%s%s %s %s\n", Bold, Blue, strings.Repeat("=", 20), title, strings.Repeat("=", 20))
-	fmt.Printf("%s", Reset)
+	fmt.Printf("\n%s%s%s\n", Bold, title, Reset)
 }
 
 func printStep(emoji, format string, args ...any) {
-	timestamp := time.Now().Format("15:04:05")
 	message := fmt.Sprintf(format, args...)
-	fmt.Printf("%s%s%s %s %s%s\n", Gray, timestamp, Reset, emoji, message, Reset)
+	fmt.Printf("%s %s\n", emoji, message)
 }
 
 func printSuccess(format string, args ...any) {
 	message := fmt.Sprintf(format, args...)
-	fmt.Printf("%s✅ %s%s\n", Green, message, Reset)
+	fmt.Printf("%s✓%s %s\n", Green, Reset, message)
 }
 
 func printError(format string, args ...any) {
 	message := fmt.Sprintf(format, args...)
-	fmt.Printf("%s❌ ERROR: %s%s\n", Red, message, Reset)
+	fmt.Printf("%s✗ Error:%s %s\n", Red, Reset, message)
 }
 
 func printWarning(format string, args ...any) {
 	message := fmt.Sprintf(format, args...)
-	fmt.Printf("%s⚠️  %s%s\n", Yellow, message, Reset)
+	fmt.Printf("%s⚠ Warning:%s %s\n", Yellow, Reset, message)
 }
 
 func printInfo(format string, args ...any) {
 	message := fmt.Sprintf(format, args...)
-	fmt.Printf("%s%s%s\n", Cyan, message, Reset)
+	fmt.Printf("%sℹ%s %s\n", Cyan, Reset, message)
 }
 
 func printBuildSummary(duration time.Duration, isProduction bool) {
-	fmt.Printf("\n%s%s", Bold, strings.Repeat("=", 60))
-	fmt.Printf("\n🎯 BUILD SUMMARY")
-	fmt.Printf("\n%s%s\n", strings.Repeat("=", 60), Reset)
-
 	buildType := "Development"
 	if isProduction {
 		buildType = "Production"
 	}
 
-	fmt.Printf("%s📋 Build Information:%s\n", Bold, Reset)
-	fmt.Printf("   • Type: %s%s%s\n", Green, buildType, Reset)
-	fmt.Printf("   • Duration: %s%s%s\n", Cyan, duration.Round(time.Millisecond), Reset)
-	fmt.Printf("   • Go Version: %s%s%s\n", Blue, runtime.Version(), Reset)
-	fmt.Printf("   • Target: %s%s/%s%s\n", Purple, runtime.GOOS, runtime.GOARCH, Reset)
+	fmt.Printf("\n%sBuild Complete%s\n", Bold, Reset)
+	fmt.Printf("%s%s%s\n", Gray, strings.Repeat("─", 14), Reset)
+
+	fmt.Printf("\n%sType:%s     %s%s%s\n", Gray, Reset, Green, buildType, Reset)
+	fmt.Printf("%sDuration:%s %s%s%s\n", Gray, Reset, Cyan, duration.Round(time.Millisecond), Reset)
+	fmt.Printf("%sTarget:%s   %s%s/%s%s\n", Gray, Reset, Purple, runtime.GOOS, runtime.GOARCH, Reset)
 
 	if isProduction {
-		fmt.Printf("\n%s📦 Production Artifacts:%s\n", Bold, Reset)
-		fmt.Printf("   • Binary: %spb-deployer%s\n", Green, Reset)
-		fmt.Printf("   • Frontend: %spb_public/%s\n", Green, Reset)
-		fmt.Printf("   • Location: %sdist/%s\n", Cyan, Reset)
-	} else {
-		fmt.Printf("\n%s🔧 Development:%s\n", Bold, Reset)
-		fmt.Printf("   • Frontend: %spb_public/%s\n", Green, Reset)
-		fmt.Printf("   • Server: %sReady to start%s\n", Yellow, Reset)
+		fmt.Printf("\n%sOutput:%s\n", Gray, Reset)
+		fmt.Printf("  %spb-deployer%s binary\n", Green, Reset)
+		fmt.Printf("  %spb_public/%s directory\n", Green, Reset)
+		fmt.Printf("  %sdist/%s location\n", Cyan, Reset)
 	}
 
-	fmt.Printf("\n%s⚡ Performance:%s\n", Bold, Reset)
-	fmt.Printf("   • Build Rate: %s%.2f ops/sec%s\n", Cyan, 1.0/duration.Seconds(), Reset)
-	fmt.Printf("   • Timestamp: %s%s%s\n", Gray, time.Now().Format("2006-01-02 15:04:05"), Reset)
-
-	fmt.Printf("%s%s%s\n", Bold, strings.Repeat("=", 60), Reset)
+	fmt.Printf("\n")
 }
