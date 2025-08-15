@@ -14,7 +14,7 @@ Automates the complete lifecycle of deploying PocketBase apps to production serv
 1. **Server Registration**: Add remote host connection details
 2. **Server Setup**: Automated user creation and directory structure (`/opt/pocketbase/apps/`)
 3. **Security Lockdown**: Firewall, fail2ban, disable root SSH
-4. **App Deployment**: Upload binary + static files, systemd service creation
+4. **App Deployment**: Upload prod dist, systemd service creation
 5. **Version Management**: Rollback support with file storage
 
 ## Key Features
