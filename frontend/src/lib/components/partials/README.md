@@ -2,6 +2,53 @@
 
 This directory contains reusable UI components that can be used throughout the PB Deployer application. These components follow Svelte 5 patterns and provide consistent styling and behavior.
 
+## Usage Tips
+
+1. **Import from index**: Always import from the index file for consistency:
+   ```svelte
+   import {
+     Background, Button, Card, DataTable, EmptyState,
+     FileUpload, FormField, LoadingSpinner, MetricCard,
+     ProgressBar, RecentItemsCard, StatusBadge, Toast,
+     WarningBanner
+   } from '$lib/components/partials';
+   ```
+
+2. **TypeScript support**: All components are fully typed with proper TypeScript interfaces and generic support where appropriate.
+
+3. **Consistent styling**: Components use Tailwind CSS classes and follow the app's design system with consistent spacing, shadows, and border radius.
+
+4. **Dark mode**: All components support dark mode out of the box with proper color variants.
+
+5. **Accessibility**: Components include proper ARIA attributes, keyboard navigation support, and semantic HTML.
+
+6. **Snippets over slots**: Components use Svelte 5's snippet syntax for maximum flexibility and type safety.
+
+7. **Form validation**: Use FormField's `errorText` prop for validation messages and `helperText` for guidance.
+
+8. **File handling**: FileUpload component supports single/multiple files, directories, drag-and-drop, and client-side validation.
+
+9. **Consistent empty states**: Use EmptyState component for all "no data" scenarios to maintain consistency.
+
+10. **Table customization**: DataTable supports both automatic rendering and custom snippets for full control over row display.
+
+11. **Status management**: Use StatusBadge with helper functions for consistent status display across the application.
+
+12. **User feedback**: Use Toast for temporary notifications and WarningBanner for persistent important messages.
+
+## Styling
+
+All components use Tailwind CSS classes and support the application's color palette:
+- Blue (primary)
+- Green (success)
+- Red (error/danger)
+- Yellow (warning)
+- Gray (neutral)
+- Purple (accent)
+- White (contrast)
+
+All animations respect user preferences for reduced motion when `prefers-reduced-motion: reduce` is set.
+
 ## Components
 
 ### Background
@@ -68,8 +115,8 @@ A flexible card container with optional header and interactive states.
   <p>Card content goes here</p>
 </Card>
 
-<Card 
-  title="Interactive Card" 
+<Card
+  title="Interactive Card"
   subtitle="Click me"
   hover
   onclick={() => console.log('clicked')}
@@ -105,12 +152,12 @@ A comprehensive table component for displaying structured data with sorting, act
 ```svelte
 <script>
   import { DataTable } from '$lib/components/partials';
-  
+
   const users = [
     { id: 1, name: 'John Doe', email: 'john@example.com', role: 'Admin' },
     { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'User' }
   ];
-  
+
   const columns = [
     { key: 'name', label: 'Name', sortable: true },
     { key: 'email', label: 'Email' },
@@ -238,15 +285,15 @@ A drag-and-drop file upload component with validation and preview.
 ```svelte
 <script>
   import { FileUpload } from '$lib/components/partials';
-  
+
   let selectedFile = null;
   let uploadError = '';
-  
+
   function handleFileSelect(file) {
     selectedFile = file;
     uploadError = '';
   }
-  
+
   function handleError(error) {
     uploadError = error;
   }
@@ -306,7 +353,7 @@ A flexible form input component that handles various input types with consistent
 ```svelte
 <script>
   import { FormField } from '$lib/components/partials';
-  
+
   let name = '';
   let email = '';
   let age = 0;
@@ -315,7 +362,7 @@ A flexible form input component that handles various input types with consistent
   let agreedToTerms = false;
 </script>
 
-<FormField 
+<FormField
   id="name"
   label="Full Name"
   bind:value={name}
@@ -423,10 +470,10 @@ A card component for displaying metrics with optional icons and colors.
 </script>
 
 <MetricCard title="Total Users" value={1234} icon="👥" />
-<MetricCard 
-  title="Revenue" 
-  value="$12,345" 
-  icon="💰" 
+<MetricCard
+  title="Revenue"
+  value="$12,345"
+  icon="💰"
   color="green"
   size="lg"
   onclick={() => console.log('clicked')}
@@ -455,13 +502,13 @@ A progress bar component with customizable styling and animations.
 
 <ProgressBar value={75} label="Upload Progress" />
 <ProgressBar value={50} max={200} showPercentage={false} />
-<ProgressBar 
-  value={90} 
-  color="green" 
-  size="lg" 
-  striped 
-  animated 
-  label="Processing..." 
+<ProgressBar
+  value={90}
+  color="green"
+  size="lg"
+  striped
+  animated
+  label="Processing..."
 />
 ```
 
@@ -483,7 +530,7 @@ A specialized card for displaying lists of recent items with empty states.
 ```svelte
 <script>
   import { RecentItemsCard } from '$lib/components/partials';
-  
+
   const servers = [
     { id: 1, name: 'Server 1', status: 'online' },
     { id: 2, name: 'Server 2', status: 'offline' }
@@ -536,23 +583,23 @@ A badge component for displaying status with various styles and helper functions
 ```svelte
 <script>
   import { StatusBadge, getServerStatusBadge, getAppStatusBadge } from '$lib/components/partials';
-  
+
   // Manual usage
   <StatusBadge status="Online" variant="success" />
   <StatusBadge status="Pending" variant="warning" dot />
   <StatusBadge status="Error" variant="error" size="lg" />
-  
+
   // Using helper functions
   const serverBadge = getServerStatusBadge(server);
   <StatusBadge status={serverBadge.text} variant={serverBadge.variant} />
-  
+
   const appBadge = getAppStatusBadge(app);
   <StatusBadge status={appBadge.text} variant={appBadge.variant} />
 </script>
 
-<StatusBadge 
-  status="Custom" 
-  variant="custom" 
+<StatusBadge
+  status="Custom"
+  variant="custom"
   customColors={{ bg: 'bg-purple-100', text: 'text-purple-800' }}
 />
 ```
@@ -582,8 +629,8 @@ A toast notification component for displaying temporary messages.
 </script>
 
 <Toast message="Operation completed successfully!" type="success" />
-<Toast 
-  message="Something went wrong!" 
+<Toast
+  message="Something went wrong!"
   type="error"
   onDismiss={() => console.log('dismissed')}
 />
@@ -609,13 +656,13 @@ A banner component for displaying important warnings at the top of the page.
 </script>
 
 <WarningBanner />
-<WarningBanner 
+<WarningBanner
   message="Custom warning message"
   color="red"
   size="sm"
   onDismiss={() => console.log('banner dismissed')}
 />
-<WarningBanner 
+<WarningBanner
   message="Info banner"
   icon="ℹ️"
   color="blue"
@@ -631,66 +678,3 @@ A banner component for displaying important warnings at the top of the page.
 - `size?: 'xs' | 'sm'` - Banner size (default: "sm")
 - `class?: string` - Additional CSS classes
 - `onDismiss?: () => void` - Dismiss callback
-
-## Usage Tips
-
-1. **Import from index**: Always import from the index file for consistency:
-   ```svelte
-   import { 
-     Background, Button, Card, DataTable, EmptyState, 
-     FileUpload, FormField, LoadingSpinner, MetricCard, 
-     ProgressBar, RecentItemsCard, StatusBadge, Toast, 
-     WarningBanner 
-   } from '$lib/components/partials';
-   ```
-
-2. **TypeScript support**: All components are fully typed with proper TypeScript interfaces and generic support where appropriate.
-
-3. **Consistent styling**: Components use Tailwind CSS classes and follow the app's design system with consistent spacing, shadows, and border radius.
-
-4. **Dark mode**: All components support dark mode out of the box with proper color variants.
-
-5. **Accessibility**: Components include proper ARIA attributes, keyboard navigation support, and semantic HTML.
-
-6. **Snippets over slots**: Components use Svelte 5's snippet syntax for maximum flexibility and type safety.
-
-7. **Form validation**: Use FormField's `errorText` prop for validation messages and `helperText` for guidance.
-
-8. **File handling**: FileUpload component supports single/multiple files, directories, drag-and-drop, and client-side validation.
-
-9. **Consistent empty states**: Use EmptyState component for all "no data" scenarios to maintain consistency.
-
-10. **Table customization**: DataTable supports both automatic rendering and custom snippets for full control over row display.
-
-11. **Status management**: Use StatusBadge with helper functions for consistent status display across the application.
-
-12. **User feedback**: Use Toast for temporary notifications and WarningBanner for persistent important messages.
-
-## Styling
-
-All components use Tailwind CSS classes and support the application's color palette:
-- Blue (primary)
-- Green (success)
-- Red (error/danger)
-- Yellow (warning)
-- Gray (neutral)
-- Purple (accent)
-- White (contrast)
-
-### Special Features
-
-- **Background component**: Provides animated visual backgrounds with multiple variants and intensity levels
-- **File upload**: Comprehensive drag-and-drop with preview, validation, and directory support
-- **Progress tracking**: Animated progress bars with customizable styling
-- **Toast notifications**: Fixed-position notifications with auto-dismiss capability
-- **Warning banners**: Persistent top-level warnings with dismissible options
-
-### Animation Support
-
-Several components include custom animations:
-- **Background**: Floating orbs with slow, smooth animations
-- **ProgressBar**: Smooth value transitions and optional striped animations
-- **Toast**: Slide-in/out transitions using Svelte transitions
-- **WarningBanner**: Slide transitions for show/hide states
-
-All animations respect user preferences for reduced motion when `prefers-reduced-motion: reduce` is set.
