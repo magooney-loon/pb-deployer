@@ -3,56 +3,58 @@
 <svg version="1.1" id="Gopher" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
 	 viewBox="0 0 215.6 281.6" enable-background="new 0 0 215.6 281.6" xml:space="preserve">
 <g>
-	<!-- Box Body Base -->
-	<rect x="45" y="80" width="125" height="120" fill="#D4A574" stroke="#B8956A" stroke-width="2"/>
+	<!-- Box Main Body (smaller) -->
+	<rect x="75" y="160" width="65" height="60" fill="#E8C49C" stroke="#B8956A" stroke-width="1.5"/>
 
-	<!-- Box Inner Walls (for depth) -->
-	<rect x="47" y="82" width="121" height="116" fill="#E8C49C"/>
+	<!-- Box Inner Shadow for depth -->
+	<rect x="77" y="162" width="61" height="56" fill="#D4A574"/>
 
-	<!-- Left Box Flap (opened) -->
-	<path fill="#D4A574" stroke="#B8956A" stroke-width="2" d="M45,80 L15,60 L15,120 L45,140 Z"/>
-	<path fill="#C19660" d="M17,62 L17,118 L43,138 L43,82 Z"/>
+	<!-- Back Flap (opened backward) -->
+	<path fill="#D4A574" stroke="#B8956A" stroke-width="1.5" d="M75,160 L70,140 L145,140 L140,160 Z"/>
+	<path fill="#C19660" d="M76,159 L71,142 L144,142 L139,159 Z"/>
 
-	<!-- Right Box Flap (opened) -->
-	<path fill="#D4A574" stroke="#B8956A" stroke-width="2" d="M170,80 L200,60 L200,120 L170,140 Z"/>
-	<path fill="#C19660" d="M172,82 L172,138 L198,118 L198,62 Z"/>
+	<!-- Left Flap (opened to left) -->
+	<path fill="#D4A574" stroke="#B8956A" stroke-width="1.5" d="M75,160 L50,155 L50,185 L75,190 Z"/>
+	<path fill="#C19660" d="M74,162 L52,157 L52,183 L74,188 Z"/>
 
-	<!-- Back Box Flap (opened) -->
-	<path fill="#D4A574" stroke="#B8956A" stroke-width="2" d="M45,80 L65,50 L150,50 L170,80 Z"/>
-	<path fill="#C19660" d="M47,78 L65,52 L150,52 L168,78 Z"/>
+	<!-- Right Flap (opened to right) -->
+	<path fill="#D4A574" stroke="#B8956A" stroke-width="1.5" d="M140,160 L165,155 L165,185 L140,190 Z"/>
+	<path fill="#C19660" d="M141,162 L163,157 L163,183 L141,188 Z"/>
 
-	<!-- Front Box Flap (opened) -->
-	<path fill="#D4A574" stroke="#B8956A" stroke-width="2" d="M45,200 L65,230 L150,230 L170,200 Z"/>
-	<path fill="#C19660" d="M47,202 L65,228 L150,228 L168,202 Z"/>
+	<!-- Front Flap (opened forward) -->
+	<path fill="#D4A574" stroke="#B8956A" stroke-width="1.5" d="M75,190 L70,210 L145,210 L140,190 Z"/>
+	<path fill="#C19660" d="M76,191 L71,208 L144,208 L139,191 Z"/>
 
-	<!-- Gopher Head (centered in box) -->
-	<ellipse fill="#8CC5E7" cx="107.8" cy="120" rx="50" ry="40"/>
+	<!-- Authentic Gopher Head (scaled and positioned) -->
+	<path fill="#8CC5E7" d="M170,80c-4-8-14,0-16-3c-12-13-28-16-40-17c0,0-5,0-7,0c-12,0-27,4-40,17
+		c-2,3-12-5-16,3c-5,10,9,11,9,15c-1,8-0.5,19,0.6,30C63,150,50,190,75,205
+		c6,4,21,5,34,6l0,0c0,0,0.1,0,0.1,0c0,0,0.1,0,0.1,0l0,0c13-0.3,26-2,32-6c30-18,15-64,17-83
+		c1-11,2-22,0.6-30C159,91,173,90,170,80z"/>
 
-	<!-- Ears (adjusted position) -->
-	<ellipse fill="#3C89BF" cx="75" cy="95" rx="8" ry="12"/>
-	<ellipse fill="#6BB6FF" cx="75" cy="95" rx="4" ry="6"/>
-	<ellipse fill="#3C89BF" cx="140" cy="95" rx="8" ry="12"/>
-	<ellipse fill="#6BB6FF" cx="140" cy="95" rx="4" ry="6"/>
-
-	<!-- Left Eye -->
-	<g>
-		<circle fill="#E0DEDC" cx="85" cy="115" r="18"/>
-		<circle fill="#111212" cx="85" cy="115" r="11"/>
-		<circle fill="#FFFFFF" cx="88" cy="111" r="3.6"/>
-	</g>
+	<!-- Ears -->
+	<path fill="#3C89BF" d="M152,80c-0.4,1.3,1.3,1.1,1.9,5c0.2,1.4,5.4-2.1,3.3-4.7C155.9,78.3,152.3,79,152,80z"/>
+	<path fill="#3C89BF" d="M63,80c0.4,1.3-1.3,1.1-1.9,5c-0.2,1.4-5.4-2.1-3.3-4.7C59.1,78.3,62.7,79,63,80z"/>
 
 	<!-- Right Eye -->
 	<g>
-		<circle fill="#E0DEDC" cx="130" cy="115" r="18"/>
-		<circle fill="#111212" cx="130" cy="115" r="11"/>
-		<circle fill="#FFFFFF" cx="127" cy="111" r="3.6"/>
+		<path fill="#E0DEDC" d="M134,95c-20,2.3-17,23-10,30c14,12,29,0,28-13C151,103,142,94,134,95z"/>
+		<circle fill="#111212" cx="135" cy="115" r="6.8"/>
+		<circle fill="#FFFFFF" cx="133" cy="112" r="2.2"/>
+	</g>
+
+	<!-- Left Eye -->
+	<g>
+		<path fill="#E0DEDC" d="M81,95c20,2.3,17,23,10,30c-14,12-29,0-28-13C64,103,73,94,81,95z"/>
+		<circle fill="#111212" cx="80" cy="115" r="6.8"/>
+		<circle fill="#FFFFFF" cx="82" cy="112" r="2.2"/>
 	</g>
 
 	<!-- Nose and Mouth -->
 	<g>
-		<ellipse fill="#B8937F" cx="107.8" cy="135" rx="8" ry="5"/>
-		<ellipse fill="#111212" cx="107.8" cy="135" rx="5" ry="3"/>
-		<rect fill="#E0DEDC" x="103" y="145" width="10" height="8" rx="2"/>
+		<path fill="#B8937F" d="M107.8,130c-10,1.4-13,4-12,8.5c1.2,7,24,6,25,0.4C121,135,114,129,107.8,130z"/>
+		<path d="M101,133c-1.6,6,13,5,13,1.2c-0.2-2.2-2.2-5-7.4-5C104,130,101.8,131,101,133z"/>
+		<path fill="#E0DEDC" d="M101.5,143c-0.5,0.2-1.4,6,1.3,6.4c1.9,0.2,7,0.8,8.2,0c2.3-1.5,2.1-5,0.8-6
+			C109.5,142,102,143,101.5,143z"/>
 	</g>
 </g>
 </svg>
