@@ -59,9 +59,10 @@
 
 {#if isVisible}
 	<div
+		transition:slide={{ duration: 300, easing: quintOut }}
 		class="fixed right-4 bottom-4 left-4 z-50 mx-auto max-w-sm rounded-lg p-3 {styles.container} {className}"
 	>
-		<div transition:slide={{ duration: 300, easing: quintOut }} class="flex items-center gap-3">
+		<div class="flex items-center gap-3">
 			<div class="flex-shrink-0">
 				<span class="text-lg {styles.icon}">{currentIcon}</span>
 			</div>
