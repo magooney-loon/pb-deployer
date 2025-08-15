@@ -67,7 +67,7 @@
 				<span class="text-lg {styles.icon}">{currentIcon}</span>
 			</div>
 			<div class="min-w-0 flex-1">
-				<p class="text-sm font-medium {styles.message} truncate">{message}</p>
+				<p class="text-center text-sm font-medium {styles.message} truncate">{message}</p>
 			</div>
 			{#if dismissible && onDismiss}
 				<button
