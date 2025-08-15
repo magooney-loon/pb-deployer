@@ -4,8 +4,11 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 )
 
+
+
 // RegisterCollections creates and registers all the database collections
 func RegisterCollections(app core.App) error {
+	app.OnServe().BindFunc(func(e *core.ServeEvent) error {
 	app.Logger().Info("RegisterCollections: Starting collection registration")
 
 	// Create servers collection
@@ -38,4 +41,5 @@ func RegisterCollections(app core.App) error {
 
 	app.Logger().Info("RegisterCollections: All collections registered successfully")
 	return nil
+	}
 }

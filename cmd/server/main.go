@@ -44,12 +44,7 @@ func initApp() {
 }
 
 func registerCollections(app core.App) {
-	app.OnServe().BindFunc(func(e *core.ServeEvent) error {
-		if err := models.RegisterCollections(e.App); err != nil {
-			app.Logger().Error("Failed to initialize database collections", "error", err)
-		}
-		return e.Next()
-	})
+	models.RegisterCollections(app)
 }
 
 func registerHandlers(app core.App) {
