@@ -15,69 +15,65 @@
 		background: linear-gradient(
 			to bottom,
 			rgba(0, 0, 0, 0) 0%,
-			rgba(0, 0, 0, 0.02) 20%,
-			rgba(0, 0, 0, 0.08) 40%,
-			rgba(0, 0, 0, 0.15) 60%,
-			rgba(0, 0, 0, 0.25) 80%,
-			rgba(0, 0, 0, 0.4) 100%
+			rgba(0, 0, 0, 0.03) 10%,
+			rgba(0, 0, 0, 0.06) 20%,
+			rgba(0, 0, 0, 0.12) 35%,
+			rgba(0, 0, 0, 0.2) 50%,
+			rgba(0, 0, 0, 0.3) 65%,
+			rgba(0, 0, 0, 0.42) 80%,
+			rgba(0, 0, 0, 0.55) 90%,
+			rgba(0, 0, 0, 0.7) 100%
 		);
 		pointer-events: none;
 		z-index: 10;
-		transition: opacity 0.3s ease;
-		padding-bottom: 0.5rem;
+		transition: all 0.3s ease;
+		padding-bottom: 1rem;
 		box-sizing: border-box;
 	}
 
-	/* Dark mode - subtle gray gradient */
-	@media (prefers-color-scheme: dark) {
+	/* Data-theme attribute based theming support */
+	:global([data-theme='light']) .gradient-overlay {
+		background: linear-gradient(
+			to bottom,
+			rgba(0, 0, 0, 0) 0%,
+			rgba(0, 0, 0, 0.03) 10%,
+			rgba(0, 0, 0, 0.06) 20%,
+			rgba(0, 0, 0, 0.12) 35%,
+			rgba(0, 0, 0, 0.2) 50%,
+			rgba(0, 0, 0, 0.3) 65%,
+			rgba(0, 0, 0, 0.42) 80%,
+			rgba(0, 0, 0, 0.55) 90%,
+			rgba(0, 0, 0, 0.7) 100%
+		);
+	}
+
+	:global([data-theme='dark']) .gradient-overlay {
+		background: linear-gradient(
+			to bottom,
+			rgba(255, 255, 255, 0) 0%,
+			rgba(255, 255, 255, 0.005) 10%,
+			rgba(255, 255, 255, 0.01) 20%,
+			rgba(255, 255, 255, 0.02) 35%,
+			rgba(255, 255, 255, 0.03) 50%,
+			rgba(255, 255, 255, 0.04) 65%,
+			rgba(255, 255, 255, 0.06) 80%,
+			rgba(255, 255, 255, 0.08) 90%,
+			rgba(255, 255, 255, 0.1) 100%
+		) !important;
+	}
+
+	/* Responsive adjustments */
+	@media (max-width: 768px) {
 		.gradient-overlay {
-			background: linear-gradient(
-				to bottom,
-				rgba(0, 0, 0, 0) 0%,
-				rgba(20, 20, 20, 0.1) 20%,
-				rgba(30, 30, 30, 0.2) 40%,
-				rgba(40, 40, 40, 0.3) 60%,
-				rgba(50, 50, 50, 0.4) 80%,
-				rgba(60, 60, 60, 0.5) 100%
-			);
+			height: calc(var(--height) * 0.8);
+			padding-bottom: 0.75rem;
 		}
 	}
 
-	/* Class-based theming support */
-	:global(.dark) .gradient-overlay {
-		background: linear-gradient(
-			to bottom,
-			rgba(0, 0, 0, 0) 0%,
-			rgba(20, 20, 20, 0.1) 20%,
-			rgba(30, 30, 30, 0.2) 40%,
-			rgba(40, 40, 40, 0.3) 60%,
-			rgba(50, 50, 50, 0.4) 80%,
-			rgba(60, 60, 60, 0.5) 100%
-		);
-	}
-
-	:global(.light) .gradient-overlay {
-		background: linear-gradient(
-			to bottom,
-			rgba(0, 0, 0, 0) 0%,
-			rgba(0, 0, 0, 0.02) 20%,
-			rgba(0, 0, 0, 0.08) 40%,
-			rgba(0, 0, 0, 0.15) 60%,
-			rgba(0, 0, 0, 0.25) 80%,
-			rgba(0, 0, 0, 0.4) 100%
-		);
-	}
-
-	/* Tailwind dark mode support */
-	:global(.dark .gradient-overlay) {
-		background: linear-gradient(
-			to bottom,
-			rgba(0, 0, 0, 0) 0%,
-			rgba(20, 20, 20, 0.1) 20%,
-			rgba(30, 30, 30, 0.2) 40%,
-			rgba(40, 40, 40, 0.3) 60%,
-			rgba(50, 50, 50, 0.4) 80%,
-			rgba(60, 60, 60, 0.5) 100%
-		);
+	@media (max-width: 480px) {
+		.gradient-overlay {
+			height: calc(var(--height) * 0.6);
+			padding-bottom: 0.5rem;
+		}
 	}
 </style>
