@@ -40,7 +40,7 @@
 						<img
 							alt="pb-deployer logo"
 							src="/favicon.svg"
-							class="logo-float h-7 w-7 transition-transform group-hover:scale-110"
+							class="logo-float h-12 w-12 transition-transform group-hover:scale-110"
 						/>
 						<span class="text-lg font-medium text-gray-900 dark:text-gray-100">pb-deployer</span>
 					</a>
