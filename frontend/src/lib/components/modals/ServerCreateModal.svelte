@@ -239,11 +239,8 @@
 						/>
 					</svg>
 					<div class="flex-1">
-						<h4 class="font-medium text-blue-900 dark:text-blue-100">Before You Continue</h4>
-						<p class="mt-1 text-sm text-blue-800 dark:text-blue-200">
-							Make sure your server is accessible via SSH and the specified user accounts exist. The
-							root user will be used for initial setup, and the app user for running applications.
-						</p>
+						<h4 class="font-medium text-blue-900 dark:text-blue-100">Tested On</h4>
+						<p class="mt-1 text-sm text-blue-800 dark:text-blue-200">Hertzner Ubuntu VPS</p>
 					</div>
 				</div>
 			</div>
