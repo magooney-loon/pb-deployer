@@ -25,7 +25,6 @@
 		class?: string;
 	} = $props();
 
-	// Size variants
 	const sizeVariants = {
 		sm: {
 			container: 'py-8',

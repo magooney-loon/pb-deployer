@@ -34,7 +34,6 @@
 	let fileInput: HTMLInputElement;
 	let dragOver = $state(false);
 
-	// Format file size for display
 	function formatFileSize(bytes: number): string {
 		if (bytes === 0) return '0 Bytes';
 		const k = 1024;
@@ -43,7 +42,6 @@
 		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 	}
 
-	// Validate file
 	function validateFile(file: File): string | null {
 		if (maxSize && file.size > maxSize) {
 			return `File size (${formatFileSize(file.size)}) exceeds maximum allowed size (${formatFileSize(maxSize)})`;
@@ -74,13 +72,11 @@
 		return null;
 	}
 
-	// Handle file selection
 	function handleFiles(files: FileList) {
 		if (disabled) return;
 
 		const fileArray = Array.from(files);
 
-		// Validate files
 		for (const file of fileArray) {
 			const error = validateFile(file);
 			if (error) {
@@ -98,7 +94,6 @@
 		}
 	}
 
-	// Handle file input change
 	function handleInputChange(event: Event) {
 		const target = event.target as HTMLInputElement;
 		if (target.files) {
@@ -106,7 +101,6 @@
 		}
 	}
 
-	// Handle drag events
 	function handleDragOver(event: DragEvent) {
 		event.preventDefault();
 		if (!disabled) {
@@ -138,16 +132,13 @@
 		}
 	}
 
-	// Trigger file input click
 	function triggerFileInput() {
 		if (!disabled) {
 			fileInput.click();
 		}
 	}
 
-	// Remove file
 	function removeFile() {
-		// Reset file input
 		if (fileInput) {
 			fileInput.value = '';
 		}
@@ -160,10 +151,8 @@
 		}
 	}
 
-	// Get selected files for display
 	let selectedFiles = $derived(value ? (Array.isArray(value) ? value : [value]) : []);
 
-	// Component styles
 	const baseStyles =
 		'relative block w-full rounded-lg border-2 border-dashed transition-all duration-200';
 	const normalStyles =

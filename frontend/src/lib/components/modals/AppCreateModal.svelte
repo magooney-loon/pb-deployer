@@ -33,11 +33,9 @@
 		version_notes: 'Initial version'
 	});
 
-	// Get available servers (setup complete)
 	let availableServers = $derived(servers.filter((s) => s.setup_complete));
 	let selectedServer = $derived(availableServers.find((s) => s.id === formData.server_id));
 
-	// Auto-generate paths based on app name
 	let suggestedRemotePath = $derived(formData.name ? `/opt/pocketbase/apps/${formData.name}` : '');
 	let suggestedServiceName = $derived(formData.name ? `pocketbase-${formData.name}` : '');
 
@@ -72,7 +70,6 @@
 		await handleSubmit(fakeEvent);
 	}
 
-	// Reset form when modal opens/closes
 	$effect(() => {
 		if (!open) {
 			resetForm();

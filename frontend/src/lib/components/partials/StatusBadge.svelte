@@ -20,7 +20,6 @@
 		class?: string;
 	} = $props();
 
-	// Size variants
 	const sizeVariants = {
 		xs: 'px-1.5 py-0.5 text-xs',
 		sm: 'px-2 py-1 text-xs',
@@ -28,7 +27,6 @@
 		lg: 'px-3 py-2 text-sm'
 	};
 
-	// Color variants - Vercel-style muted colors
 	const colorVariants = {
 		success:
 			'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:ring-emerald-800',
@@ -43,7 +41,6 @@
 			: 'bg-gray-50 text-gray-600 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:ring-gray-700'
 	};
 
-	// Dot variants (for status indicators with dots) - Vercel-style
 	const dotVariants = {
 		success: 'bg-emerald-500',
 		warning: 'bg-amber-500',

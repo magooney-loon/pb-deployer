@@ -31,11 +31,9 @@
 		children?: import('svelte').Snippet;
 	} = $props();
 
-	// Base styles that apply to all buttons
 	const baseStyles =
 		'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed border';
 
-	// Size variants
 	const sizeVariants = {
 		xs: 'px-2 py-1 text-xs',
 		sm: 'px-3 py-1.5 text-sm',
@@ -44,7 +42,6 @@
 		xl: 'px-8 py-4 text-lg'
 	};
 
-	// Color and variant combinations - Vercel-inspired
 	const variantStyles = {
 		primary: {
 			blue: 'border-black bg-black text-white hover:bg-gray-800 hover:border-gray-800 focus:ring-gray-500 disabled:hover:bg-black shadow-sm',
@@ -113,7 +110,6 @@
 		}
 	};
 
-	// Icon spacing based on size
 	const iconSpacing = {
 		xs: { left: 'mr-1', right: 'ml-1' },
 		sm: { left: 'mr-1.5', right: 'ml-1.5' },

@@ -1,7 +1,9 @@
 import { writable, type Writable } from 'svelte/store';
 import { browser } from '$app/environment';
 
-// Settings interfaces
+const LOCKSCREEN_PASSWORD = '123a';
+const STORAGE_KEY_PASSWORD = 'pb-deployer-lockscreen-password';
+
 export interface SettingsData {
 	security: SecuritySettings;
 	notifications: NotificationSettings;
@@ -22,7 +24,6 @@ export interface NotificationSettings {
 	notifyOnServerStatus: boolean;
 }
 
-// Default settings
 const defaultSettings: SettingsData = {
 	security: {
 		lockscreenEnabled: false,
@@ -39,7 +40,6 @@ const defaultSettings: SettingsData = {
 	}
 };
 
-// Settings service using localStorage
 export class SettingsService {
 	private readonly STORAGE_KEY = 'pb-deployer-settings';
 
@@ -75,13 +75,11 @@ export class SettingsService {
 	}
 
 	async getSettings(): Promise<SettingsData> {
-		// Simulate API delay for consistency with UI expectations
 		await new Promise((resolve) => setTimeout(resolve, 100));
 		return this.getStoredSettings();
 	}
 
 	async updateSettings(newSettings: Partial<SettingsData>): Promise<SettingsData> {
-		// Simulate API delay
 		await new Promise((resolve) => setTimeout(resolve, 200));
 
 		const currentSettings = this.getStoredSettings();
@@ -96,11 +94,9 @@ export class SettingsService {
 	}
 
 	async testTelegramConnection(apiKey: string, chatId: string): Promise<boolean> {
-		// Simulate API call
 		await new Promise((resolve) => setTimeout(resolve, 800));
 
 		// Mock validation - in production, this would make an actual API call
-		// For now, just check if the API key looks like a valid Telegram bot token
 		const botTokenPattern = /^\d+:[A-Za-z0-9_-]+$/;
 		const isValidToken = botTokenPattern.test(apiKey);
 		const isValidChatId = chatId.length > 0 && (chatId.startsWith('@') || /^-?\d+$/.test(chatId));
@@ -111,11 +107,6 @@ export class SettingsService {
 
 export const settingsService = new SettingsService();
 
-// Lockscreen constants
-const LOCKSCREEN_PASSWORD = '123a';
-const STORAGE_KEY_PASSWORD = 'pb-deployer-lockscreen-password';
-
-// Lockscreen state interface
 interface LockscreenState {
 	isLocked: boolean;
 	isEnabled: boolean;
@@ -124,14 +115,12 @@ interface LockscreenState {
 	lastActivity: number;
 }
 
-// Lockscreen store using Svelte stores
 class LockscreenStore {
 	private store: Writable<LockscreenState>;
 	private autoLockTimer: ReturnType<typeof setInterval> | null = null;
 	private initialized = false;
 
 	constructor() {
-		// Initialize store with default values
 		this.store = writable<LockscreenState>({
 			isLocked: false,
 			isEnabled: false,
@@ -140,7 +129,6 @@ class LockscreenStore {
 			lastActivity: Date.now()
 		});
 
-		// Initialize browser-specific features only in browser
 		if (browser) {
 			this.initializeBrowserFeatures();
 		}
@@ -205,12 +193,10 @@ class LockscreenStore {
 				}
 				return state;
 			});
-		}, 10000); // Check every 10 seconds
+		}, 10000);
 	}
 
-	// Public methods
 	subscribe(run: (value: LockscreenState) => void) {
-		// Ensure browser features are initialized
 		if (browser && !this.initialized) {
 			this.initializeBrowserFeatures();
 		}
@@ -311,7 +297,6 @@ export const lockscreenStore = (() => {
 	return _lockscreenStore;
 })();
 
-// Helper functions for easy access
 export function isLocked(): boolean {
 	return lockscreenStore.state.isLocked;
 }
@@ -343,7 +328,6 @@ export function setLockscreenPassword(password: string) {
 // Create a safe wrapper for the lockscreen state that works in SSR
 export const lockscreenState = {
 	subscribe: (run: (value: LockscreenState) => void) => {
-		// Return a safe default state for SSR
 		if (!browser) {
 			const defaultState: LockscreenState = {
 				isLocked: false,

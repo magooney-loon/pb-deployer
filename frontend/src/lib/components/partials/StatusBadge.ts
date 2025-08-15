@@ -1,17 +1,12 @@
 import type { Server, App } from '$lib/api/index.js';
 
-// Common status badge variant type
 export type StatusBadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'gray';
 
-// Status badge result interface
 export interface StatusBadgeResult {
 	text: string;
 	variant: StatusBadgeVariant;
 }
 
-/**
- * Get consistent server status badge information
- */
 export function getServerStatusBadge(server: Server): StatusBadgeResult {
 	if (server.setup_complete && server.security_locked) {
 		return {
@@ -31,9 +26,6 @@ export function getServerStatusBadge(server: Server): StatusBadgeResult {
 	}
 }
 
-/**
- * Get consistent app status badge information
- */
 export function getAppStatusBadge(app: App): StatusBadgeResult {
 	switch (app.status) {
 		case 'online':
@@ -54,9 +46,6 @@ export function getAppStatusBadge(app: App): StatusBadgeResult {
 	}
 }
 
-/**
- * Get status icon for apps (emoji representation)
- */
 export function getAppStatusIcon(status: string): string {
 	switch (status) {
 		case 'online':
@@ -68,9 +57,6 @@ export function getAppStatusIcon(status: string): string {
 	}
 }
 
-/**
- * Format timestamp consistently across the app
- */
 export function formatTimestamp(timestamp: string): string {
 	try {
 		return new Date(timestamp).toLocaleString();

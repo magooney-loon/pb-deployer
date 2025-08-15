@@ -236,7 +236,6 @@ export class AppListLogic {
 		window.open(`https://${domain}`, '_blank');
 	}
 
-	// Helper methods for the component
 	public formatTimestamp(timestamp: string): string {
 		return formatTimestamp(timestamp);
 	}

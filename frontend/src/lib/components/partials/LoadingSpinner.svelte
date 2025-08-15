@@ -13,14 +13,12 @@
 		class?: string;
 	} = $props();
 
-	// Size variants
 	const sizeClasses = {
 		sm: 'h-4 w-4',
 		md: 'h-8 w-8',
 		lg: 'h-12 w-12'
 	};
 
-	// Color variants - Vercel-style muted colors
 	const colorClasses = {
 		blue: 'border-gray-900 dark:border-gray-100',
 		gray: 'border-gray-400 dark:border-gray-600',

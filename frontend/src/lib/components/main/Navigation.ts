@@ -15,7 +15,6 @@ export class NavigationLogic {
 	private state: NavigationState;
 	private stateUpdateCallback?: (state: NavigationState) => void;
 
-	// Navigation items configuration
 	public readonly navItems: NavigationItem[] = [
 		{ href: '/', label: 'Dashboard', icon: '📊' },
 		{ href: '/servers', label: 'Servers', icon: '🖥️' },
@@ -71,7 +70,6 @@ export class NavigationLogic {
 		themeStore.toggle();
 	}
 
-	// Helper method to handle navigation item click
 	public handleNavItemClick(href: string): void {
 		this.updateCurrentPath(href);
 		this.closeMobileMenu();

@@ -5,7 +5,6 @@
 	import AppCreateModal from '$lib/components/modals/AppCreateModal.svelte';
 	import { Button, Toast, EmptyState, LoadingSpinner, StatusBadge } from '$lib/components/partials';
 
-	// Define the app form data type
 	interface AppFormData {
 		name: string;
 		server_id: string;
@@ -16,25 +15,20 @@
 		version_notes: string;
 	}
 
-	// Create logic instance
 	const logic = new AppListLogic();
 	let state = $state<AppListState>(logic.getState());
 
-	// Update state when logic changes
 	logic.onStateUpdate((newState) => {
 		state = newState;
 	});
 
-	// Make available servers reactive to state changes
 	let availableServers = $derived(state.servers.filter((s) => s.setup_complete));
 
 	onMount(async () => {
 		await logic.initialize();
 	});
 
-	// Handle app creation from modal
 	async function handleCreateApp(appData: AppFormData): Promise<void> {
-		// Update the logic's newApp state with the form data
 		logic.updateNewApp('name', appData.name);
 		logic.updateNewApp('server_id', appData.server_id);
 		logic.updateNewApp('domain', appData.domain);

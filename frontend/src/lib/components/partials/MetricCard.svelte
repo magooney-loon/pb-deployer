@@ -19,7 +19,6 @@
 		class?: string;
 	} = $props();
 
-	// Color variants for accent colors - Vercel-style muted colors
 	const colorVariants = {
 		default: {
 			value: 'text-gray-900 dark:text-gray-100',
@@ -47,7 +46,6 @@
 		}
 	};
 
-	// Size variants
 	const sizeVariants = {
 		sm: {
 			padding: 'p-3',

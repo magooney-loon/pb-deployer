@@ -105,9 +105,8 @@ export class DashboardLogic {
 	}
 
 	public startAutoRefresh(): void {
-		this.stopAutoRefresh(); // Clear any existing intervals
+		this.stopAutoRefresh();
 
-		// Start countdown timer (updates every second)
 		this.countdownInterval = setInterval(() => {
 			const nextRefreshIn = this.state.nextRefreshIn - 1;
 			if (nextRefreshIn <= 0) {
@@ -117,7 +116,6 @@ export class DashboardLogic {
 			}
 		}, 1000);
 
-		// Start refresh timer (every 30 seconds)
 		this.refreshInterval = setInterval(async () => {
 			await this.loadData();
 		}, 30000);
@@ -141,31 +139,25 @@ export class DashboardLogic {
 	public getMetrics(): DashboardMetrics {
 		const { servers, apps } = this.state;
 
-		// Calculate ready servers
 		const readyServers = servers?.filter((s) => s.setup_complete) || [];
 
-		// Calculate online apps
 		const onlineApps = apps?.filter((a) => a.status === 'online') || [];
 
-		// Get recent items (limited)
 		const recentServers = servers?.slice(0, 3) || [];
 		const recentApps = apps?.slice(0, 5) || [];
 
-		// Server status counts
 		const serverStatusCounts = {
 			ready: readyServers.length,
 			setupRequired: servers?.filter((s) => !s.setup_complete).length || 0,
 			securityOptional: servers?.filter((s) => s.setup_complete && !s.security_locked).length || 0
 		};
 
-		// App status counts
 		const appStatusCounts = {
 			online: onlineApps.length,
 			offline: apps?.filter((a) => a.status === 'offline').length || 0,
 			unknown: apps?.filter((a) => a.status !== 'online' && a.status !== 'offline').length || 0
 		};
 
-		// Deployment info
 		const appsDeployed = apps?.filter((a) => a.current_version).length || 0;
 		const pendingDeployment = apps?.filter((a) => !a.current_version).length || 0;
 		const averageUptime =
@@ -190,7 +182,6 @@ export class DashboardLogic {
 		};
 	}
 
-	// Helper methods for the component
 	public getStatusIcon(status: string): string {
 		return getAppStatusIcon(status);
 	}

@@ -23,16 +23,13 @@
 		footer
 	}: Props = $props();
 
-	// Create logic instance
 	const logic = new ModalLogic({ open, title, size, closeable, onclose });
 	let state = $state<ModalState>(logic.getState());
 
-	// Update state when logic changes
 	logic.onStateUpdate((newState) => {
 		state = newState;
 	});
 
-	// Update props when they change
 	$effect(() => {
 		logic.updateProps({ open, title, size, closeable, onclose });
 	});

@@ -19,7 +19,6 @@ export class ModalLogic {
 	private onclose?: () => void;
 	private keydownHandler?: (event: KeyboardEvent) => void;
 
-	// Size classes configuration
 	public readonly sizeClasses = {
 		sm: 'max-w-md',
 		md: 'max-w-lg',
@@ -50,7 +49,6 @@ export class ModalLogic {
 		const previousOpen = this.state.open;
 		this.state = { ...this.state, ...updates };
 
-		// Handle body scroll when open state changes
 		if (previousOpen !== this.state.open) {
 			this.handleBodyScroll(this.state.open);
 		}
@@ -126,16 +124,13 @@ export class ModalLogic {
 		return this.state.size;
 	}
 
-	// Cleanup method to restore body scroll
 	public cleanup(): void {
 		if (typeof document !== 'undefined') {
 			document.body.style.overflow = '';
 		}
 	}
 
-	// Handle backdrop click
 	public handleBackdropClick(event: MouseEvent): void {
-		// Only close if clicking the backdrop itself, not the modal content
 		if (this.state.closeable && event.target === event.currentTarget) {
 			this.close();
 		}

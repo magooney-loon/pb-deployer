@@ -6,21 +6,17 @@
 	import { NavigationLogic, type NavigationState } from './Navigation.js';
 	import { transitionLink, getRouteTransitionName } from '$lib/utils/navigation';
 
-	// Create logic instance
 	const logic = new NavigationLogic(page.url.pathname);
 	let state = $state<NavigationState>(logic.getState());
 
-	// Update state when logic changes
 	logic.onStateUpdate((newState) => {
 		state = newState;
 	});
 
-	// Update path when page changes
 	$effect(() => {
 		logic.updateCurrentPath(page.url.pathname);
 	});
 
-	// Helper function to check if a path is active using reactive state
 	function isActive(path: string): boolean {
 		const normalizePath = (p: string) => (p === '/' ? p : p.endsWith('/') ? p.slice(0, -1) : p);
 		return normalizePath(state.currentPath) === normalizePath(path);

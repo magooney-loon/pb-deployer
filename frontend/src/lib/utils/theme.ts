@@ -3,7 +3,6 @@ import { browser } from '$app/environment';
 
 type Theme = 'light' | 'dark';
 
-// Initialize theme from localStorage or system preference
 function initTheme(): Theme {
 	if (!browser) return 'dark';
 
@@ -13,7 +12,6 @@ function initTheme(): Theme {
 			return stored;
 		}
 
-		// Check system preference
 		if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
 			return 'dark';
 		}
@@ -25,7 +23,6 @@ function initTheme(): Theme {
 	return 'light';
 }
 
-// Update HTML data-theme attribute
 function updateDOM(newTheme: Theme) {
 	if (!browser || typeof document === 'undefined') return;
 	try {
@@ -35,17 +32,14 @@ function updateDOM(newTheme: Theme) {
 	}
 }
 
-// Create writable store with initial theme
 const theme = writable<Theme>(initTheme());
 
-// Update DOM when theme changes (only in browser)
 if (browser) {
 	theme.subscribe((newTheme) => {
 		updateDOM(newTheme);
 	});
 }
 
-// Theme store object
 export const themeStore = {
 	subscribe: theme.subscribe,
 

@@ -31,7 +31,6 @@
 		children?: import('svelte').Snippet;
 	} = $props();
 
-	// Padding variants
 	const paddingVariants = {
 		none: '',
 		sm: 'p-3',
@@ -40,7 +39,6 @@
 		xl: 'p-8 sm:p-10'
 	};
 
-	// Shadow variants - Vercel-style subtle shadows
 	const shadowVariants = {
 		none: '',
 		sm: 'shadow-sm',
@@ -49,7 +47,6 @@
 		xl: 'shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_10px_15px_-3px_rgba(0,0,0,0.1)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_10px_15px_-3px_rgba(0,0,0,0.4)]'
 	};
 
-	// Rounded variants
 	const roundedVariants = {
 		none: '',
 		sm: 'rounded-sm',
@@ -59,16 +56,13 @@
 		full: 'rounded-full'
 	};
 
-	// Base card styles - Vercel-inspired
 	const baseStyles = 'bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800';
 
-	// Interactive styles - Vercel-style focus and interaction
 	const interactiveStyles =
 		clickable || href || onclick
 			? 'transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 dark:focus:ring-gray-100'
 			: '';
 
-	// Hover styles - Subtle Vercel-style hover
 	const hoverStyles = hover
 		? 'hover:shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_8px_12px_-2px_rgba(0,0,0,0.1)] dark:hover:shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_8px_12px_-2px_rgba(0,0,0,0.4)] hover:border-gray-300 dark:hover:border-gray-700'
 		: '';

@@ -6,7 +6,6 @@
 	import ServerCreateModal from '$lib/components/modals/ServerCreateModal.svelte';
 	import { Button, Toast, EmptyState, LoadingSpinner, StatusBadge } from '$lib/components/partials';
 
-	// Define the server form data type
 	interface ServerFormData {
 		name: string;
 		host: string;
@@ -17,11 +16,9 @@
 		manual_key_path: string;
 	}
 
-	// Create logic instance
 	const logic = new ServerListLogic();
 	let state = $state<ServerListState>(logic.getState());
 
-	// Update state when logic changes
 	logic.onStateUpdate((newState) => {
 		state = newState;
 	});
@@ -34,9 +31,7 @@
 		await logic.cleanup();
 	});
 
-	// Handle server creation from modal
 	async function handleCreateServer(serverData: ServerFormData): Promise<void> {
-		// Update the logic's newServer state with the form data
 		logic.updateNewServer('name', serverData.name);
 		logic.updateNewServer('host', serverData.host);
 		logic.updateNewServer('port', serverData.port);

@@ -7,14 +7,12 @@
 		intensity?: 'subtle' | 'medium' | 'strong';
 	} = $props();
 
-	// Intensity styles
 	const intensityStyles = {
 		subtle: 'bg-gray-950/90 backdrop-blur-sm',
 		medium: 'bg-gray-950/95 backdrop-blur-xl',
 		strong: 'bg-gray-950/98 backdrop-blur-2xl'
 	};
 
-	// Variant-specific gradient overlays
 	const variantStyles = {
 		default: 'from-gray-900/30 via-transparent to-gray-800/20',
 		splash: 'from-blue-950/10 via-transparent to-gray-900/20',

@@ -21,17 +21,14 @@
 		class?: string;
 	} = $props();
 
-	// Calculate percentage
 	let percentage = $derived(Math.min(Math.max((value / max) * 100, 0), 100));
 
-	// Size styles
 	const sizeStyles = {
 		sm: 'h-1',
 		md: 'h-2',
 		lg: 'h-3'
 	};
 
-	// Color styles
 	const colorStyles = {
 		blue: 'bg-blue-600 dark:bg-blue-500',
 		green: 'bg-green-600 dark:bg-green-500',
@@ -40,13 +37,10 @@
 		gray: 'bg-gray-600 dark:bg-gray-400'
 	};
 
-	// Background styles
 	const backgroundStyles = 'bg-gray-200 dark:bg-gray-700';
 
-	// Animation styles
 	const animationStyles = animated ? 'transition-all duration-300 ease-out' : '';
 
-	// Striped styles
 	const stripedStyles = striped
 		? 'bg-gradient-to-r from-transparent via-white/20 to-transparent bg-[length:1rem_1rem] animate-pulse'
 		: '';

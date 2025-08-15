@@ -36,7 +36,6 @@
 
 	let confirmationText = $state('');
 
-	// Reset confirmation text when modal opens/closes or item changes
 	$effect(() => {
 		if (!open || !item) {
 			confirmationText = '';
@@ -56,7 +55,6 @@
 		}
 	}
 
-	// Get display name for the item
 	let displayName = $derived(itemDisplayName || item?.name || 'Unknown');
 </script>
 

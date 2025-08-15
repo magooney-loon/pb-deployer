@@ -62,7 +62,6 @@
 		await handleSubmit(fakeEvent);
 	}
 
-	// Reset form when modal opens/closes
 	$effect(() => {
 		if (!open) {
 			resetForm();

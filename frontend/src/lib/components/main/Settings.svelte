@@ -12,7 +12,6 @@
 	import { slide } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
 
-	// State management
 	let settings: SettingsData | null = $state(null);
 	let loading = $state(true);
 	let saving = $state(false);
@@ -21,7 +20,6 @@
 	let successMessage = $state('');
 	let connectionTestResult = $state<boolean | null>(null);
 
-	// Form data with proper binding
 	let formData = $state({
 		lockscreenEnabled: false,
 		autoLockEnabled: false,
@@ -34,7 +32,6 @@
 		notifyOnServerStatus: false
 	});
 
-	// Auto-lock minute options for FormField select
 	const autoLockOptions = [
 		{ value: 5, label: '5 minutes' },
 		{ value: 10, label: '10 minutes' },
@@ -55,7 +52,6 @@
 			const data = await settingsService.getSettings();
 			settings = data;
 
-			// Update form data with loaded settings
 			formData = {
 				lockscreenEnabled: data.security.lockscreenEnabled,
 				autoLockEnabled: data.security.autoLockEnabled,
@@ -99,7 +95,6 @@
 
 			settings = await settingsService.updateSettings(updatedSettings);
 
-			// Update lockscreen store with new settings
 			updateLockscreenSettings({
 				lockscreenEnabled: formData.lockscreenEnabled,
 				autoLockEnabled: formData.autoLockEnabled,
@@ -107,11 +102,6 @@
 			});
 
 			successMessage = 'Settings saved successfully!';
-
-			// Clear success message after 3 seconds
-			setTimeout(() => {
-				successMessage = '';
-			}, 3000);
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to save settings. Please try again.';
 			console.error('Error saving settings:', err);
@@ -166,16 +156,13 @@
 		saveSettings();
 	}
 
-	// Reactive effects
 	$effect(() => {
-		// Disable auto-lock if lockscreen is disabled
 		if (!formData.lockscreenEnabled) {
 			formData.autoLockEnabled = false;
 		}
 	});
 
 	$effect(() => {
-		// Clear connection test result when credentials change
 		if (formData.telegramApiKey || formData.chatId) {
 			clearTestResult();
 		}

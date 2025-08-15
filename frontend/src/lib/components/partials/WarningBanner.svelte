@@ -21,7 +21,6 @@
 
 	let isDismissed = $state(false);
 
-	// Color variants - muted warning styles
 	const colorVariants = {
 		yellow:
 			'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/50 dark:border-amber-800/50 dark:text-amber-200',
@@ -30,7 +29,6 @@
 		gray: 'bg-gray-50 border-gray-200 text-gray-800 dark:bg-gray-900/50 dark:border-gray-700/50 dark:text-gray-200'
 	};
 
-	// Size variants
 	const sizeVariants = {
 		xs: 'px-2 py-1 text-xs',
 		sm: 'px-3 py-1.5 text-xs'

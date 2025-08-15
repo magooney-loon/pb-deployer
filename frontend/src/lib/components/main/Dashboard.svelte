@@ -11,16 +11,13 @@
 		RecentItemsCard
 	} from '$lib/components/partials/index.js';
 
-	// Create logic instance
 	const logic = new DashboardLogic();
 	let state = $state<DashboardState>(logic.getState());
 
-	// Update state when logic changes
 	logic.onStateUpdate((newState) => {
 		state = newState;
 	});
 
-	// Get computed metrics
 	let metrics = $derived(logic.getMetrics());
 
 	onMount(async () => {

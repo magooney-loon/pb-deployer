@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { slide } from 'svelte/transition';
+	import { quintOut } from 'svelte/easing';
 	let {
 		message,
 		type = 'error',
@@ -15,7 +17,6 @@
 		class?: string;
 	} = $props();
 
-	// Compact toast-style design
 	const typeStyles = {
 		error: {
 			container: 'bg-red-600/50 backdrop-blur-sm text-white shadow-xl border border-red-500',
@@ -60,7 +61,7 @@
 	<div
 		class="fixed right-4 bottom-4 left-4 z-50 mx-auto max-w-sm rounded-lg p-3 {styles.container} {className}"
 	>
-		<div class="flex items-center gap-3">
+		<div transition:slide={{ duration: 300, easing: quintOut }} class="flex items-center gap-3">
 			<div class="flex-shrink-0">
 				<span class="text-lg {styles.icon}">{currentIcon}</span>
 			</div>

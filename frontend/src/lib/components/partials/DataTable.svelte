@@ -57,7 +57,6 @@
 	let hasData = $derived(data && data.length > 0);
 	let showEmptyState = $derived(!loading && !hasData);
 
-	// Table styling - Vercel-inspired
 	let containerClasses = $derived(
 		`overflow-hidden bg-white border border-gray-200 rounded-lg dark:bg-gray-950 dark:border-gray-800 ${className}`
 	);

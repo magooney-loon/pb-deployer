@@ -1,4 +1,3 @@
-// Export all partial components for easy importing
 export { default as Toast } from './Toast.svelte';
 export { default as LoadingSpinner } from './LoadingSpinner.svelte';
 export { default as MetricCard } from './MetricCard.svelte';
@@ -13,7 +12,6 @@ export { default as EmptyState } from './EmptyState.svelte';
 export { default as DataTable } from './DataTable.svelte';
 export { default as WarningBanner } from './WarningBanner.svelte';
 
-// Export status utilities
 export {
 	getServerStatusBadge,
 	getAppStatusBadge,
