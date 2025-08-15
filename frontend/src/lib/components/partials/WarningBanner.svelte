@@ -23,10 +23,10 @@
 
 	const colorVariants = {
 		yellow:
-			'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/50 dark:border-amber-800/50 dark:text-amber-200',
-		blue: 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-950/50 dark:border-blue-800/50 dark:text-blue-200',
-		red: 'bg-red-50 border-red-200 text-red-800 dark:bg-red-950/50 dark:border-red-800/50 dark:text-red-200',
-		gray: 'bg-gray-50 border-gray-200 text-gray-800 dark:bg-gray-900/50 dark:border-gray-700/50 dark:text-gray-200'
+			'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950 dark:border-amber-800/50 dark:text-amber-200',
+		blue: 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-950 dark:border-blue-800/50 dark:text-blue-200',
+		red: 'bg-red-50 border-red-200 text-red-800 dark:bg-red-950 dark:border-red-800/50 dark:text-red-200',
+		gray: 'bg-gray-50 border-gray-200 text-gray-800 dark:bg-gray-900 dark:border-gray-700/50 dark:text-gray-200'
 	};
 
 	const sizeVariants = {
