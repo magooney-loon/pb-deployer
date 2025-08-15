@@ -1,38 +1,43 @@
-# sv
+# pb-deployer Frontend
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Modern SvelteKit dashboard for deployment orchestration with real-time WebSocket updates and component-driven architecture.
 
-## Creating a project
+## Features
 
-If you're seeing this, you've probably already done this step. Congrats!
+- **Real-time Operations**: WebSocket integration for live deployment tracking
+- **Component Library**: Comprehensive partial components with consistent design system
+- **Type-safe Architecture**: TypeScript throughout with validated interfaces
+- **Responsive Design**: Mobile-first approach with Tailwind CSS
+- **Performance Optimized**: SvelteKit SSR with adaptive rendering
+- **State Management**: Reactive stores with persistent session handling
 
-```bash
-# create a new project in the current directory
-npx sv create
-
-# create a new project in my-app
-npx sv create my-app
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+## Quick Start
 
 ```bash
-npm run dev
+# Install dependencies + development build
+go run cmd/scripts/main.go --install
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+# Development build only
+go run cmd/scripts/main.go
+
+# Production build
+go run cmd/scripts/main.go --production
 ```
 
-## Building
+## Architecture
 
-To create a production version of your app:
+- **`src/lib/components/partials/`**: Reusable UI components (Button, DataTable, FormField, etc.)
+- **`src/routes/`**: SvelteKit routing with layout inheritance
+- **`src/lib/stores/`**: Reactive state management
+- **WebSocket client**: Real-time deployment status updates
+- **Type definitions**: Shared interfaces with backend services
 
-```bash
-npm run build
-```
+## Component System
 
-You can preview the production build with `npm run preview`.
+15+ production-ready components with consistent APIs:
+- Form elements with validation
+- Data visualization (tables, metrics, progress)
+- Interactive feedback (toasts, modals, loading states)
+- Layout primitives with responsive behavior
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+See `src/lib/components/partials/README.md` for component documentation.

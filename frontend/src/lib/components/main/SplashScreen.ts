@@ -15,7 +15,7 @@ export const splashScreenState = writable<SplashScreenState>(initialState);
 export class SplashScreenManager {
 	private static instance: SplashScreenManager;
 	private progressTimer: number | null = null;
-	private readonly loadingDuration = 750; // 0.75 seconds
+	private readonly loadingDuration = 900; // 0.9 seconds
 	private readonly updateInterval = 16; // ~60fps
 
 	static getInstance(): SplashScreenManager {
