@@ -171,7 +171,7 @@
 
 <div class="space-y-8">
 	<!-- Page Header -->
-	<header class="border-b border-gray-200 pb-6 dark:border-gray-800">
+	<header>
 		<h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Settings</h1>
 		<p class="mt-2 text-gray-600 dark:text-gray-400">
 			Configure security, notifications, and application preferences
