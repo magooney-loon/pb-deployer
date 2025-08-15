@@ -12,7 +12,6 @@ import (
 	"time"
 )
 
-// Color codes for terminal output
 const (
 	Reset  = "\033[0m"
 	Red    = "\033[31m"
@@ -359,28 +358,28 @@ func printHeader(title string) {
 	fmt.Printf("%s", Reset)
 }
 
-func printStep(emoji, format string, args ...interface{}) {
+func printStep(emoji, format string, args ...any) {
 	timestamp := time.Now().Format("15:04:05")
 	message := fmt.Sprintf(format, args...)
 	fmt.Printf("%s%s%s %s %s%s\n", Gray, timestamp, Reset, emoji, message, Reset)
 }
 
-func printSuccess(format string, args ...interface{}) {
+func printSuccess(format string, args ...any) {
 	message := fmt.Sprintf(format, args...)
 	fmt.Printf("%s✅ %s%s\n", Green, message, Reset)
 }
 
-func printError(format string, args ...interface{}) {
+func printError(format string, args ...any) {
 	message := fmt.Sprintf(format, args...)
 	fmt.Printf("%s❌ ERROR: %s%s\n", Red, message, Reset)
 }
 
-func printWarning(format string, args ...interface{}) {
+func printWarning(format string, args ...any) {
 	message := fmt.Sprintf(format, args...)
 	fmt.Printf("%s⚠️  %s%s\n", Yellow, message, Reset)
 }
 
-func printInfo(format string, args ...interface{}) {
+func printInfo(format string, args ...any) {
 	message := fmt.Sprintf(format, args...)
 	fmt.Printf("%s%s%s\n", Cyan, message, Reset)
 }
