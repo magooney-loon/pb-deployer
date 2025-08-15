@@ -58,6 +58,14 @@ func main() {
 
 	printStep("📁", "Project root: %s", rootDir)
 
+	// Install Go dependencies if requested
+	if *installDeps {
+		if err := installGoDependencies(rootDir); err != nil {
+			printError("Go dependency installation failed: %v", err)
+			os.Exit(1)
+		}
+	}
+
 	// Handle production build
 	if *production {
 		if err := productionBuild(rootDir, *installDeps, *distDir); err != nil {
@@ -105,6 +113,13 @@ func productionBuild(rootDir string, installDeps bool, distDir string) error {
 		return fmt.Errorf("failed to create dist directory: %w", err)
 	}
 	printSuccess("Output directory prepared: %s", outputDir)
+
+	// Install Go dependencies if requested
+	if installDeps {
+		if err := installGoDependencies(rootDir); err != nil {
+			return fmt.Errorf("Go dependency installation failed: %w", err)
+		}
+	}
 
 	// Build frontend
 	if err := buildFrontendProduction(rootDir, installDeps); err != nil {
@@ -165,6 +180,38 @@ func validateFrontendSetup(frontendDir string) error {
 	}
 
 	printSuccess("Frontend setup validated")
+	return nil
+}
+
+func installGoDependencies(rootDir string) error {
+	printStep("🏗️", "Installing Go dependencies...")
+
+	// Run go mod tidy first
+	printStep("🧹", "Tidying Go modules...")
+	cmd := exec.Command("go", "mod", "tidy")
+	cmd.Dir = rootDir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	start := time.Now()
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("go mod tidy failed: %w", err)
+	}
+	printSuccess("Go modules tidied in %s", time.Since(start).Round(time.Millisecond))
+
+	// Run go mod download
+	printStep("⬇️", "Downloading Go modules...")
+	cmd = exec.Command("go", "mod", "download")
+	cmd.Dir = rootDir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	start = time.Now()
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("go mod download failed: %w", err)
+	}
+	printSuccess("Go modules downloaded in %s", time.Since(start).Round(time.Millisecond))
+
 	return nil
 }
 
