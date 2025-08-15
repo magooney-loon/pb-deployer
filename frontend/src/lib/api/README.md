@@ -4,29 +4,6 @@ TypeScript API client for PocketBase deployment management with full CRUD operat
 
 Features centralized client management, resource-specific CRUD operations, and comprehensive type definitions.
 
-## 🚀 Quick Start
-
-```typescript
-import { ApiClient } from '$lib/api';
-
-// Initialize client
-const api = new ApiClient('http://localhost:8090');
-
-// Get all apps
-const { apps } = await api.apps.getApps();
-
-// Create new server
-const server = await api.servers.createServer({
-    name: 'production',
-    host: '192.168.1.100',
-    port: 22,
-    root_username: 'root',
-    app_username: 'pbuser',
-    use_ssh_agent: true,
-    manual_key_path: ''
-});
-```
-
 ## Architecture
 
 - **Centralized Client**: Single `ApiClient` instance manages all operations
@@ -101,9 +78,9 @@ const server = await api.servers.createServer({
 });
 
 // Update server
-await api.servers.updateServer('server_id', { 
+await api.servers.updateServer('server_id', {
     setup_complete: true,
-    security_locked: true 
+    security_locked: true
 });
 
 // Delete server
