@@ -7,7 +7,6 @@ import (
 	"github.com/pocketbase/pocketbase/tools/types"
 )
 
-// App represents a PocketBase application deployed on a server
 type App struct {
 	ID             string    `json:"id" db:"id"`
 	Created        time.Time `json:"created" db:"created"`
@@ -21,50 +20,41 @@ type App struct {
 	Status         string    `json:"status" db:"status"` // online/offline/unknown via /api/health ping
 }
 
-// NewApp creates a new App instance with default values
 func NewApp() *App {
 	return &App{
 		Status: "offline",
 	}
 }
 
-// TableName returns the collection name for the App model
 func (a *App) TableName() string {
 	return "apps"
 }
 
-// GetHealthURL returns the health check URL for this app
 func (a *App) GetHealthURL() string {
 	return "https://" + a.Domain + "/api/health"
 }
 
-// IsOnline checks if the app status is online
 func (a *App) IsOnline() bool {
 	return a.Status == "online"
 }
 
-// CreateCollection creates the apps collection in the database
 func (a *App) CreateCollection(app core.App) error {
 	app.Logger().Info("createAppsCollection: Starting apps collection creation")
 
-	// Check if collection already exists
 	existingCollection, err := app.FindCollectionByNameOrId("apps")
 	if err == nil && existingCollection != nil {
 		app.Logger().Info("createAppsCollection: Apps collection already exists")
 		return nil
 	}
 
-	// Find servers collection for relation
 	serversCollection, err := app.FindCollectionByNameOrId("servers")
 	if err != nil {
 		app.Logger().Error("createAppsCollection: Servers collection not found", "error", err)
 		return err
 	}
 
-	// Create new collection
 	collection := core.NewBaseCollection("apps")
 
-	// Add relation field to server FIRST
 	collection.Fields.Add(&core.RelationField{
 		Name:          "server_id",
 		Required:      true,
@@ -79,7 +69,6 @@ func (a *App) CreateCollection(app core.App) error {
 	collection.UpdateRule = types.Pointer("")
 	collection.DeleteRule = types.Pointer("")
 
-	// Add other fields
 	collection.Fields.Add(&core.TextField{
 		Name:     "name",
 		Required: true,
@@ -113,7 +102,6 @@ func (a *App) CreateCollection(app core.App) error {
 		Values: []string{"online", "offline", "unknown"},
 	})
 
-	// Add auto-date fields
 	collection.Fields.Add(&core.AutodateField{
 		Name:     "created",
 		OnCreate: true,
@@ -125,13 +113,11 @@ func (a *App) CreateCollection(app core.App) error {
 		OnUpdate: true,
 	})
 
-	// Add indexes for common queries and relations
 	collection.AddIndex("idx_apps_name", true, "name", "")
 	collection.AddIndex("idx_apps_server", false, "server_id", "")
 	collection.AddIndex("idx_apps_domain", false, "domain", "")
 	collection.AddIndex("idx_apps_status", false, "status", "")
 
-	// Save the collection
 	if err := app.Save(collection); err != nil {
 		app.Logger().Error("createAppsCollection: Failed to save apps collection", "error", err)
 		return err

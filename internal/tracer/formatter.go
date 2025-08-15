@@ -11,7 +11,6 @@ import (
 	"time"
 )
 
-// ConsoleFormatter formats trace data for console output
 type ConsoleFormatter struct {
 	EnableColors     bool
 	ShowTimestamp    bool
@@ -21,7 +20,6 @@ type ConsoleFormatter struct {
 	MaxFieldValueLen int
 }
 
-// NewConsoleFormatter creates a new console formatter
 func NewConsoleFormatter() *ConsoleFormatter {
 	return &ConsoleFormatter{
 		EnableColors:     true,
@@ -33,11 +31,9 @@ func NewConsoleFormatter() *ConsoleFormatter {
 	}
 }
 
-// Format formats a span for console output
 func (f *ConsoleFormatter) Format(span *SpanData) ([]byte, error) {
 	var buf bytes.Buffer
 
-	// Format timestamp
 	if f.ShowTimestamp {
 		timestamp := span.StartTime.Format(f.TimestampFormat)
 		if f.EnableColors {

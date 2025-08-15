@@ -8,7 +8,6 @@ import (
 	"github.com/pocketbase/pocketbase/tools/types"
 )
 
-// Server represents a remote server where PocketBase apps can be deployed
 type Server struct {
 	ID             string    `json:"id" db:"id"`
 	Created        time.Time `json:"created" db:"created"`
@@ -24,12 +23,10 @@ type Server struct {
 	SecurityLocked bool      `json:"security_locked" db:"security_locked"`
 }
 
-// TableName returns the collection name for the Server model
 func (s *Server) TableName() string {
 	return "servers"
 }
 
-// NewServer creates a new Server instance with default values
 func NewServer() *Server {
 	return &Server{
 		Port:           22,
@@ -41,7 +38,6 @@ func NewServer() *Server {
 	}
 }
 
-// GetSSHAddress returns the SSH connection address
 func (s *Server) GetSSHAddress() string {
 	if s.Port == 22 {
 		return s.Host
@@ -49,33 +45,27 @@ func (s *Server) GetSSHAddress() string {
 	return fmt.Sprintf("%s:%d", s.Host, s.Port)
 }
 
-// IsReadyForDeployment checks if server is properly set up for deployments
 func (s *Server) IsReadyForDeployment() bool {
 	return s.SetupComplete && s.SecurityLocked
 }
 
-// IsSetupComplete checks if the initial server setup is finished
 func (s *Server) IsSetupComplete() bool {
 	return s.SetupComplete
 }
 
-// IsSecurityLocked checks if security hardening is applied
 func (s *Server) IsSecurityLocked() bool {
 	return s.SecurityLocked
 }
 
-// CreateCollection creates the servers collection in the database
 func (s *Server) CreateCollection(app core.App) error {
 	app.Logger().Info("createServersCollection: Starting servers collection creation")
 
-	// Check if collection already exists
 	existingCollection, err := app.FindCollectionByNameOrId("servers")
 	if err == nil && existingCollection != nil {
 		app.Logger().Info("createServersCollection: Servers collection already exists")
 		return nil
 	}
 
-	// Create new collection
 	collection := core.NewBaseCollection("servers")
 
 	// Set permissions to allow all operations (local-only tool)
@@ -85,7 +75,6 @@ func (s *Server) CreateCollection(app core.App) error {
 	collection.UpdateRule = types.Pointer("")
 	collection.DeleteRule = types.Pointer("")
 
-	// Add required fields
 	collection.Fields.Add(&core.TextField{
 		Name:     "name",
 		Required: true,
@@ -105,7 +94,6 @@ func (s *Server) CreateCollection(app core.App) error {
 		Max:      types.Pointer(65535.0),
 	})
 
-	// SSH authentication fields
 	collection.Fields.Add(&core.TextField{
 		Name:     "root_username",
 		Required: true,
@@ -127,7 +115,6 @@ func (s *Server) CreateCollection(app core.App) error {
 		Max:  500,
 	})
 
-	// Status fields
 	collection.Fields.Add(&core.BoolField{
 		Name: "setup_complete",
 	})
@@ -136,7 +123,6 @@ func (s *Server) CreateCollection(app core.App) error {
 		Name: "security_locked",
 	})
 
-	// Add auto-date fields
 	collection.Fields.Add(&core.AutodateField{
 		Name:     "created",
 		OnCreate: true,
@@ -148,12 +134,10 @@ func (s *Server) CreateCollection(app core.App) error {
 		OnUpdate: true,
 	})
 
-	// Add indexes for common queries
 	collection.AddIndex("idx_servers_name", true, "name", "")
 	collection.AddIndex("idx_servers_host", false, "host", "")
 	collection.AddIndex("idx_servers_status", false, "setup_complete", "security_locked")
 
-	// Save the collection
 	if err := app.Save(collection); err != nil {
 		app.Logger().Error("createServersCollection: Failed to save servers collection", "error", err)
 		return err

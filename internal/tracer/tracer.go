@@ -23,7 +23,6 @@ func SetDefault(t Tracer) {
 	defaultTracer = t
 }
 
-// GetDefault gets the default tracer
 func GetDefault() Tracer {
 	if defaultTracer == nil {
 		return NewNoOpTracer()
@@ -31,7 +30,6 @@ func GetDefault() Tracer {
 	return defaultTracer
 }
 
-// Implementation of the core Tracer interface
 type tracer struct {
 	name       string
 	level      Level
@@ -47,7 +45,6 @@ type tracer struct {
 	closed     int32
 }
 
-// NewTracer creates a new tracer instance
 func NewTracer(name string, config Config) Tracer {
 	t := &tracer{
 		name:       name,
@@ -78,23 +75,19 @@ func NewTracer(name string, config Config) Tracer {
 	return t
 }
 
-// StartSpan starts a new span for an operation
 func (t *tracer) StartSpan(ctx context.Context, operation string) Span {
 	if atomic.LoadInt32(&t.closed) == 1 {
 		return newNoOpSpan()
 	}
 
-	// Extract parent context if exists
 	parentCtx := extractSpanContext(ctx)
 
-	// Generate new span and trace IDs
 	spanID := generateSpanID()
 	traceID := parentCtx.TraceID
 	if traceID == (TraceID{}) {
 		traceID = generateTraceID()
 	}
 
-	// Check if we should sample
 	sampled := t.sampler.ShouldSample(ctx, operation, spanID, parentCtx.SpanID)
 
 	span := &span{
@@ -110,15 +103,12 @@ func (t *tracer) StartSpan(ctx context.Context, operation string) Span {
 		status:       StatusOK,
 	}
 
-	// Copy tracer fields
 	t.mu.RLock()
 	maps.Copy(span.fields, t.fields)
 	t.mu.RUnlock()
 
-	// Create context with span
 	span.ctx = context.WithValue(ctx, spanContextKey{}, span)
 
-	// Call hooks
 	t.callOnSpanStart(span.toSpanData())
 
 	t.wg.Add(1)
@@ -126,7 +116,6 @@ func (t *tracer) StartSpan(ctx context.Context, operation string) Span {
 	return span
 }
 
-// WithField adds a field to all future spans
 func (t *tracer) WithField(key string, value any) Tracer {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -143,14 +132,12 @@ func (t *tracer) WithField(key string, value any) Tracer {
 		bufferSize: t.bufferSize,
 	}
 
-	// Copy existing fields
 	maps.Copy(newTracer.fields, t.fields)
 	newTracer.fields[key] = value
 
 	return newTracer
 }
 
-// WithFields adds multiple fields to all future spans
 func (t *tracer) WithFields(fields Fields) Tracer {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -167,30 +154,25 @@ func (t *tracer) WithFields(fields Fields) Tracer {
 		bufferSize: t.bufferSize,
 	}
 
-	// Copy existing fields
 	maps.Copy(newTracer.fields, t.fields)
 	maps.Copy(newTracer.fields, fields)
 
 	return newTracer
 }
 
-// SetLevel sets the minimum trace level
 func (t *tracer) SetLevel(level Level) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.level = level
 }
 
-// Close closes the tracer and flushes any pending data
 func (t *tracer) Close() error {
 	if !atomic.CompareAndSwapInt32(&t.closed, 0, 1) {
 		return nil
 	}
 
-	// Wait for all spans to complete
 	t.wg.Wait()
 
-	// Flush exporter if present
 	if t.exporter != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -207,7 +189,6 @@ func (t *tracer) Close() error {
 	return nil
 }
 
-// callOnSpanStart calls all hooks for span start
 func (t *tracer) callOnSpanStart(spanData *SpanData) {
 	t.mu.RLock()
 	hooks := t.hooks
@@ -218,7 +199,6 @@ func (t *tracer) callOnSpanStart(spanData *SpanData) {
 	}
 }
 
-// callOnSpanEnd calls all hooks for span end
 func (t *tracer) callOnSpanEnd(spanData *SpanData) {
 	t.mu.RLock()
 	hooks := t.hooks
@@ -229,7 +209,6 @@ func (t *tracer) callOnSpanEnd(spanData *SpanData) {
 	}
 }
 
-// Span implementation
 type span struct {
 	tracer       *tracer
 	spanID       SpanID
@@ -249,17 +228,14 @@ type span struct {
 	ended        int32
 }
 
-// End marks the span as complete
 func (s *span) End() {
 	s.endWithStatus(StatusOK, nil)
 }
 
-// EndWithError marks the span as complete with an error
 func (s *span) EndWithError(err error) {
 	s.endWithStatus(StatusError, err)
 }
 
-// endWithStatus is the internal method to end a span
 func (s *span) endWithStatus(status Status, err error) {
 	if !atomic.CompareAndSwapInt32(&s.ended, 0, 1) {
 		return
@@ -284,20 +260,17 @@ func (s *span) endWithStatus(status Status, err error) {
 	// Call hooks
 	s.tracer.callOnSpanEnd(s.toSpanData())
 
-	// Log if appropriate level
 	s.logSpanEnd()
 
 	s.tracer.wg.Done()
 }
 
-// SetStatus sets the span status
 func (s *span) SetStatus(status Status) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.status = status
 }
 
-// SetField adds a field to this span
 func (s *span) SetField(key string, value any) Span {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -305,17 +278,13 @@ func (s *span) SetField(key string, value any) Span {
 	return s
 }
 
-// SetFields adds multiple fields to this span
 func (s *span) SetFields(fields Fields) Span {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for k, v := range fields {
-		s.fields[k] = v
-	}
+	maps.Copy(s.fields, fields)
 	return s
 }
 
-// Event logs an event within the span
 func (s *span) Event(name string, fields ...Field) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -333,26 +302,21 @@ func (s *span) Event(name string, fields ...Field) {
 	s.events = append(s.events, event)
 }
 
-// StartChild starts a child span
 func (s *span) StartChild(operation string) Span {
 	return s.tracer.StartSpan(s.ctx, operation)
 }
 
-// Context returns the context with span information
 func (s *span) Context() context.Context {
 	return s.ctx
 }
 
-// toSpanData converts span to SpanData
 func (s *span) toSpanData() *SpanData {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Copy fields to avoid race conditions
 	fields := make(Fields)
 	maps.Copy(fields, s.fields)
 
-	// Copy events
 	events := make([]Event, len(s.events))
 	copy(events, s.events)
 
@@ -371,7 +335,6 @@ func (s *span) toSpanData() *SpanData {
 	}
 }
 
-// logSpanEnd logs span completion if appropriate
 func (s *span) logSpanEnd() {
 	level := LevelDebug
 	if s.status == StatusError {
@@ -408,10 +371,8 @@ func (s *span) logSpanEnd() {
 	s.tracer.logger.Info(msg, fields...)
 }
 
-// Context key for span storage
 type spanContextKey struct{}
 
-// extractSpanContext extracts span context from context
 func extractSpanContext(ctx context.Context) SpanContext {
 	if span, ok := ctx.Value(spanContextKey{}).(*span); ok {
 		return SpanContext{
@@ -424,7 +385,6 @@ func extractSpanContext(ctx context.Context) SpanContext {
 	return SpanContext{}
 }
 
-// SpanFromContext returns the span from context
 func SpanFromContext(ctx context.Context) Span {
 	if span, ok := ctx.Value(spanContextKey{}).(*span); ok {
 		return span
@@ -432,21 +392,17 @@ func SpanFromContext(ctx context.Context) Span {
 	return newNoOpSpan()
 }
 
-// generateSpanID generates a new span ID
 func generateSpanID() SpanID {
 	var id SpanID
 	rand.Read(id[:])
 	return id
 }
 
-// generateTraceID generates a new trace ID
 func generateTraceID() TraceID {
 	var id TraceID
 	rand.Read(id[:])
 	return id
 }
-
-// NoOp implementations for when tracing is disabled
 
 type noOpTracer struct{}
 
@@ -486,8 +442,6 @@ func (s *noOpSpan) SetFields(fields Fields) Span        { return s }
 func (s *noOpSpan) Event(name string, fields ...Field)  {}
 func (s *noOpSpan) StartChild(operation string) Span    { return s }
 func (s *noOpSpan) Context() context.Context            { return context.Background() }
-
-// Sampler implementations
 
 type alwaysSampler struct{}
 
@@ -533,7 +487,6 @@ func (s *probabilitySampler) ShouldSample(ctx context.Context, operation string,
 	return float64(val)/float64(^uint64(0)) < s.probability
 }
 
-// tracerLogger implements Logger for the tracer
 type tracerLogger struct {
 	tracer *tracer
 	fields Fields
@@ -610,7 +563,6 @@ func (l *tracerLogger) log(level Level, msg string, fields ...Field) {
 		return
 	}
 
-	// Build log entry
 	entry := map[string]any{
 		"timestamp": time.Now(),
 		"level":     level.String(),
@@ -618,12 +570,8 @@ func (l *tracerLogger) log(level Level, msg string, fields ...Field) {
 		"component": l.tracer.name,
 	}
 
-	// Add logger fields
-	for k, v := range l.fields {
-		entry[k] = v
-	}
+	maps.Copy(entry, l.fields)
 
-	// Add passed fields
 	for _, field := range fields {
 		entry[field.Key] = field.Value
 	}
@@ -647,7 +595,6 @@ func (l *tracerLogger) log(level Level, msg string, fields ...Field) {
 		msg,
 	)
 
-	// Add fields
 	for k, v := range entry {
 		if k != "timestamp" && k != "level" && k != "message" {
 			output += fmt.Sprintf(" %s=%v", k, v)

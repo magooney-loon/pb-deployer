@@ -6,13 +6,11 @@ import (
 	"time"
 )
 
-// SSHTracerImpl provides SSH-specific tracing operations
 type SSHTracerImpl struct {
 	Tracer
 	component string
 }
 
-// NewSSHTracer creates a new SSH-specific tracer
 func NewSSHTracer(base Tracer) SSHTracer {
 	return &SSHTracerImpl{
 		Tracer:    base.WithField("component", "ssh"),
@@ -20,7 +18,6 @@ func NewSSHTracer(base Tracer) SSHTracer {
 	}
 }
 
-// TraceConnection traces an SSH connection attempt
 func (t *SSHTracerImpl) TraceConnection(ctx context.Context, host string, port int, user string) Span {
 	span := t.StartSpan(ctx, "ssh.connect")
 	span.SetFields(Fields{
@@ -40,7 +37,6 @@ func (t *SSHTracerImpl) TraceConnection(ctx context.Context, host string, port i
 	return span
 }
 
-// TraceCommand traces an SSH command execution
 func (t *SSHTracerImpl) TraceCommand(ctx context.Context, command string, sudo bool) Span {
 	operation := "ssh.execute"
 	if sudo {
@@ -70,7 +66,6 @@ func (t *SSHTracerImpl) TraceCommand(ctx context.Context, command string, sudo b
 	return span
 }
 
-// TraceFileTransfer traces a file transfer operation
 func (t *SSHTracerImpl) TraceFileTransfer(ctx context.Context, source, dest string, size int64) Span {
 	span := t.StartSpan(ctx, "ssh.transfer")
 	span.SetFields(Fields{
@@ -89,7 +84,6 @@ func (t *SSHTracerImpl) TraceFileTransfer(ctx context.Context, source, dest stri
 	return span
 }
 
-// TraceHealthCheck traces a health check operation
 func (t *SSHTracerImpl) TraceHealthCheck(ctx context.Context, target string) Span {
 	span := t.StartSpan(ctx, "ssh.health_check")
 	span.SetFields(Fields{
@@ -104,19 +98,16 @@ func (t *SSHTracerImpl) TraceHealthCheck(ctx context.Context, target string) Spa
 	return span
 }
 
-// PoolTracerImpl provides connection pool tracing
 type PoolTracerImpl struct {
 	Tracer
 }
 
-// NewPoolTracer creates a new pool tracer
 func NewPoolTracer(base Tracer) PoolTracer {
 	return &PoolTracerImpl{
 		Tracer: base.WithField("component", "pool"),
 	}
 }
 
-// TraceGet traces getting a connection from pool
 func (t *PoolTracerImpl) TraceGet(ctx context.Context, key string) Span {
 	span := t.StartSpan(ctx, "pool.get")
 	span.SetFields(Fields{
@@ -131,7 +122,6 @@ func (t *PoolTracerImpl) TraceGet(ctx context.Context, key string) Span {
 	return span
 }
 
-// TraceRelease traces releasing a connection to pool
 func (t *PoolTracerImpl) TraceRelease(ctx context.Context, key string) Span {
 	span := t.StartSpan(ctx, "pool.release")
 	span.SetFields(Fields{
@@ -146,7 +136,6 @@ func (t *PoolTracerImpl) TraceRelease(ctx context.Context, key string) Span {
 	return span
 }
 
-// TraceHealthCheck traces pool health check
 func (t *PoolTracerImpl) TraceHealthCheck(ctx context.Context) Span {
 	span := t.StartSpan(ctx, "pool.health_check")
 	span.SetField("pool.operation", "health_check")
@@ -156,7 +145,6 @@ func (t *PoolTracerImpl) TraceHealthCheck(ctx context.Context) Span {
 	return span
 }
 
-// TraceCleanup traces pool cleanup operation
 func (t *PoolTracerImpl) TraceCleanup(ctx context.Context) Span {
 	span := t.StartSpan(ctx, "pool.cleanup")
 	span.SetField("pool.operation", "cleanup")
@@ -166,19 +154,16 @@ func (t *PoolTracerImpl) TraceCleanup(ctx context.Context) Span {
 	return span
 }
 
-// SecurityTracerImpl provides security operation tracing
 type SecurityTracerImpl struct {
 	Tracer
 }
 
-// NewSecurityTracer creates a new security tracer
 func NewSecurityTracer(base Tracer) SecurityTracer {
 	return &SecurityTracerImpl{
 		Tracer: base.WithField("component", "security"),
 	}
 }
 
-// TraceSecurityCheck traces a security check
 func (t *SecurityTracerImpl) TraceSecurityCheck(ctx context.Context, checkType string) Span {
 	span := t.StartSpan(ctx, "security.check")
 	span.SetFields(Fields{
@@ -193,7 +178,6 @@ func (t *SecurityTracerImpl) TraceSecurityCheck(ctx context.Context, checkType s
 	return span
 }
 
-// TraceFirewallRule traces firewall rule application
 func (t *SecurityTracerImpl) TraceFirewallRule(ctx context.Context, rule string, action string) Span {
 	span := t.StartSpan(ctx, "security.firewall")
 	span.SetFields(Fields{
@@ -210,7 +194,6 @@ func (t *SecurityTracerImpl) TraceFirewallRule(ctx context.Context, rule string,
 	return span
 }
 
-// TraceAuthAttempt traces an authentication attempt
 func (t *SecurityTracerImpl) TraceAuthAttempt(ctx context.Context, method string, user string) Span {
 	span := t.StartSpan(ctx, "security.auth")
 	span.SetFields(Fields{
@@ -227,7 +210,6 @@ func (t *SecurityTracerImpl) TraceAuthAttempt(ctx context.Context, method string
 	return span
 }
 
-// TraceAuditEvent traces an audit event
 func (t *SecurityTracerImpl) TraceAuditEvent(ctx context.Context, event string, details Fields) Span {
 	span := t.StartSpan(ctx, "security.audit")
 	span.SetFields(Fields{
@@ -251,19 +233,16 @@ func (t *SecurityTracerImpl) TraceAuditEvent(ctx context.Context, event string, 
 	return span
 }
 
-// ServiceTracerImpl provides service operation tracing
 type ServiceTracerImpl struct {
 	Tracer
 }
 
-// NewServiceTracer creates a new service tracer
 func NewServiceTracer(base Tracer) ServiceTracer {
 	return &ServiceTracerImpl{
 		Tracer: base.WithField("component", "service"),
 	}
 }
 
-// TraceServiceAction traces a service action
 func (t *ServiceTracerImpl) TraceServiceAction(ctx context.Context, service string, action string) Span {
 	span := t.StartSpan(ctx, fmt.Sprintf("service.%s", action))
 	span.SetFields(Fields{
@@ -280,7 +259,6 @@ func (t *ServiceTracerImpl) TraceServiceAction(ctx context.Context, service stri
 	return span
 }
 
-// TraceDeployment traces a deployment operation
 func (t *ServiceTracerImpl) TraceDeployment(ctx context.Context, app string, version string) Span {
 	span := t.StartSpan(ctx, "service.deploy")
 	span.SetFields(Fields{
@@ -297,7 +275,6 @@ func (t *ServiceTracerImpl) TraceDeployment(ctx context.Context, app string, ver
 	return span
 }
 
-// TraceRollback traces a rollback operation
 func (t *ServiceTracerImpl) TraceRollback(ctx context.Context, app string, fromVersion, toVersion string) Span {
 	span := t.StartSpan(ctx, "service.rollback")
 	span.SetFields(Fields{
@@ -316,7 +293,6 @@ func (t *ServiceTracerImpl) TraceRollback(ctx context.Context, app string, fromV
 	return span
 }
 
-// TraceHealthEndpoint traces health endpoint check
 func (t *ServiceTracerImpl) TraceHealthEndpoint(ctx context.Context, endpoint string) Span {
 	span := t.StartSpan(ctx, "service.health")
 	span.SetFields(Fields{
@@ -331,9 +307,6 @@ func (t *ServiceTracerImpl) TraceHealthEndpoint(ctx context.Context, endpoint st
 	return span
 }
 
-// Helper functions for SSH tracing
-
-// RecordSSHMetrics records SSH operation metrics in a span
 func RecordSSHMetrics(span Span, metrics map[string]any) {
 	for key, value := range metrics {
 		span.SetField(fmt.Sprintf("metrics.%s", key), value)
@@ -347,7 +320,6 @@ func RecordSSHMetrics(span Span, metrics map[string]any) {
 	span.Event("metrics_recorded", fields...)
 }
 
-// ConnectionStats represents connection statistics
 type ConnectionStats struct {
 	TotalConnections    int
 	ActiveConnections   int
@@ -357,7 +329,6 @@ type ConnectionStats struct {
 	AverageResponseTime time.Duration
 }
 
-// RecordConnectionStats records connection statistics
 func RecordConnectionStats(span Span, stats ConnectionStats) {
 	span.SetFields(Fields{
 		"stats.total_connections":  stats.TotalConnections,
@@ -369,7 +340,6 @@ func RecordConnectionStats(span Span, stats ConnectionStats) {
 	})
 }
 
-// RecordPoolHealth records pool health metrics
 func RecordPoolHealth(span Span, totalConns, healthyConns, unhealthyConns int) {
 	span.SetFields(Fields{
 		"pool.total_connections":     totalConns,
@@ -385,7 +355,6 @@ func RecordPoolHealth(span Span, totalConns, healthyConns, unhealthyConns int) {
 	)
 }
 
-// RecordCommandResult records the result of an SSH command
 func RecordCommandResult(span Span, exitCode int, outputLines int, duration time.Duration) {
 	span.SetFields(Fields{
 		"command.exit_code":    exitCode,
@@ -407,7 +376,6 @@ func RecordCommandResult(span Span, exitCode int, outputLines int, duration time
 	)
 }
 
-// RecordError records an error with context
 func RecordError(span Span, err error, context string) {
 	span.SetFields(Fields{
 		"error.message": err.Error(),
@@ -422,7 +390,6 @@ func RecordError(span Span, err error, context string) {
 	)
 }
 
-// RecordRetry records a retry attempt
 func RecordRetry(span Span, attempt int, maxAttempts int, delay time.Duration) {
 	span.SetFields(Fields{
 		"retry.attempt":      attempt,
@@ -437,14 +404,12 @@ func RecordRetry(span Span, attempt int, maxAttempts int, delay time.Duration) {
 	)
 }
 
-// TraceWithTimeout creates a span that automatically ends after timeout
 func TraceWithTimeout(ctx context.Context, tracer Tracer, operation string, timeout time.Duration) (Span, context.Context, context.CancelFunc) {
 	span := tracer.StartSpan(ctx, operation)
 	span.SetField("timeout", timeout.String())
 
 	ctx, cancel := context.WithTimeout(span.Context(), timeout)
 
-	// Set up timeout handler
 	go func() {
 		<-ctx.Done()
 		if ctx.Err() == context.DeadlineExceeded {
@@ -458,7 +423,6 @@ func TraceWithTimeout(ctx context.Context, tracer Tracer, operation string, time
 	return span, ctx, cancel
 }
 
-// StartSSHOperation starts a traced SSH operation with standard fields
 func StartSSHOperation(ctx context.Context, tracer SSHTracer, operation string, server, user string) Span {
 	span := tracer.StartSpan(ctx, fmt.Sprintf("ssh.%s", operation))
 	span.SetFields(Fields{
