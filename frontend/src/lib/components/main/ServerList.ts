@@ -16,6 +16,7 @@ export interface ServerListState {
 	servers: Server[];
 	loading: boolean;
 	error: string | null;
+	successMessage: string | null;
 	showCreateForm: boolean;
 	newServer: ServerFormData;
 	creating: boolean;
@@ -40,6 +41,7 @@ export class ServerListLogic {
 			servers: [],
 			loading: true,
 			error: null,
+			successMessage: null,
 			showCreateForm: false,
 			newServer: {
 				name: '',
@@ -87,7 +89,7 @@ export class ServerListLogic {
 
 	public async createServer(): Promise<void> {
 		try {
-			this.updateState({ creating: true, error: null });
+			this.updateState({ creating: true, error: null, successMessage: null });
 
 			const serverData: ServerRequest = {
 				name: this.state.newServer.name,
@@ -105,7 +107,8 @@ export class ServerListLogic {
 			this.updateState({
 				servers,
 				showCreateForm: false,
-				creating: false
+				creating: false,
+				successMessage: `Server "${server.name}" created successfully!`
 			});
 			this.resetForm();
 		} catch (err) {
@@ -136,7 +139,8 @@ export class ServerListLogic {
 
 	public async confirmDeleteServer(id: string): Promise<void> {
 		try {
-			this.updateState({ deleting: true, error: null });
+			this.updateState({ deleting: true, error: null, successMessage: null });
+			const serverName = this.state.serverToDelete?.name || 'Server';
 			await this.api.servers.deleteServer(id);
 
 			const servers = this.state.servers.filter((s) => s.id !== id);
@@ -145,7 +149,8 @@ export class ServerListLogic {
 				showDeleteModal: false,
 				serverToDelete: null,
 				deleting: false,
-				apps: []
+				apps: [],
+				successMessage: `${serverName} deleted successfully!`
 			});
 		} catch (err) {
 			const error = err instanceof Error ? err.message : 'Failed to delete server';
@@ -181,6 +186,10 @@ export class ServerListLogic {
 
 	public dismissError(): void {
 		this.updateState({ error: null });
+	}
+
+	public dismissSuccess(): void {
+		this.updateState({ successMessage: null });
 	}
 
 	public updateNewServer(field: keyof ServerFormData, value: string | number | boolean): void {

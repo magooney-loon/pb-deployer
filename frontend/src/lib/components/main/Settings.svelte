@@ -6,7 +6,7 @@
 		FormField,
 		Button,
 		LoadingSpinner,
-		ErrorAlert,
+		Toast,
 		StatusBadge
 	} from '$lib/components/partials';
 	import { slide } from 'svelte/transition';
@@ -196,22 +196,17 @@
 			<LoadingSpinner text="Loading settings..." size="lg" />
 		</div>
 	{:else if error && !settings}
-		<ErrorAlert message={error} onDismiss={clearError} />
+		<Toast message={error} onDismiss={clearError} />
 	{:else}
 		<!-- Settings Form -->
 		<form onsubmit={handleSubmit} class="space-y-8">
 			<!-- Global Messages -->
 			{#if error}
-				<ErrorAlert message={error} onDismiss={clearError} />
+				<Toast message={error} onDismiss={clearError} />
 			{/if}
 
 			{#if successMessage}
-				<ErrorAlert
-					message={successMessage}
-					type="success"
-					title="Success"
-					onDismiss={clearSuccess}
-				/>
+				<Toast message={successMessage} type="success" onDismiss={clearSuccess} />
 			{/if}
 
 			<!-- Security Settings Card -->

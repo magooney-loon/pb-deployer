@@ -114,6 +114,10 @@
 							placeholder="Enter password"
 							onkeydown={handleKeydown}
 							disabled={isUnlocking}
+							autocomplete="new-password"
+							autocorrect="off"
+							autocapitalize="off"
+							spellcheck="false"
 							class="w-full rounded-lg border border-gray-700 bg-gray-800/50 px-4 py-3 pr-12 text-gray-100 placeholder-gray-400 backdrop-blur-sm transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20 focus:outline-none disabled:opacity-50"
 						/>
 

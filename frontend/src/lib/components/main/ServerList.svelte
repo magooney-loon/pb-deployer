@@ -4,13 +4,7 @@
 	import { ServerListLogic, type ServerListState } from './ServerList.js';
 	import DeleteModal from '$lib/components/modals/DeleteModal.svelte';
 	import ServerCreateModal from '$lib/components/modals/ServerCreateModal.svelte';
-	import {
-		Button,
-		ErrorAlert,
-		EmptyState,
-		LoadingSpinner,
-		StatusBadge
-	} from '$lib/components/partials';
+	import { Button, Toast, EmptyState, LoadingSpinner, StatusBadge } from '$lib/components/partials';
 
 	// Define the server form data type
 	interface ServerFormData {
@@ -72,7 +66,11 @@
 </div>
 
 {#if state.error}
-	<ErrorAlert message={state.error} type="error" onDismiss={() => logic.dismissError()} />
+	<Toast message={state.error} type="error" onDismiss={() => logic.dismissError()} />
+{/if}
+
+{#if state.successMessage}
+	<Toast message={state.successMessage} type="success" onDismiss={() => logic.dismissSuccess()} />
 {/if}
 
 {#if state.loading}

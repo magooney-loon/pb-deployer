@@ -3,13 +3,7 @@
 	import { AppListLogic, type AppListState } from './AppList.js';
 	import DeleteModal from '$lib/components/modals/DeleteModal.svelte';
 	import AppCreateModal from '$lib/components/modals/AppCreateModal.svelte';
-	import {
-		Button,
-		ErrorAlert,
-		EmptyState,
-		LoadingSpinner,
-		StatusBadge
-	} from '$lib/components/partials';
+	import { Button, Toast, EmptyState, LoadingSpinner, StatusBadge } from '$lib/components/partials';
 
 	// Define the app form data type
 	interface AppFormData {
@@ -71,16 +65,11 @@
 </div>
 
 {#if availableServers.length === 0 && !state.showCreateForm}
-	<ErrorAlert
-		type="warning"
-		title="No Ready Servers"
-		message="You need at least one server with setup completed before you can create apps."
-		dismissible={false}
-	/>
+	<Toast type="warning" message="You need at least one server ready." dismissible={false} />
 {/if}
 
 {#if state.error}
-	<ErrorAlert message={state.error} type="error" onDismiss={() => logic.dismissError()} />
+	<Toast message={state.error} type="error" onDismiss={() => logic.dismissError()} />
 {/if}
 
 {#if state.loading}

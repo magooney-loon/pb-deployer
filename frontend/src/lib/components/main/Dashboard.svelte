@@ -3,7 +3,7 @@
 	import { DashboardLogic, type DashboardState } from './Dashboard.js';
 	import type { Server, App } from '$lib/api/index.js';
 	import {
-		ErrorAlert,
+		Toast,
 		LoadingSpinner,
 		MetricCard,
 		StatusBadge,
@@ -56,7 +56,7 @@
 	</div>
 
 	{#if state.error}
-		<ErrorAlert message={state.error} onDismiss={() => logic.dismissError()} />
+		<Toast message={state.error} onDismiss={() => logic.dismissError()} />
 	{/if}
 
 	{#if state.loading}

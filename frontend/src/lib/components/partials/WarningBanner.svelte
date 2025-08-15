@@ -53,12 +53,7 @@
 </script>
 
 {#if !isDismissed}
-	<div
-		in:slide={{ duration: 300, easing: quintOut }}
-		out:slide={{ duration: 300, easing: quintOut }}
-		class={bannerClasses}
-		role="alert"
-	>
+	<div transition:slide={{ duration: 300, easing: quintOut }} class={bannerClasses} role="alert">
 		<div class="mx-auto flex max-w-7xl items-center justify-between gap-2">
 			<div class="flex min-w-0 flex-1 items-center gap-2">
 				{#if icon}
