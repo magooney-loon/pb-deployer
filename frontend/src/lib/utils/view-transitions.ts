@@ -18,6 +18,12 @@ type ViewTransitionCallback = () => void | Promise<void>;
 export function injectViewTransitionStyles(): void {
 	if (typeof document === 'undefined' || stylesInjected) return;
 
+	// Double-check if styles already exist in DOM
+	if (document.getElementById('view-transition-styles')) {
+		stylesInjected = true;
+		return;
+	}
+
 	const styles = `
 		/* Enhanced View Transition API Styles */
 		@view-transition {
@@ -116,6 +122,21 @@ export function injectViewTransitionStyles(): void {
 }
 
 /**
+ * Clean up will-change properties to avoid performance issues
+ */
+function cleanupWillChange(): void {
+	if (typeof document === 'undefined') return;
+
+	const elements = document.querySelectorAll('[style*="will-change"]');
+	elements.forEach((el) => {
+		const element = el as HTMLElement;
+		if (element.style.willChange === 'transform, opacity') {
+			element.style.willChange = '';
+		}
+	});
+}
+
+/**
  * Start a view transition with the given callback
  * Falls back to immediate execution if View Transition API is not supported
  */
@@ -139,9 +160,13 @@ export function startViewTransition(callback: ViewTransitionCallback): Promise<v
 
 			// Handle transition completion
 			transition.finished
-				.then(() => resolve())
+				.then(() => {
+					cleanupWillChange();
+					resolve();
+				})
 				.catch((error: Error) => {
 					console.warn('View transition failed:', error);
+					cleanupWillChange();
 					resolve(); // Still resolve to not break navigation
 				});
 		} catch (error) {
@@ -175,21 +200,35 @@ export function createNamedTransition(
 			return;
 		}
 
-		// Add view-transition-name to elements that should animate
-		const elements = document.querySelectorAll(`[data-transition="${name}"]`);
+		// Cache elements and add view-transition-name
+		const elements = Array.from(
+			document.querySelectorAll(`[data-transition="${name}"]`)
+		) as HTMLElement[];
+
+		if (elements.length === 0) {
+			Promise.resolve(callback()).then(resolve).catch(reject);
+			return;
+		}
+
 		elements.forEach((el, index) => {
-			(el as HTMLElement).style.viewTransitionName = `${name}-${index}`;
+			el.style.viewTransitionName = `${name}-${index}`;
 		});
 
 		startViewTransition(callback)
 			.then(() => {
 				// Clean up view-transition-name after transition
 				elements.forEach((el) => {
-					(el as HTMLElement).style.viewTransitionName = '';
+					el.style.viewTransitionName = '';
 				});
 				resolve();
 			})
-			.catch(reject);
+			.catch((error) => {
+				// Clean up on error too
+				elements.forEach((el) => {
+					el.style.viewTransitionName = '';
+				});
+				reject(error);
+			});
 	});
 }
 
@@ -201,7 +240,8 @@ export function isTransitionRunning(): boolean {
 
 	try {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		return (document as any).activeViewTransition !== null;
+		const activeTransition = (document as any).activeViewTransition;
+		return activeTransition !== null && activeTransition !== undefined;
 	} catch {
 		return false;
 	}
