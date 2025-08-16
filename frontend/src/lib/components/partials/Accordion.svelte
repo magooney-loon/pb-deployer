@@ -19,6 +19,8 @@
 		loading = {},
 		contentReady = {},
 		animationDuration = { in: 400, out: 300 },
+		maxHeight = '400px',
+		enableScroll = true,
 		class: className = '',
 		sectionClass = '',
 		headerClass = '',
@@ -36,6 +38,8 @@
 		loading?: Record<string, boolean>;
 		contentReady?: Record<string, boolean>;
 		animationDuration?: { in: number; out: number };
+		maxHeight?: string;
+		enableScroll?: boolean;
 		class?: string;
 		sectionClass?: string;
 		headerClass?: string;
@@ -87,7 +91,7 @@
 		'overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900';
 
 	const baseHeaderClasses =
-		'flex w-full items-center justify-between p-6 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 dark:focus:ring-gray-100';
+		'flex w-full items-center justify-between p-6 text-left transition-colors focus:outline-none';
 
 	const baseContentClasses = 'border-t border-gray-200 dark:border-gray-800';
 
@@ -108,7 +112,11 @@
 	};
 
 	const getContentClasses = () => {
-		return `${baseContentClasses} ${contentClass}`;
+		let classes = baseContentClasses;
+		if (enableScroll) {
+			classes += ` overflow-y-auto`;
+		}
+		return `${classes} ${contentClass}`;
 	};
 </script>
 
@@ -169,6 +177,7 @@
 						in:slide={{ duration: animationDuration.in, easing: quintOut }}
 						out:slide={{ duration: animationDuration.out, easing: quintOut }}
 						class={getContentClasses()}
+						style={enableScroll ? `max-height: ${maxHeight}` : ''}
 					>
 						<div class="p-6 pt-4">
 							{#if isLoading && !isContentReady && loadingContent}

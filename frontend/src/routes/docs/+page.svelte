@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { SvelteSet } from 'svelte/reactivity';
 	import { fly } from 'svelte/transition';
 	import { Accordion } from '$lib/components/partials';
+	import MarkdownRenderer from './components/MarkdownRenderer.svelte';
 
 	let sections: Array<{
 		id: string;
@@ -10,7 +10,6 @@
 		file: string;
 	}> = $state([]);
 
-	let openSections = new SvelteSet();
 	let sectionContent: Record<string, string> = $state({});
 	let loadingStates: Record<string, boolean> = $state({});
 	let contentReady: Record<string, boolean> = $state({});
@@ -24,26 +23,24 @@
 
 		loadingStates = { ...loadingStates, [sectionId]: true };
 
-		// Simulate loading delay
-		await new Promise((resolve) => setTimeout(resolve, 800));
-
-		// Generate simple test content
-		const content = `This is the content for ${section.title}.
-
-This section contains information about ${section.title.toLowerCase()}.
-
-Key points:
-• Point 1 for ${section.title}
-• Point 2 for ${section.title}
-• Point 3 for ${section.title}
-
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-
-Example code or configuration would go here.`;
-
-		sectionContent = { ...sectionContent, [sectionId]: content };
-		contentReady = { ...contentReady, [sectionId]: true };
-		loadingStates = { ...loadingStates, [sectionId]: false };
+		try {
+			const response = await fetch(`/docs/${section.file}`);
+			if (!response.ok) {
+				throw new Error(`Failed to fetch ${section.file}: ${response.status}`);
+			}
+			const content = await response.text();
+			sectionContent = { ...sectionContent, [sectionId]: content };
+			contentReady = { ...contentReady, [sectionId]: true };
+		} catch (error) {
+			console.error(`Failed to load content for ${sectionId}:`, error);
+			sectionContent = {
+				...sectionContent,
+				[sectionId]: `# ${section.title}\n\nFailed to load content. Please try again.`
+			};
+			contentReady = { ...contentReady, [sectionId]: true };
+		} finally {
+			loadingStates = { ...loadingStates, [sectionId]: false };
+		}
 	}
 
 	function handleSectionOpen(sectionId: string) {
@@ -61,39 +58,17 @@ Example code or configuration would go here.`;
 	});
 
 	async function loadSections() {
-		// Use simple test sections instead of fetching
-		sections = [
-			{
-				id: 'getting-started',
-				title: 'Getting Started',
-				icon: '🚀',
-				file: 'getting-started.md'
-			},
-			{
-				id: 'installation',
-				title: 'Installation',
-				icon: '📦',
-				file: 'installation.md'
-			},
-			{
-				id: 'configuration',
-				title: 'Configuration',
-				icon: '⚙️',
-				file: 'configuration.md'
-			},
-			{
-				id: 'deployment',
-				title: 'Deployment',
-				icon: '🌐',
-				file: 'deployment.md'
-			},
-			{
-				id: 'api-reference',
-				title: 'API Reference',
-				icon: '📚',
-				file: 'api-reference.md'
+		try {
+			const response = await fetch('/docs/sections.json');
+			if (!response.ok) {
+				throw new Error(`Failed to fetch sections: ${response.status}`);
 			}
-		];
+			sections = await response.json();
+		} catch (error) {
+			console.error('Failed to load documentation sections:', error);
+			// Fallback to empty array or default sections if needed
+			sections = [];
+		}
 	}
 
 	$effect(() => {
@@ -132,17 +107,16 @@ Example code or configuration would go here.`;
 
 	<Accordion
 		{sections}
-		{openSections}
 		loading={loadingStates}
 		{contentReady}
+		maxHeight="500px"
+		enableScroll={true}
 		onSectionOpen={handleSectionOpen}
 		onToggle={handleSectionToggle}
 	>
 		{#snippet children(section)}
 			{#if sectionContent[section.id]}
-				<div class="prose prose-gray dark:prose-invert max-w-none">
-					<pre class="text-sm whitespace-pre-wrap">{sectionContent[section.id]}</pre>
-				</div>
+				<MarkdownRenderer content={sectionContent[section.id]} />
 			{:else}
 				<div class="py-4">
 					<p class="text-gray-500 dark:text-gray-400">Content not available</p>
