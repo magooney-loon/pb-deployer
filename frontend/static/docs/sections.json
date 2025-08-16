@@ -1,0 +1,38 @@
+[
+	{
+		"id": "getting-started",
+		"title": "Getting Started",
+		"icon": "🚀",
+		"file": "getting-started.md"
+	},
+	{
+		"id": "installation",
+		"title": "Installation",
+		"icon": "📦",
+		"file": "installation.md"
+	},
+	{
+		"id": "configuration",
+		"title": "Configuration",
+		"icon": "⚙️",
+		"file": "configuration.md"
+	},
+	{
+		"id": "deployment",
+		"title": "Deployment",
+		"icon": "🌐",
+		"file": "deployment.md"
+	},
+	{
+		"id": "api-reference",
+		"title": "API Reference",
+		"icon": "📚",
+		"file": "api-reference.md"
+	},
+	{
+		"id": "troubleshooting",
+		"title": "Troubleshooting",
+		"icon": "🔧",
+		"file": "troubleshooting.md"
+	}
+]

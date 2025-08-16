@@ -4,44 +4,12 @@
 	import { quintOut } from 'svelte/easing';
 	import MarkdownRenderer from './components/MarkdownRenderer.svelte';
 
-	const sections = [
-		{
-			id: 'getting-started',
-			title: 'Getting Started',
-			icon: '🚀',
-			file: 'getting-started.md'
-		},
-		{
-			id: 'installation',
-			title: 'Installation',
-			icon: '📦',
-			file: 'installation.md'
-		},
-		{
-			id: 'configuration',
-			title: 'Configuration',
-			icon: '⚙️',
-			file: 'configuration.md'
-		},
-		{
-			id: 'deployment',
-			title: 'Deployment',
-			icon: '🌐',
-			file: 'deployment.md'
-		},
-		{
-			id: 'api-reference',
-			title: 'API Reference',
-			icon: '📚',
-			file: 'api-reference.md'
-		},
-		{
-			id: 'troubleshooting',
-			title: 'Troubleshooting',
-			icon: '🔧',
-			file: 'troubleshooting.md'
-		}
-	];
+	let sections: Array<{
+		id: string;
+		title: string;
+		icon: string;
+		file: string;
+	}> = $state([]);
 
 	let openSections = new SvelteSet(['']);
 	let sectionContent: Record<string, string> = $state({});
@@ -84,8 +52,28 @@
 	}
 
 	$effect(() => {
-		loadSectionContent('getting-started');
+		loadSections();
 	});
+
+	$effect(() => {
+		if (sections.length > 0) {
+			loadSectionContent('getting-started');
+		}
+	});
+
+	async function loadSections() {
+		try {
+			const response = await fetch('/docs/sections.json');
+			if (!response.ok) {
+				throw new Error(`Failed to fetch sections: ${response.status}`);
+			}
+			sections = await response.json();
+		} catch (error) {
+			console.error('Failed to load documentation sections:', error);
+			// Fallback to empty array or default sections if needed
+			sections = [];
+		}
+	}
 
 	$effect(() => {
 		if (typeof window !== 'undefined') {
