@@ -150,21 +150,23 @@
 		subtitle="Configure visual preferences and animations"
 		class="space-y-6"
 	>
-		<FormField
-			id="animations-enabled"
-			label="Enable Page Animations"
-			type="checkbox"
-			bind:checked={formData.animationsEnabled}
-			helperText="Enable smooth page transitions and animations throughout the application"
-		/>
+		<div class="space-y-6">
+			<FormField
+				id="animations-enabled"
+				label="Enable Page Animations"
+				type="checkbox"
+				bind:checked={formData.animationsEnabled}
+				helperText="Enable smooth page transitions and animations throughout the application"
+			/>
 
-		<FormField
-			id="mouse-effects-enabled"
-			label="Enable Mouse Effects"
-			type="checkbox"
-			bind:checked={formData.mouseEffectsEnabled}
-			helperText="Enable mouse trail and click ripple effects (disabled on touch devices)"
-		/>
+			<FormField
+				id="mouse-effects-enabled"
+				label="Enable Mouse Effects"
+				type="checkbox"
+				bind:checked={formData.mouseEffectsEnabled}
+				helperText="Enable mouse trail and click ripple effects (disabled on touch devices)"
+			/>
+		</div>
 	</Card>
 
 	<!-- Save Button Section -->
