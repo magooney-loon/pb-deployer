@@ -13,6 +13,15 @@ export function supportsViewTransitions(): boolean {
 	return isSupported;
 }
 
+/**
+ * Check if user prefers reduced motion
+ */
+function prefersReducedMotion(): boolean {
+	if (typeof window === 'undefined') return false;
+
+	return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 type ViewTransitionCallback = () => void | Promise<void>;
 
 /**
@@ -33,73 +42,65 @@ export function injectViewTransitionStyles(): void {
 			navigation: auto;
 		}
 
-		/* Enhanced fade transition with subtle depth */
+		/* Enhanced fade transition with subtle visual enhancement */
 		::view-transition-old(root),
 		::view-transition-new(root) {
 			animation-duration: 0.45s;
-			animation-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+			animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
 			transform-origin: center;
 		}
 
 		::view-transition-old(root) {
-			animation: enhanced-fade-out 0.45s cubic-bezier(0.25, 0.1, 0.25, 1);
+			animation: enhanced-fade-out 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 		}
 
 		::view-transition-new(root) {
-			animation: enhanced-fade-in 0.45s cubic-bezier(0.25, 0.1, 0.25, 1);
+			animation: enhanced-fade-in 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 		}
 
-		/* Enhanced fade keyframe animations with subtle depth */
+		/* Enhanced fade keyframe animations with subtle brightness effect */
 		@keyframes enhanced-fade-out {
 			0% {
 				opacity: 1;
-				transform: scale(1);
+				filter: brightness(1) saturate(1);
 			}
 			100% {
 				opacity: 0;
-				transform: scale(0.9);
+				filter: brightness(0.95) saturate(0.9);
 			}
 		}
 
 		@keyframes enhanced-fade-in {
 			0% {
 				opacity: 0;
-				transform: scale(1.08);
+				filter: brightness(1.05) saturate(1.1);
 			}
 			100% {
 				opacity: 1;
-				transform: scale(1);
+				filter: brightness(1) saturate(1);
 			}
 		}
 
-		/* Reduced motion support */
+		/* Reduced motion support - disable transitions completely */
 		@media (prefers-reduced-motion: reduce) {
 			::view-transition-old(*),
 			::view-transition-new(*) {
-				animation-duration: 0.1s !important;
+				animation-duration: 0s !important;
 				animation-timing-function: ease-out !important;
 			}
 
-			/* Simple fade for reduced motion */
+			/* No transition for reduced motion */
 			@keyframes enhanced-fade-out {
-				0% {
-					opacity: 1;
-					transform: none;
-				}
-				100% {
+				0%, 100% {
 					opacity: 0;
-					transform: none;
+					filter: none;
 				}
 			}
 
 			@keyframes enhanced-fade-in {
-				0% {
-					opacity: 0;
-					transform: none;
-				}
-				100% {
+				0%, 100% {
 					opacity: 1;
-					transform: none;
+					filter: none;
 				}
 			}
 		}
@@ -143,7 +144,7 @@ function cleanupWillChange(): void {
  */
 export function startViewTransition(callback: ViewTransitionCallback): Promise<void> {
 	return new Promise<void>((resolve, reject) => {
-		if (!supportsViewTransitions()) {
+		if (!supportsViewTransitions() || prefersReducedMotion()) {
 			Promise.resolve(callback()).then(resolve).catch(reject);
 			return;
 		}
@@ -196,7 +197,7 @@ export function createNamedTransition(
 	callback: ViewTransitionCallback
 ): Promise<void> {
 	return new Promise<void>((resolve, reject) => {
-		if (!supportsViewTransitions()) {
+		if (!supportsViewTransitions() || prefersReducedMotion()) {
 			Promise.resolve(callback()).then(resolve).catch(reject);
 			return;
 		}
