@@ -1,5 +1,6 @@
 <script lang="ts" generics="T extends { id: string | number }">
 	import Card from './Card.svelte';
+	import Icon from '../icons/Icon.svelte';
 	import { transitionLink } from '$lib/utils/navigation.js';
 
 	interface EmptyState {
@@ -13,7 +14,7 @@
 		title,
 		items,
 		viewAllHref,
-		viewAllText = 'View all →',
+		viewAllText = 'View all',
 		emptyState,
 		itemClass = 'flex items-center justify-between rounded-lg bg-gray-50 p-3 ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-800',
 		class: className = '',
@@ -39,9 +40,10 @@
 			<a
 				href={viewAllHref}
 				use:transitionLink
-				class="text-sm text-gray-600 underline-offset-4 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-100"
+				class="inline-flex items-center gap-1 text-sm text-gray-600 underline-offset-4 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-100"
 			>
 				{viewAllText}
+				<Icon name="link" size="h-3 w-3" />
 			</a>
 		{/if}
 	</div>

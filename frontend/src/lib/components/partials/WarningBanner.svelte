@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { slide } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
+	import Icon from '../icons/Icon.svelte';
+
 	let {
 		message = 'Ohaithere',
 		icon = '⚠️',
+		iconSnippet,
 		dismissible = true,
 		color = 'yellow',
 		size = 'sm',
@@ -13,6 +16,7 @@
 	}: {
 		message?: string;
 		icon?: string;
+		iconSnippet?: import('svelte').Snippet;
 		dismissible?: boolean;
 		color?: 'yellow' | 'blue' | 'red' | 'gray';
 		size?: 'xs' | 'sm';
@@ -61,8 +65,14 @@
 	<div transition:slide={{ duration: 300, easing: quintOut }} class={bannerClasses} role="alert">
 		<div class="mx-auto flex max-w-7xl items-center justify-between gap-2">
 			<div class="flex min-w-0 flex-1 items-center gap-2">
-				{#if icon}
-					<span class="flex-shrink-0">{icon}</span>
+				{#if icon || iconSnippet}
+					<span class="flex-shrink-0">
+						{#if iconSnippet}
+							{@render iconSnippet()}
+						{:else}
+							{icon}
+						{/if}
+					</span>
 				{/if}
 				<p class="truncate leading-tight font-medium">
 					{message}
@@ -76,13 +86,7 @@
 					class="flex-shrink-0 rounded-full p-1 transition-colors hover:bg-black/5 focus:ring-2 focus:ring-current focus:ring-offset-1 focus:outline-none dark:hover:bg-white/5"
 					aria-label="Dismiss warning"
 				>
-					<svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-						<path
-							fill-rule="evenodd"
-							d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-							clip-rule="evenodd"
-						/>
-					</svg>
+					<Icon name="close" size="h-3 w-3" />
 				</button>
 			{/if}
 		</div>

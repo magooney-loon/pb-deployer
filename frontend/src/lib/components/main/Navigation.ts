@@ -3,7 +3,7 @@ import { themeStore } from '$lib/utils/theme.js';
 export interface NavigationItem {
 	href: string;
 	label: string;
-	icon: string;
+	icon: 'dashboard' | 'servers' | 'apps' | 'docs';
 }
 
 export interface NavigationState {
@@ -16,10 +16,10 @@ export class NavigationLogic {
 	private stateUpdateCallback?: (state: NavigationState) => void;
 
 	public readonly navItems: NavigationItem[] = [
-		{ href: '/', label: 'Dashboard', icon: '📊' },
-		{ href: '/servers', label: 'Servers', icon: '🖥️' },
-		{ href: '/apps', label: 'Applications', icon: '📱' },
-		{ href: '/docs', label: 'Documentation', icon: '📚' }
+		{ href: '/', label: 'Dashboard', icon: 'dashboard' },
+		{ href: '/servers', label: 'Servers', icon: 'servers' },
+		{ href: '/apps', label: 'Applications', icon: 'apps' },
+		{ href: '/docs', label: 'Documentation', icon: 'docs' }
 	];
 
 	constructor(initialPath: string = '/') {

@@ -4,6 +4,7 @@
 	import DeleteModal from '$lib/components/modals/DeleteModal.svelte';
 	import AppCreateModal from '$lib/components/modals/AppCreateModal.svelte';
 	import { Button, Toast, EmptyState, LoadingSpinner, StatusBadge } from '$lib/components/partials';
+	import Icon from '$lib/components/icons/Icon.svelte';
 
 	interface AppFormData {
 		name: string;
@@ -50,16 +51,18 @@
 	</div>
 	<Button
 		variant="outline"
-		icon="+"
 		onclick={() => logic.toggleCreateForm()}
 		disabled={availableServers.length === 0}
 	>
+		{#snippet iconSnippet()}
+			<Icon name="plus" />
+		{/snippet}
 		Add App
 	</Button>
 </header>
 
 {#if availableServers.length === 0 && !state.showCreateForm}
-	<Toast type="warning" message="You need at least one server configured." dismissible={false} />
+	<Toast type="warning" message="No servers ready for deployment." dismissible={false} />
 {/if}
 
 {#if state.error}
@@ -70,12 +73,15 @@
 	<LoadingSpinner text="Loading applications..." />
 {:else if state.apps.length === 0}
 	<EmptyState
-		icon="📱"
 		title="No applications created yet"
 		description={availableServers.length > 0
 			? 'Create your first application to start deploying'
 			: 'Set up a server first before creating apps'}
-	/>
+	>
+		{#snippet iconSnippet()}
+			<Icon name="apps" size="h-12 w-12" class="text-gray-400" />
+		{/snippet}
+	</EmptyState>
 {:else}
 	<div
 		class="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950"
@@ -124,9 +130,10 @@
 											<a
 												href="https://{app.domain}"
 												target="_blank"
-												class="text-gray-600 underline-offset-4 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-100"
+												class="inline-flex items-center space-x-1 text-gray-600 underline-offset-4 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-100"
 											>
-												{app.domain} 🔗
+												<span>{app.domain}</span>
+												<Icon name="link" size="h-3 w-3" />
 											</a>
 										</div>
 										<div class="text-xs text-gray-400 dark:text-gray-500">{app.service_name}</div>
@@ -153,12 +160,10 @@
 								{logic.formatTimestamp(app.created)}
 							</td>
 							<td class="space-x-1 px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
-								<Button
-									variant="ghost"
-									size="sm"
-									onclick={() => logic.openApp(app.domain)}
-									icon="🔗"
-								>
+								<Button variant="ghost" size="sm" onclick={() => logic.openApp(app.domain)}>
+									{#snippet iconSnippet()}
+										<Icon name="link" />
+									{/snippet}
 									Open
 								</Button>
 
@@ -167,8 +172,10 @@
 									color="red"
 									size="sm"
 									onclick={() => logic.deleteApp(app.id)}
-									icon="🗑️"
 								>
+									{#snippet iconSnippet()}
+										<Icon name="delete" />
+									{/snippet}
 									Delete
 								</Button>
 							</td>
@@ -183,7 +190,12 @@
 		<p class="text-sm text-gray-600 dark:text-gray-400">
 			Showing {state.apps.length} application{state.apps.length !== 1 ? 's' : ''}
 		</p>
-		<Button variant="outline" size="sm" icon="🔄" onclick={() => logic.loadApps()}>Refresh</Button>
+		<Button variant="outline" size="sm" onclick={() => logic.loadApps()}>
+			{#snippet iconSnippet()}
+				<Icon name="refresh" />
+			{/snippet}
+			Refresh
+		</Button>
 	</div>
 {/if}
 

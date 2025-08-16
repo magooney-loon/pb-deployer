@@ -10,6 +10,7 @@
 		Card,
 		RecentItemsCard
 	} from '$lib/components/partials/index.js';
+	import Icon from '$lib/components/icons/Icon.svelte';
 
 	const logic = new DashboardLogic();
 	let state = $state<DashboardState>(logic.getState());
@@ -45,10 +46,26 @@
 {:else}
 	<!-- Metrics Cards -->
 	<div class="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-		<MetricCard title="Total Servers" value={metrics.totalServers} icon="🖥️" />
-		<MetricCard title="Ready Servers" value={metrics.readyServers.length} icon="✅" color="green" />
-		<MetricCard title="Total Apps" value={metrics.totalApps} icon="📱" />
-		<MetricCard title="Online Apps" value={metrics.onlineApps.length} icon="🟢" color="green" />
+		<MetricCard title="Total Servers" value={metrics.totalServers}>
+			{#snippet iconSnippet()}
+				<Icon name="servers" size="h-6 w-6" />
+			{/snippet}
+		</MetricCard>
+		<MetricCard title="Ready Servers" value={metrics.readyServers.length} color="green">
+			{#snippet iconSnippet()}
+				<Icon name="checkmark" size="h-6 w-6" />
+			{/snippet}
+		</MetricCard>
+		<MetricCard title="Total Apps" value={metrics.totalApps}>
+			{#snippet iconSnippet()}
+				<Icon name="apps" size="h-6 w-6" />
+			{/snippet}
+		</MetricCard>
+		<MetricCard title="Online Apps" value={metrics.onlineApps.length} color="green">
+			{#snippet iconSnippet()}
+				<Icon name="green-circle" size="h-6 w-6" />
+			{/snippet}
+		</MetricCard>
 	</div>
 
 	<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -98,16 +115,17 @@
 							{app.name}
 						</span>
 						<span class="ml-2 text-xs">
-							{logic.getStatusIcon(app.status)}
+							<Icon name="green-circle" size="h-3 w-3" />
 						</span>
 					</div>
 					<div class="text-xs text-gray-500 dark:text-gray-400">
 						<a
 							href="https://{app.domain}"
 							target="_blank"
-							class="text-gray-600 underline-offset-4 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-100"
+							class="inline-flex items-center space-x-1 text-gray-600 underline-offset-4 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-100"
 						>
-							{app.domain}
+							<span>{app.domain}</span>
+							<Icon name="link" size="h-3 w-3" />
 						</a>
 					</div>
 					{#if app.current_version}
@@ -120,9 +138,10 @@
 					<a
 						href="https://{app.domain}"
 						target="_blank"
-						class="text-xs text-gray-600 underline-offset-4 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-100"
+						class="inline-flex items-center space-x-1 text-xs text-gray-600 underline-offset-4 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-100"
 					>
-						Open →
+						<span>Open</span>
+						<Icon name="link" size="h-3 w-3" />
 					</a>
 				</div>
 			{/snippet}

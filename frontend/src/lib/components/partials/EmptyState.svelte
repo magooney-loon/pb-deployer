@@ -3,6 +3,7 @@
 
 	let {
 		icon,
+		iconSnippet,
 		title,
 		description,
 		primaryAction,
@@ -11,6 +12,7 @@
 		class: className = ''
 	}: {
 		icon?: string;
+		iconSnippet?: import('svelte').Snippet;
 		title: string;
 		description?: string;
 		primaryAction?: {
@@ -53,9 +55,13 @@
 </script>
 
 <div class="text-center {sizeConfig.container} {className}">
-	{#if icon}
-		<div class="text-gray-500 dark:text-gray-400 {sizeConfig.icon}">
-			{icon}
+	{#if icon || iconSnippet}
+		<div class="flex justify-center text-gray-500 dark:text-gray-400 {sizeConfig.icon}">
+			{#if iconSnippet}
+				{@render iconSnippet()}
+			{:else}
+				{icon}
+			{/if}
 		</div>
 	{/if}
 

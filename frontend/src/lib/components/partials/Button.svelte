@@ -8,6 +8,7 @@
 		href,
 		target,
 		icon,
+		iconSnippet,
 		iconPosition = 'left',
 		fullWidth = false,
 		onclick,
@@ -23,6 +24,7 @@
 		href?: string;
 		target?: string;
 		icon?: string;
+		iconSnippet?: import('svelte').Snippet;
 		iconPosition?: 'left' | 'right';
 		fullWidth?: boolean;
 		onclick?: () => void;
@@ -150,32 +152,56 @@
 	>
 		{#if loading}
 			<div class="h-4 w-4 animate-spin rounded-full border-b-2 border-current"></div>
-		{:else if icon && iconPosition === 'left'}
-			<span class={iconSpacing[size].left}>{icon}</span>
+		{:else if (icon || iconSnippet) && iconPosition === 'left'}
+			<span class={iconSpacing[size].left}>
+				{#if iconSnippet}
+					{@render iconSnippet()}
+				{:else}
+					{icon}
+				{/if}
+			</span>
 		{/if}
 
 		{#if children}
 			{@render children()}
 		{/if}
 
-		{#if !loading && icon && iconPosition === 'right'}
-			<span class={iconSpacing[size].right}>{icon}</span>
+		{#if !loading && (icon || iconSnippet) && iconPosition === 'right'}
+			<span class={iconSpacing[size].right}>
+				{#if iconSnippet}
+					{@render iconSnippet()}
+				{:else}
+					{icon}
+				{/if}
+			</span>
 		{/if}
 	</a>
 {:else}
 	<button {type} class={buttonClasses} disabled={isDisabled} onclick={handleClick}>
 		{#if loading}
 			<div class="h-4 w-4 animate-spin rounded-full border-b-2 border-current"></div>
-		{:else if icon && iconPosition === 'left'}
-			<span class={iconSpacing[size].left}>{icon}</span>
+		{:else if (icon || iconSnippet) && iconPosition === 'left'}
+			<span class={iconSpacing[size].left}>
+				{#if iconSnippet}
+					{@render iconSnippet()}
+				{:else}
+					{icon}
+				{/if}
+			</span>
 		{/if}
 
 		{#if children}
 			{@render children()}
 		{/if}
 
-		{#if !loading && icon && iconPosition === 'right'}
-			<span class={iconSpacing[size].right}>{icon}</span>
+		{#if !loading && (icon || iconSnippet) && iconPosition === 'right'}
+			<span class={iconSpacing[size].right}>
+				{#if iconSnippet}
+					{@render iconSnippet()}
+				{:else}
+					{icon}
+				{/if}
+			</span>
 		{/if}
 	</button>
 {/if}

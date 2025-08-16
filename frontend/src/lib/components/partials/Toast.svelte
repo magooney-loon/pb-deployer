@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { slide } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
+	import Icon from '../icons/Icon.svelte';
 	let {
 		message,
 		type = 'error',
 		icon,
+		iconSnippet,
 		dismissible = true,
 		onDismiss,
 		delay = 150,
@@ -13,6 +15,7 @@
 		message: string;
 		type?: 'error' | 'warning' | 'info' | 'success';
 		icon?: string;
+		iconSnippet?: import('svelte').Snippet;
 		dismissible?: boolean;
 		onDismiss?: () => void;
 		delay?: number;
@@ -46,14 +49,14 @@
 		}
 	};
 
-	const defaultIcons = {
-		error: '❌',
-		warning: '⚠️',
-		info: 'ℹ️',
-		success: '✅'
-	};
+	const defaultIconNames = {
+		error: 'error',
+		warning: 'warning',
+		info: 'info',
+		success: 'success'
+	} as const;
 
-	let currentIcon = $derived(icon || defaultIcons[type]);
+	let currentIconName = $derived(defaultIconNames[type]);
 	let styles = $derived(typeStyles[type]);
 	let isVisible = $state(false);
 
@@ -70,7 +73,15 @@
 	>
 		<div class="flex items-center gap-3">
 			<div class="flex-shrink-0">
-				<span class="text-lg {styles.icon}">{currentIcon}</span>
+				<span class="text-lg {styles.icon}">
+					{#if iconSnippet}
+						{@render iconSnippet()}
+					{:else if icon}
+						{icon}
+					{:else}
+						<Icon name={currentIconName} />
+					{/if}
+				</span>
 			</div>
 			<div class="min-w-0 flex-1">
 				<p class="text-center text-sm font-medium {styles.message} truncate">{message}</p>
@@ -81,14 +92,7 @@
 					class="flex-shrink-0 p-1 transition-colors {styles.button}"
 					aria-label="Dismiss"
 				>
-					<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M6 18L18 6M6 6l12 12"
-						/>
-					</svg>
+					<Icon name="close" size="h-4 w-4" />
 				</button>
 			{/if}
 		</div>

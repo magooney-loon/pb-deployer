@@ -3,6 +3,7 @@
 		title,
 		value,
 		icon,
+		iconSnippet,
 		color = 'default',
 		size = 'md',
 		href,
@@ -12,6 +13,7 @@
 		title: string;
 		value: string | number;
 		icon?: string;
+		iconSnippet?: import('svelte').Snippet;
 		color?: 'default' | 'blue' | 'green' | 'red' | 'yellow' | 'purple';
 		size?: 'sm' | 'md' | 'lg';
 		href?: string;
@@ -85,12 +87,18 @@
 	<a {href} class={cardClasses}>
 		<div class={sizes.padding}>
 			<div class="flex items-center">
-				{#if icon}
+				{#if icon || iconSnippet}
 					<div class="flex-shrink-0">
-						<span class="{sizes.iconSize} {colors.icon}">{icon}</span>
+						<span class="{sizes.iconSize} {colors.icon}">
+							{#if iconSnippet}
+								{@render iconSnippet()}
+							{:else}
+								{icon}
+							{/if}
+						</span>
 					</div>
 				{/if}
-				<div class="{icon ? sizes.spacing : ''} w-0 flex-1">
+				<div class="{icon || iconSnippet ? sizes.spacing : ''} w-0 flex-1">
 					<dl>
 						<dt class="truncate text-sm font-medium text-gray-600 dark:text-gray-400">
 							{title}
@@ -112,12 +120,18 @@
 	>
 		<div class={sizes.padding}>
 			<div class="flex items-center">
-				{#if icon}
+				{#if icon || iconSnippet}
 					<div class="flex-shrink-0">
-						<span class="{sizes.iconSize} {colors.icon}">{icon}</span>
+						<span class="{sizes.iconSize} {colors.icon}">
+							{#if iconSnippet}
+								{@render iconSnippet()}
+							{:else}
+								{icon}
+							{/if}
+						</span>
 					</div>
 				{/if}
-				<div class="{icon ? sizes.spacing : ''} w-0 flex-1">
+				<div class="{icon || iconSnippet ? sizes.spacing : ''} w-0 flex-1">
 					<dl>
 						<dt class="truncate text-sm font-medium text-gray-600 dark:text-gray-400">
 							{title}

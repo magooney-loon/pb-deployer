@@ -3,6 +3,7 @@
 	import { fade } from 'svelte/transition';
 	import Navigation from '$lib/components/main/Navigation.svelte';
 	import { WarningBanner } from '$lib/components/partials';
+	import Icon from '$lib/components/icons/Icon.svelte';
 	import { onMount } from 'svelte';
 	import { lockscreenState, lockScreen } from '$lib/components/main/Settings';
 	import Lockscreen from './settings/components/Lockscreen.svelte';
@@ -57,14 +58,20 @@
 			size="xs"
 			message="Always close this application using Ctrl+C to prevent data loss and ensure proper cleanup."
 			color="yellow"
-			icon="⚠️"
-		/>
+		>
+			{#snippet iconSnippet()}
+				<Icon name="warning" size="h-4 w-4" />
+			{/snippet}
+		</WarningBanner>
 		<WarningBanner
 			size="xs"
 			message="Lockscreen Keybind: CTRL+L or CMD+L (if enabled)"
 			color="blue"
-			icon="ℹ️"
-		/>
+		>
+			{#snippet iconSnippet()}
+				<Icon name="info" size="h-4 w-4" />
+			{/snippet}
+		</WarningBanner>
 		<Navigation />
 		<main in:fade class="mx-auto px-4 py-8 sm:px-6 lg:px-8">
 			{@render children()}

@@ -5,6 +5,7 @@
 	import DeleteModal from '$lib/components/modals/DeleteModal.svelte';
 	import ServerCreateModal from '$lib/components/modals/ServerCreateModal.svelte';
 	import { Button, Toast, EmptyState, LoadingSpinner, StatusBadge } from '$lib/components/partials';
+	import Icon from '$lib/components/icons/Icon.svelte';
 
 	interface ServerFormData {
 		name: string;
@@ -51,11 +52,10 @@
 			Manage your VPS servers and deployment infrastructure
 		</p>
 	</div>
-	<Button
-		variant="outline"
-		onclick={() => logic.toggleCreateForm()}
-		icon={state.showCreateForm ? '✕' : '+'}
-	>
+	<Button variant="outline" onclick={() => logic.toggleCreateForm()}>
+		{#snippet iconSnippet()}
+			<Icon name={state.showCreateForm ? 'close' : 'plus'} />
+		{/snippet}
 		{state.showCreateForm ? 'Cancel' : 'Add Server'}
 	</Button>
 </header>
@@ -72,10 +72,13 @@
 	<LoadingSpinner text="Loading servers..." />
 {:else if state.servers.length === 0}
 	<EmptyState
-		icon="🖥️"
 		title="No servers configured yet"
 		description="Add your first server to start deploying applications"
-	/>
+	>
+		{#snippet iconSnippet()}
+			<Icon name="servers" size="h-12 w-12" class="text-gray-400" />
+		{/snippet}
+	</EmptyState>
 {:else}
 	<div
 		class="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950"
@@ -143,8 +146,10 @@
 									color="red"
 									size="sm"
 									onclick={() => logic.deleteServer(server.id)}
-									icon="🗑️"
 								>
+									{#snippet iconSnippet()}
+										<Icon name="delete" />
+									{/snippet}
 									Delete
 								</Button>
 							</td>
@@ -159,7 +164,10 @@
 		<p class="text-sm text-gray-600 dark:text-gray-400">
 			Showing {state.servers.length} server{state.servers.length !== 1 ? 's' : ''}
 		</p>
-		<Button variant="outline" size="sm" icon="🔄" onclick={() => logic.loadServers()}>
+		<Button variant="outline" size="sm" onclick={() => logic.loadServers()}>
+			{#snippet iconSnippet()}
+				<Icon name="refresh" />
+			{/snippet}
 			Refresh
 		</Button>
 	</div>
