@@ -48,7 +48,7 @@
 {#if state.open}
 	<!-- Backdrop -->
 	<div
-		class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm"
+		class="fixed inset-0 z-50 bg-black/80"
 		in:fade={{ duration: 250, easing: quintOut }}
 		out:fade={{ duration: 200 }}
 	>

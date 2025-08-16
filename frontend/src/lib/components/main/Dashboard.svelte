@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import { DashboardLogic, type DashboardState } from './Dashboard.js';
 	import type { Server, App } from '$lib/api/index.js';
 	import {
