@@ -3,7 +3,6 @@
 	import { fade, fly, scale } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
 	import { unlockScreen, lockscreenState } from '$lib/components/main/Settings.js';
-	import Background from '$lib/components/partials/Background.svelte';
 
 	let password = $state('');
 	let error = $state(false);
@@ -73,7 +72,12 @@
 		in:fade={{ duration: 300, easing: cubicOut }}
 		out:fade={{ duration: 200, easing: cubicOut }}
 	>
-		<Background variant="lockscreen" intensity="strong" />
+		<!-- Background with geometric pattern and grid -->
+		<div class="geometric-bg"></div>
+		<div class="svg-grid"></div>
+
+		<!-- Dark overlay for lockscreen -->
+		<div class="absolute inset-0 bg-gray-950/98 backdrop-blur-2xl"></div>
 
 		<div class="relative flex h-full items-center justify-center">
 			<div
@@ -86,11 +90,9 @@
 					in:scale={{ duration: 400, delay: 200, easing: cubicOut }}
 				>
 					<div class="relative">
+						<div class="absolute inset-0 animate-pulse rounded-full"></div>
 						<div
-							class="absolute inset-0 animate-pulse rounded-full bg-gradient-to-br from-blue-500 to-purple-500 opacity-20 blur-xl"
-						></div>
-						<div
-							class="relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-white shadow-lg"
+							class="relative flex h-16 w-16 items-center justify-center rounded-full text-white shadow-lg"
 						>
 							<img src="/favicon.svg" alt="Icon" class="h-24 w-24" />
 						</div>
@@ -166,10 +168,10 @@
 					<button
 						onclick={handleUnlock}
 						disabled={isUnlocking || !password}
-						class="group relative w-full overflow-hidden rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-4 py-3 font-medium text-white shadow-lg transition-all hover:shadow-xl disabled:opacity-50"
+						class="group relative w-full overflow-hidden rounded-lg bg-gradient-to-r from-blue-500/20 to-purple-500/20 px-4 py-3 font-medium text-white shadow-lg transition-all hover:shadow-xl disabled:opacity-50"
 					>
 						<div
-							class="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 opacity-0 transition-opacity group-hover:opacity-100"
+							class="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20 opacity-0 transition-opacity group-hover:opacity-100"
 						></div>
 						<span class="relative flex items-center justify-center">
 							{#if isUnlocking}

@@ -1,13 +1,18 @@
 <script lang="ts">
 	import ProgressBar from '../partials/ProgressBar.svelte';
-	import Background from '../partials/Background.svelte';
+
 	import { splashScreenState } from './SplashScreen';
 
 	let state = $derived($splashScreenState);
 </script>
 
 <div class="fixed inset-0 z-50">
-	<Background variant="splash" intensity="strong" />
+	<!-- Background with geometric pattern and grid -->
+	<div class="geometric-bg"></div>
+	<div class="svg-grid"></div>
+
+	<!-- Dark overlay for splash screen -->
+	<div class="absolute inset-0 bg-gray-950/98 backdrop-blur-2xl"></div>
 
 	<div class="relative flex h-full items-center justify-center">
 		<div class="flex flex-col items-center space-y-8 px-4">

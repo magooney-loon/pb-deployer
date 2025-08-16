@@ -51,23 +51,7 @@ All animations respect user preferences for reduced motion when `prefers-reduced
 
 ## Components
 
-### Background
 
-A background component with animated elements and different visual variants.
-
-```svelte
-<script>
-  import { Background } from '$lib/components/partials';
-</script>
-
-<Background />
-<Background variant="splash" intensity="strong" />
-<Background variant="lockscreen" intensity="subtle" />
-```
-
-**Props:**
-- `variant?: 'default' | 'splash' | 'lockscreen'` - Visual variant (default: "default")
-- `intensity?: 'subtle' | 'medium' | 'strong'` - Background intensity (default: "medium")
 
 ### Button
 

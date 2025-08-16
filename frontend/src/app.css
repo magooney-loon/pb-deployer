@@ -68,7 +68,7 @@
 }
 
 [data-theme='dark'] .geometric-bg {
-	background: radial-gradient(circle at center, #334155 0%, #1e293b 30%, #0f172a 60%, #020617 100%);
+	background: radial-gradient(circle at center, #0f172a 0%, #0a0f1a 30%, #050a0f 60%, #020617 100%);
 	background-size: 120% 120%;
 	animation: breathing-background 8s ease-in-out infinite;
 }
