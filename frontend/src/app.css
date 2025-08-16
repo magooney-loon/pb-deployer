@@ -71,11 +71,12 @@
 /* Subtle Dot Grid Overlay */
 .svg-grid::before {
 	content: '';
-	position: fixed;
+	position: absolute;
 	top: 0;
 	left: 0;
 	width: 100%;
-	height: 100%;
+	height: 100vh;
+	min-height: 100%;
 	background-image: radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.08) 1px, transparent 0);
 	background-size: 24px 24px;
 	mask: radial-gradient(
@@ -93,7 +94,7 @@
 		rgba(0, 0, 0, 0) 100%
 	);
 	pointer-events: none;
-	z-index: 1;
+	z-index: -1;
 }
 
 [data-theme='dark'] .svg-grid::before {

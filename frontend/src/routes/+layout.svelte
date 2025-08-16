@@ -53,7 +53,7 @@
 {:else if lockscreen.isEnabled && lockscreen.isLocked}
 	<Lockscreen />
 {:else}
-	<div>
+	<div class="svg-grid relative">
 		<WarningBanner size="xs" />
 		<WarningBanner
 			size="xs"
