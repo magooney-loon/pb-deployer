@@ -148,7 +148,7 @@
 		<div
 			out:slide={{ duration: 100, easing: cubicOut, axis: 'y' }}
 			in:slide={{ duration: 300, easing: cubicOut, axis: 'y' }}
-			class="border-t border-gray-200/50 bg-white/95 backdrop-blur-lg sm:hidden dark:border-gray-800/50 dark:bg-gray-950/95"
+			class="border-t border-gray-200/50 bg-white/95 sm:hidden dark:border-gray-800/50 dark:bg-gray-950/95"
 		>
 			<div class="px-4 py-3">
 				<!-- Mobile navigation items -->
