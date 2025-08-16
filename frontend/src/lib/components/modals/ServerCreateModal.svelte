@@ -64,7 +64,10 @@
 
 	$effect(() => {
 		if (!open) {
-			resetForm();
+			// Delay to allow modal animation to complete
+			setTimeout(() => {
+				resetForm();
+			}, 300);
 		}
 	});
 </script>

@@ -6,7 +6,6 @@ const STORAGE_KEY_PASSWORD = 'pb-deployer-lockscreen-password';
 
 export interface SettingsData {
 	security: SecuritySettings;
-	notifications: NotificationSettings;
 }
 
 export interface SecuritySettings {
@@ -15,28 +14,11 @@ export interface SecuritySettings {
 	autoLockMinutes: number;
 }
 
-export interface NotificationSettings {
-	enabled: boolean;
-	telegramApiKey: string;
-	chatId: string;
-	notifyOnDeploy: boolean;
-	notifyOnError: boolean;
-	notifyOnServerStatus: boolean;
-}
-
 const defaultSettings: SettingsData = {
 	security: {
 		lockscreenEnabled: false,
 		autoLockEnabled: false,
 		autoLockMinutes: 15
-	},
-	notifications: {
-		enabled: false,
-		telegramApiKey: '',
-		chatId: '',
-		notifyOnDeploy: true,
-		notifyOnError: true,
-		notifyOnServerStatus: false
 	}
 };
 
@@ -52,8 +34,7 @@ export class SettingsService {
 				const parsed = JSON.parse(stored);
 				// Merge with defaults to ensure all properties exist
 				return {
-					security: { ...defaultSettings.security, ...parsed.security },
-					notifications: { ...defaultSettings.notifications, ...parsed.notifications }
+					security: { ...defaultSettings.security, ...parsed.security }
 				};
 			}
 		} catch (error) {
@@ -85,23 +66,11 @@ export class SettingsService {
 		const currentSettings = this.getStoredSettings();
 
 		const updatedSettings: SettingsData = {
-			security: { ...currentSettings.security, ...(newSettings.security || {}) },
-			notifications: { ...currentSettings.notifications, ...(newSettings.notifications || {}) }
+			security: { ...currentSettings.security, ...(newSettings.security || {}) }
 		};
 
 		this.saveSettings(updatedSettings);
 		return updatedSettings;
-	}
-
-	async testTelegramConnection(apiKey: string, chatId: string): Promise<boolean> {
-		await new Promise((resolve) => setTimeout(resolve, 800));
-
-		// Mock validation - in production, this would make an actual API call
-		const botTokenPattern = /^\d+:[A-Za-z0-9_-]+$/;
-		const isValidToken = botTokenPattern.test(apiKey);
-		const isValidChatId = chatId.length > 0 && (chatId.startsWith('@') || /^-?\d+$/.test(chatId));
-
-		return isValidToken && isValidChatId;
 	}
 }
 
