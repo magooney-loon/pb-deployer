@@ -1,38 +1,38 @@
 [
 	{
-		"id": "getting-started",
-		"title": "Getting Started",
-		"icon": "🚀",
-		"file": "getting-started.md"
+		"id": "create-vps",
+		"title": "Step 1: Create VPS",
+		"icon": "🖥️",
+		"file": "create-vps.md"
 	},
 	{
-		"id": "installation",
-		"title": "Installation",
-		"icon": "📦",
-		"file": "installation.md"
+		"id": "cloudflare-proxy",
+		"title": "Step 2: Cloudflare Proxy (Optional)",
+		"icon": "☁️",
+		"file": "cloudflare-proxy.md"
 	},
 	{
-		"id": "configuration",
-		"title": "Configuration",
+		"id": "setup-server",
+		"title": "Step 3: Setup Server",
 		"icon": "⚙️",
-		"file": "configuration.md"
+		"file": "setup-server.md"
 	},
 	{
-		"id": "deployment",
-		"title": "Deployment",
-		"icon": "🌐",
-		"file": "deployment.md"
+		"id": "secure-server",
+		"title": "Step 4: Secure Server",
+		"icon": "🔒",
+		"file": "secure-server.md"
 	},
 	{
-		"id": "api-reference",
-		"title": "API Reference",
-		"icon": "📚",
-		"file": "api-reference.md"
+		"id": "deploy-app",
+		"title": "Step 5: Deploy App",
+		"icon": "🚀",
+		"file": "deploy-app.md"
 	},
 	{
-		"id": "troubleshooting",
-		"title": "Troubleshooting",
-		"icon": "🔧",
-		"file": "troubleshooting.md"
+		"id": "update-rollback",
+		"title": "Step 6: Update/Rollback App",
+		"icon": "🔄",
+		"file": "update-rollback.md"
 	}
 ]
