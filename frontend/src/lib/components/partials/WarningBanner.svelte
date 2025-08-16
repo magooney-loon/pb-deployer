@@ -8,7 +8,8 @@
 		color = 'yellow',
 		size = 'sm',
 		class: className = '',
-		onDismiss
+		onDismiss,
+		delay = 150
 	}: {
 		message?: string;
 		icon?: string;
@@ -17,9 +18,15 @@
 		size?: 'xs' | 'sm';
 		class?: string;
 		onDismiss?: () => void;
+		delay?: number;
 	} = $props();
 
-	let isDismissed = $state(false);
+	let isDismissed = $state(true);
+
+	// Show banner after delay
+	setTimeout(() => {
+		isDismissed = false;
+	}, delay);
 
 	const colorVariants = {
 		yellow:
