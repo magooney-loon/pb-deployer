@@ -5,6 +5,7 @@ export interface MarkdownOptions {
 
 export class MarkdownParser {
 	private options: MarkdownOptions;
+	private cache = new Map<string, string>();
 
 	constructor(options: MarkdownOptions = {}) {
 		this.options = {
@@ -15,6 +16,15 @@ export class MarkdownParser {
 	}
 
 	parse(markdown: string): string {
+		// Check cache first for performance
+		const cacheKey = markdown;
+		if (this.cache.has(cacheKey)) {
+			const cached = this.cache.get(cacheKey);
+			if (cached !== undefined) {
+				return cached;
+			}
+		}
+
 		let html = this.preprocessMarkdown(markdown);
 
 		// Process in order of precedence to avoid conflicts
@@ -27,7 +37,20 @@ export class MarkdownParser {
 		html = this.parseInlineElements(html);
 		html = this.parseParagraphs(html);
 
-		return html.trim();
+		const result = html.trim();
+
+		// Cache the result
+		this.cache.set(cacheKey, result);
+
+		// Limit cache size to prevent memory leaks
+		if (this.cache.size > 50) {
+			const firstKey = this.cache.keys().next().value;
+			if (firstKey !== undefined) {
+				this.cache.delete(firstKey);
+			}
+		}
+
+		return result;
 	}
 
 	private preprocessMarkdown(markdown: string): string {
@@ -65,34 +88,31 @@ export class MarkdownParser {
 	}
 
 	private parseInlineElements(html: string): string {
+		// Pre-compile common class strings for better performance
+		const codeClass =
+			'rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-2 py-1 text-sm font-mono text-pink-600 dark:text-orange-400';
+		const linkClass =
+			'text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium underline decoration-1 underline-offset-2 transition-colors';
+		const boldClass = 'font-semibold text-gray-900 dark:text-gray-100';
+		const boldItalicClass = 'font-bold text-gray-900 dark:text-gray-100';
+		const italicClass = 'italic text-gray-800 dark:text-gray-200';
+
 		// Inline code (before links to avoid conflicts)
-		html = html.replace(
-			/`([^`]+)`/g,
-			'<code class="rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-2 py-1 text-sm font-mono text-pink-600 dark:text-orange-400">$1</code>'
-		);
+		html = html.replace(/`([^`]+)`/g, `<code class="${codeClass}">$1</code>`);
 
 		// Links with external detection
 		html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
 			const isExternal = url.startsWith('http') || url.startsWith('//');
 			const target = isExternal ? ' target="_blank" rel="noopener noreferrer"' : '';
 			const icon = isExternal ? '<span class="ml-1 text-xs opacity-60">↗</span>' : '';
-
-			return `<a href="${url}"${target} class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium underline decoration-1 underline-offset-2 transition-colors">${text}${icon}</a>`;
+			return `<a href="${url}"${target} class="${linkClass}">${text}${icon}</a>`;
 		});
 
-		// Bold and italic
-		html = html
-			.replace(
-				/\*\*\*(.*?)\*\*\*/g,
-				'<strong class="font-bold text-gray-900 dark:text-gray-100"><em>$1</em></strong>'
-			)
-			.replace(
-				/\*\*(.*?)\*\*/g,
-				'<strong class="font-semibold text-gray-900 dark:text-gray-100">$1</strong>'
-			)
-			.replace(/\*(.*?)\*/g, '<em class="italic text-gray-800 dark:text-gray-200">$1</em>');
-
-		return html;
+		// Bold and italic (combined for efficiency)
+		return html
+			.replace(/\*\*\*(.*?)\*\*\*/g, `<strong class="${boldItalicClass}"><em>$1</em></strong>`)
+			.replace(/\*\*(.*?)\*\*/g, `<strong class="${boldClass}">$1</strong>`)
+			.replace(/\*(.*?)\*/g, `<em class="${italicClass}">$1</em>`);
 	}
 
 	private parseBlockquotes(html: string): string {
@@ -278,9 +298,13 @@ export class MarkdownParser {
 	}
 
 	private escapeHtml(text: string): string {
-		const div = document.createElement('div');
-		div.textContent = text;
-		return div.innerHTML;
+		// Use a more efficient escape method without DOM creation
+		return text
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#x27;');
 	}
 }
 

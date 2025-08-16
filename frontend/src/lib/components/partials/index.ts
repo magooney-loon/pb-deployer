@@ -1,3 +1,4 @@
+export { default as Accordion } from './Accordion.svelte';
 export { default as Toast } from './Toast.svelte';
 export { default as LoadingSpinner } from './LoadingSpinner.svelte';
 export { default as MetricCard } from './MetricCard.svelte';

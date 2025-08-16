@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { SvelteSet } from 'svelte/reactivity';
-	import { slide, fly } from 'svelte/transition';
-	import { quintOut } from 'svelte/easing';
-	import MarkdownRenderer from './components/MarkdownRenderer.svelte';
+	import { fly } from 'svelte/transition';
+	import { Accordion } from '$lib/components/partials';
 
 	let sections: Array<{
 		id: string;
@@ -11,42 +10,48 @@
 		file: string;
 	}> = $state([]);
 
-	let openSections = new SvelteSet(['']);
+	let openSections = new SvelteSet();
 	let sectionContent: Record<string, string> = $state({});
-	let loadingContent: Record<string, boolean> = $state({});
+	let loadingStates: Record<string, boolean> = $state({});
+	let contentReady: Record<string, boolean> = $state({});
 	let showScrollTop = $state(false);
 
 	async function loadSectionContent(sectionId: string) {
-		if (sectionContent[sectionId] || loadingContent[sectionId]) return;
+		if (sectionContent[sectionId] || loadingStates[sectionId]) return;
 
 		const section = sections.find((s) => s.id === sectionId);
 		if (!section) return;
 
-		loadingContent = { ...loadingContent, [sectionId]: true };
+		loadingStates = { ...loadingStates, [sectionId]: true };
 
-		try {
-			const response = await fetch(`/docs/${section.file}`);
-			if (!response.ok) {
-				throw new Error(`Failed to fetch ${section.file}: ${response.status}`);
-			}
-			const content = await response.text();
-			sectionContent = { ...sectionContent, [sectionId]: content };
-		} catch (error) {
-			console.error(`Failed to load content for ${sectionId}:`, error);
-			sectionContent = {
-				...sectionContent,
-				[sectionId]: `# ${section.title}\n\nFailed to load content. Please try again.`
-			};
-		} finally {
-			loadingContent = { ...loadingContent, [sectionId]: false };
-		}
+		// Simulate loading delay
+		await new Promise((resolve) => setTimeout(resolve, 800));
+
+		// Generate simple test content
+		const content = `This is the content for ${section.title}.
+
+This section contains information about ${section.title.toLowerCase()}.
+
+Key points:
+• Point 1 for ${section.title}
+• Point 2 for ${section.title}
+• Point 3 for ${section.title}
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+
+Example code or configuration would go here.`;
+
+		sectionContent = { ...sectionContent, [sectionId]: content };
+		contentReady = { ...contentReady, [sectionId]: true };
+		loadingStates = { ...loadingStates, [sectionId]: false };
 	}
 
-	function toggleSection(sectionId: string) {
-		if (openSections.has(sectionId)) {
-			openSections.delete(sectionId);
-		} else {
-			openSections.add(sectionId);
+	function handleSectionOpen(sectionId: string) {
+		loadSectionContent(sectionId);
+	}
+
+	function handleSectionToggle(sectionId: string, isOpen: boolean) {
+		if (isOpen) {
 			loadSectionContent(sectionId);
 		}
 	}
@@ -55,24 +60,40 @@
 		loadSections();
 	});
 
-	$effect(() => {
-		if (sections.length > 0) {
-			loadSectionContent('getting-started');
-		}
-	});
-
 	async function loadSections() {
-		try {
-			const response = await fetch('/docs/sections.json');
-			if (!response.ok) {
-				throw new Error(`Failed to fetch sections: ${response.status}`);
+		// Use simple test sections instead of fetching
+		sections = [
+			{
+				id: 'getting-started',
+				title: 'Getting Started',
+				icon: '🚀',
+				file: 'getting-started.md'
+			},
+			{
+				id: 'installation',
+				title: 'Installation',
+				icon: '📦',
+				file: 'installation.md'
+			},
+			{
+				id: 'configuration',
+				title: 'Configuration',
+				icon: '⚙️',
+				file: 'configuration.md'
+			},
+			{
+				id: 'deployment',
+				title: 'Deployment',
+				icon: '🌐',
+				file: 'deployment.md'
+			},
+			{
+				id: 'api-reference',
+				title: 'API Reference',
+				icon: '📚',
+				file: 'api-reference.md'
 			}
-			sections = await response.json();
-		} catch (error) {
-			console.error('Failed to load documentation sections:', error);
-			// Fallback to empty array or default sections if needed
-			sections = [];
-		}
+		];
 	}
 
 	$effect(() => {
@@ -109,74 +130,37 @@
 		<p class="text-gray-600 dark:text-gray-400">Complete guide to using pb-deployer</p>
 	</div>
 
-	<div class="space-y-4">
-		{#each sections as section (section.id)}
-			<div
-				class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900"
-			>
-				<!-- Section Header -->
-				<button
-					onclick={() => toggleSection(section.id)}
-					class="flex w-full items-center justify-between p-6 text-left transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
-				>
-					<div class="flex items-center space-x-3">
-						<span class="text-xl">{section.icon}</span>
-						<h2 class="text-lg font-semibold text-gray-900 dark:text-white">{section.title}</h2>
-						{#if loadingContent[section.id]}
-							<div
-								class="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
-							></div>
-						{/if}
-					</div>
-					<svg
-						class="h-5 w-5 text-gray-500 transition-transform duration-200 {openSections.has(
-							section.id
-						)
-							? 'rotate-180'
-							: ''}"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M19 9l-7 7-7-7"
-						/>
-					</svg>
-				</button>
+	<Accordion
+		{sections}
+		{openSections}
+		loading={loadingStates}
+		{contentReady}
+		onSectionOpen={handleSectionOpen}
+		onToggle={handleSectionToggle}
+	>
+		{#snippet children(section)}
+			{#if sectionContent[section.id]}
+				<div class="prose prose-gray dark:prose-invert max-w-none">
+					<pre class="text-sm whitespace-pre-wrap">{sectionContent[section.id]}</pre>
+				</div>
+			{:else}
+				<div class="py-4">
+					<p class="text-gray-500 dark:text-gray-400">Content not available</p>
+				</div>
+			{/if}
+		{/snippet}
 
-				<!-- Section Content -->
-				{#if openSections.has(section.id)}
+		{#snippet loadingContent()}
+			<div class="flex items-center justify-center py-8">
+				<div class="text-center">
 					<div
-						in:slide={{ duration: 300, easing: quintOut }}
-						out:slide={{ duration: 300, easing: quintOut }}
-						class="border-t border-gray-200 dark:border-gray-800"
-					>
-						<div class="p-6 pt-4">
-							{#if sectionContent[section.id]}
-								<MarkdownRenderer content={sectionContent[section.id]} />
-							{:else if loadingContent[section.id]}
-								<div class="flex items-center justify-center py-8">
-									<div class="text-center">
-										<div
-											class="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
-										></div>
-										<p class="text-gray-500 dark:text-gray-400">Loading content...</p>
-									</div>
-								</div>
-							{:else}
-								<div class="py-4">
-									<p class="text-gray-500 dark:text-gray-400">Content not available</p>
-								</div>
-							{/if}
-						</div>
-					</div>
-				{/if}
+						class="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
+					></div>
+					<p class="text-gray-500 dark:text-gray-400">Loading content...</p>
+				</div>
 			</div>
-		{/each}
-	</div>
+		{/snippet}
+	</Accordion>
 
 	<!-- Scroll to Top Button - Vercel Style -->
 	{#if showScrollTop}

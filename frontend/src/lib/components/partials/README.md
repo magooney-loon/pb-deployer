@@ -51,7 +51,87 @@ All animations respect user preferences for reduced motion when `prefers-reduced
 
 ## Components
 
+### Accordion
 
+A flexible accordion component for collapsible content sections with loading states and smooth animations.
+
+```svelte
+<script>
+  import { Accordion } from '$lib/components/partials';
+  import { SvelteSet } from 'svelte/reactivity';
+
+  const sections = [
+    { id: 'section1', title: 'Getting Started', icon: '🚀' },
+    { id: 'section2', title: 'Configuration', icon: '⚙️' },
+    { id: 'section3', title: 'Deployment', icon: '🚀' }
+  ];
+
+  let openSections = new SvelteSet(['section1']);
+  let loading = { section2: true };
+  let contentReady = { section1: true };
+</script>
+
+<Accordion
+  {sections}
+  {openSections}
+  {loading}
+  {contentReady}
+  onSectionOpen={(id) => console.log('opened:', id)}
+  onToggle={(id, isOpen) => console.log('toggled:', id, isOpen)}
+>
+  {#snippet children(section, isOpen, isLoading)}
+    <div class="prose dark:prose-invert">
+      <p>Content for {section.title}</p>
+    </div>
+  {/snippet}
+  
+  {#snippet loadingContent(section)}
+    <div class="text-center py-8">
+      <p>Loading {section.title}...</p>
+    </div>
+  {/snippet}
+</Accordion>
+
+<!-- Single section mode -->
+<Accordion
+  {sections}
+  multiple={false}
+  animationDuration={{ in: 300, out: 200 }}
+>
+  {#snippet children(section)}
+    <p>Single section content</p>
+  {/snippet}
+</Accordion>
+```
+
+**Props:**
+- `sections?: T[]` - Array of section objects with id, title, and optional icon (default: [])
+- `openSections?: SvelteSet<string>` - Set of open section IDs (bindable)
+- `multiple?: boolean` - Allow multiple sections open (default: true)
+- `disabled?: boolean` - Disable all sections (default: false)
+- `loading?: Record<string, boolean>` - Loading state per section
+- `contentReady?: Record<string, boolean>` - Content ready state per section
+- `animationDuration?: { in: number; out: number }` - Animation durations (default: { in: 400, out: 300 })
+- `class?: string` - Additional CSS classes for container
+- `sectionClass?: string` - CSS classes for section containers
+- `headerClass?: string` - CSS classes for section headers
+- `contentClass?: string` - CSS classes for content areas
+- `onToggle?: (sectionId: string, isOpen: boolean) => void` - Toggle callback
+- `onSectionOpen?: (sectionId: string) => void` - Section open callback
+- `onSectionClose?: (sectionId: string) => void` - Section close callback
+- `children?: Snippet<[section: T, isOpen: boolean, isLoading: boolean]>` - Content renderer
+- `loadingContent?: Snippet<[section: T]>` - Custom loading content renderer
+
+**Section interface:**
+```typescript
+interface AccordionSection {
+  id: string;           // Unique identifier (required)
+  title: string;        // Section title (required)
+  icon?: string;        // Optional icon
+  disabled?: boolean;   // Disable this section
+  [key: string]: unknown; // Additional properties
+}
+```
 
 ### Button
 
