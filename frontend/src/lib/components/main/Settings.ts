@@ -18,6 +18,7 @@ export interface SecuritySettings {
 
 export interface UISettings {
 	animationsEnabled: boolean;
+	mouseEffectsEnabled: boolean;
 }
 
 const defaultSettings: SettingsData = {
@@ -27,7 +28,8 @@ const defaultSettings: SettingsData = {
 		autoLockMinutes: 15
 	},
 	ui: {
-		animationsEnabled: true
+		animationsEnabled: true,
+		mouseEffectsEnabled: true
 	}
 };
 
@@ -88,10 +90,23 @@ export class SettingsService {
 export const settingsService = new SettingsService();
 
 /**
+ * Store to track mouse effects preference
+ */
+export const mouseEffectsEnabled = writable(true);
+
+/**
+ * Update mouse effects preference
+ */
+export function updateMouseEffectsPreference(enabled: boolean): void {
+	mouseEffectsEnabled.set(enabled);
+}
+
+/**
  * Update animation preference in navigation store when settings change
  */
 export function updateUISettings(settings: SettingsData) {
 	updateAnimationPreference(settings.ui.animationsEnabled);
+	updateMouseEffectsPreference(settings.ui.mouseEffectsEnabled);
 }
 
 interface LockscreenState {

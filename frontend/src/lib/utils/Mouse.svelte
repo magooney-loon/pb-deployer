@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { mouseEffectsEnabled } from '$lib/components/main/Settings.js';
 
 	interface Position {
 		x: number;
@@ -28,6 +29,7 @@
 	let ripples = $state<Ripple[]>([]);
 	let mounted = $state<boolean>(false);
 	let isTouchDevice = $state<boolean>(false);
+	let effectsEnabled = $state<boolean>(true);
 	let animationId = 0;
 
 	const TRAIL_LENGTH: number = 7;
@@ -62,7 +64,7 @@
 	}
 
 	function updateTrail(): void {
-		if (!mounted) return;
+		if (!mounted || !effectsEnabled) return;
 
 		const currentTime = Date.now();
 		const timeOffset = currentTime * 0.001;
@@ -149,6 +151,42 @@
 			return;
 		}
 
+		// Subscribe to mouse effects setting
+		const unsubscribe = mouseEffectsEnabled.subscribe((enabled) => {
+			effectsEnabled = enabled;
+			if (!enabled) {
+				// Clear existing effects when disabled
+				trail = [];
+				ripples = [];
+				if (animationId) {
+					cancelAnimationFrame(animationId);
+					animationId = 0;
+				}
+			} else if (mounted) {
+				// Reinitialize trail when re-enabled
+				trail = [];
+				for (let i = 0; i < TRAIL_LENGTH; i++) {
+					trail.push({
+						id: Date.now() + i,
+						x: window.innerWidth / 2,
+						y: window.innerHeight / 2,
+						targetX: window.innerWidth / 2,
+						targetY: window.innerHeight / 2,
+						velocityX: 0,
+						velocityY: 0,
+						angle: (i / TRAIL_LENGTH) * Math.PI * 2,
+						orbitRadius: ORBIT_AMPLITUDE * (i / TRAIL_LENGTH)
+					});
+				}
+
+				// Restart animation loop
+				if (animationId) {
+					cancelAnimationFrame(animationId);
+				}
+				animationId = requestAnimationFrame(updateTrail);
+			}
+		});
+
 		mounted = true;
 
 		// Listen to mouse events on window with passive listeners for better performance
@@ -178,11 +216,12 @@
 			cancelAnimationFrame(animationId);
 			window.removeEventListener('mousemove', handleMousemove);
 			window.removeEventListener('mousedown', handleMousedown);
+			unsubscribe();
 		};
 	});
 </script>
 
-{#if !isTouchDevice}
+{#if !isTouchDevice && effectsEnabled}
 	<div class="mouse-container">
 		<!-- Trail dots -->
 		{#each trail as dot, index (dot.id)}

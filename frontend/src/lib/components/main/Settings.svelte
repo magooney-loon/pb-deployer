@@ -38,13 +38,20 @@
 		autoLockEnabled: boolean;
 		autoLockMinutes: number;
 		animationsEnabled: boolean;
+		mouseEffectsEnabled: boolean;
 	}) {
 		try {
 			saving = true;
 			error = '';
 			successMessage = '';
 
-			const { lockscreenEnabled, autoLockEnabled, autoLockMinutes, animationsEnabled } = data;
+			const {
+				lockscreenEnabled,
+				autoLockEnabled,
+				autoLockMinutes,
+				animationsEnabled,
+				mouseEffectsEnabled
+			} = data;
 
 			const updatedSettings: Partial<SettingsData> = {
 				security: {
@@ -53,7 +60,8 @@
 					autoLockMinutes
 				},
 				ui: {
-					animationsEnabled
+					animationsEnabled,
+					mouseEffectsEnabled
 				}
 			};
 

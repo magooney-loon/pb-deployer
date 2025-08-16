@@ -24,6 +24,7 @@
 			autoLockEnabled: boolean;
 			autoLockMinutes: number;
 			animationsEnabled: boolean;
+			mouseEffectsEnabled: boolean;
 		}) => void;
 		onClearError?: () => void;
 		onClearSuccess?: () => void;
@@ -33,7 +34,8 @@
 		lockscreenEnabled: false,
 		autoLockEnabled: false,
 		autoLockMinutes: 15,
-		animationsEnabled: true
+		animationsEnabled: true,
+		mouseEffectsEnabled: true
 	});
 
 	const autoLockOptions = [
@@ -51,7 +53,8 @@
 				lockscreenEnabled: settings.security.lockscreenEnabled,
 				autoLockEnabled: settings.security.autoLockEnabled,
 				autoLockMinutes: settings.security.autoLockMinutes,
-				animationsEnabled: settings.ui.animationsEnabled
+				animationsEnabled: settings.ui.animationsEnabled,
+				mouseEffectsEnabled: settings.ui.mouseEffectsEnabled
 			};
 		}
 	});
@@ -69,7 +72,8 @@
 			lockscreenEnabled: formData.lockscreenEnabled,
 			autoLockEnabled: formData.autoLockEnabled,
 			autoLockMinutes: formData.autoLockMinutes,
-			animationsEnabled: formData.animationsEnabled
+			animationsEnabled: formData.animationsEnabled,
+			mouseEffectsEnabled: formData.mouseEffectsEnabled
 		});
 	}
 
@@ -152,6 +156,14 @@
 			type="checkbox"
 			bind:checked={formData.animationsEnabled}
 			helperText="Enable smooth page transitions and animations throughout the application"
+		/>
+
+		<FormField
+			id="mouse-effects-enabled"
+			label="Enable Mouse Effects"
+			type="checkbox"
+			bind:checked={formData.mouseEffectsEnabled}
+			helperText="Enable mouse trail and click ripple effects (disabled on touch devices)"
 		/>
 	</Card>
 
