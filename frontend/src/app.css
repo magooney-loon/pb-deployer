@@ -56,10 +56,15 @@
 
 /* Minimalistic Breathing Background */
 .geometric-bg {
-	position: relative;
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100vw;
+	height: 100vh;
 	background: radial-gradient(circle at center, #f1f5f9 0%, #e2e8f0 30%, #cbd5e1 60%, #94a3b8 100%);
 	background-size: 120% 120%;
 	animation: breathing-background 8s ease-in-out infinite;
+	z-index: -10;
 }
 
 [data-theme='dark'] .geometric-bg {
@@ -71,12 +76,11 @@
 /* Subtle Dot Grid Overlay */
 .svg-grid::before {
 	content: '';
-	position: absolute;
+	position: fixed;
 	top: 0;
 	left: 0;
-	width: 100%;
+	width: 100vw;
 	height: 100vh;
-	min-height: 100%;
 	background-image: radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.08) 1px, transparent 0);
 	background-size: 24px 24px;
 	mask: radial-gradient(
@@ -94,7 +98,7 @@
 		rgba(0, 0, 0, 0) 100%
 	);
 	pointer-events: none;
-	z-index: -1;
+	z-index: -5;
 }
 
 [data-theme='dark'] .svg-grid::before {
