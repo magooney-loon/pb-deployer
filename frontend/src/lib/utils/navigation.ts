@@ -1,9 +1,35 @@
 import { goto } from '$app/navigation';
+import { writable } from 'svelte/store';
+import { browser } from '$app/environment';
 import {
 	startViewTransition,
 	createNamedTransition,
 	isTransitionRunning
 } from './view-transitions';
+
+/**
+ * Store to track whether animations are enabled
+ */
+export const animationsEnabled = writable(true);
+
+/**
+ * Update animation preference from settings
+ */
+export function updateAnimationPreference(enabled: boolean): void {
+	animationsEnabled.set(enabled);
+}
+
+/**
+ * Get current animation preference synchronously
+ */
+export function getAnimationPreference(): boolean {
+	let enabled = true;
+	if (browser) {
+		const unsubscribe = animationsEnabled.subscribe((value) => (enabled = value));
+		unsubscribe();
+	}
+	return enabled;
+}
 
 /**
  * Enhanced navigation function that uses View Transition API for smooth page transitions
@@ -29,6 +55,15 @@ export async function navigateWithTransition(
 	}
 
 	try {
+		// Check if animations are enabled
+		const shouldUseAnimations = getAnimationPreference();
+
+		if (!shouldUseAnimations) {
+			// Use regular navigation without transitions
+			await goto(url, gotoOptions);
+			return;
+		}
+
 		if (transitionName) {
 			await createNamedTransition(transitionName, async () => {
 				await goto(url, gotoOptions);
@@ -97,6 +132,20 @@ export function createTransitionLink(
 
 		event.preventDefault();
 
+		// Check if animations are disabled
+		if (!getAnimationPreference()) {
+			// Use regular navigation
+			try {
+				options.onNavigationStart?.();
+				await goto(href, options);
+				options.onNavigationEnd?.();
+			} catch (error) {
+				const navigationError = error instanceof Error ? error : new Error(String(error));
+				options.onNavigationError?.(navigationError);
+			}
+			return;
+		}
+
 		try {
 			options.onNavigationStart?.();
 			await navigateWithTransition(href, options);
@@ -140,9 +189,11 @@ export function transitionLink(
 
 	// Add visual feedback for transitions
 	const addTransitionClass = () => {
-		node.classList.add('transition-link');
-		if (options.transitionName) {
-			node.setAttribute('data-transition', options.transitionName);
+		if (getAnimationPreference()) {
+			node.classList.add('transition-link');
+			if (options.transitionName) {
+				node.setAttribute('data-transition', options.transitionName);
+			}
 		}
 	};
 

@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { settingsService, type SettingsData, updateLockscreenSettings } from './Settings.js';
+	import {
+		settingsService,
+		type SettingsData,
+		updateLockscreenSettings,
+		updateUISettings
+	} from './Settings.js';
 	import { LoadingSpinner, Toast, SettingsForm } from '$lib/components/partials';
 
 	let settings: SettingsData | null = $state(null);
@@ -32,19 +37,23 @@
 		lockscreenEnabled: boolean;
 		autoLockEnabled: boolean;
 		autoLockMinutes: number;
+		animationsEnabled: boolean;
 	}) {
 		try {
 			saving = true;
 			error = '';
 			successMessage = '';
 
-			const { lockscreenEnabled, autoLockEnabled, autoLockMinutes } = data;
+			const { lockscreenEnabled, autoLockEnabled, autoLockMinutes, animationsEnabled } = data;
 
 			const updatedSettings: Partial<SettingsData> = {
 				security: {
 					lockscreenEnabled,
 					autoLockEnabled,
 					autoLockMinutes
+				},
+				ui: {
+					animationsEnabled
 				}
 			};
 
@@ -55,6 +64,8 @@
 				autoLockEnabled,
 				autoLockMinutes
 			});
+
+			updateUISettings(settings);
 
 			successMessage = 'Settings saved successfully!';
 		} catch (err) {

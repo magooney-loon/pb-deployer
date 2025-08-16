@@ -1,11 +1,13 @@
 import { writable, type Writable } from 'svelte/store';
 import { browser } from '$app/environment';
+import { updateAnimationPreference } from '$lib/utils/navigation.js';
 
 const LOCKSCREEN_PASSWORD = '123a';
 const STORAGE_KEY_PASSWORD = 'pb-deployer-lockscreen-password';
 
 export interface SettingsData {
 	security: SecuritySettings;
+	ui: UISettings;
 }
 
 export interface SecuritySettings {
@@ -14,11 +16,18 @@ export interface SecuritySettings {
 	autoLockMinutes: number;
 }
 
+export interface UISettings {
+	animationsEnabled: boolean;
+}
+
 const defaultSettings: SettingsData = {
 	security: {
 		lockscreenEnabled: false,
 		autoLockEnabled: false,
 		autoLockMinutes: 15
+	},
+	ui: {
+		animationsEnabled: true
 	}
 };
 
@@ -34,7 +43,8 @@ export class SettingsService {
 				const parsed = JSON.parse(stored);
 				// Merge with defaults to ensure all properties exist
 				return {
-					security: { ...defaultSettings.security, ...parsed.security }
+					security: { ...defaultSettings.security, ...parsed.security },
+					ui: { ...defaultSettings.ui, ...parsed.ui }
 				};
 			}
 		} catch (error) {
@@ -66,7 +76,8 @@ export class SettingsService {
 		const currentSettings = this.getStoredSettings();
 
 		const updatedSettings: SettingsData = {
-			security: { ...currentSettings.security, ...(newSettings.security || {}) }
+			security: { ...currentSettings.security, ...(newSettings.security || {}) },
+			ui: { ...currentSettings.ui, ...(newSettings.ui || {}) }
 		};
 
 		this.saveSettings(updatedSettings);
@@ -75,6 +86,13 @@ export class SettingsService {
 }
 
 export const settingsService = new SettingsService();
+
+/**
+ * Update animation preference in navigation store when settings change
+ */
+export function updateUISettings(settings: SettingsData) {
+	updateAnimationPreference(settings.ui.animationsEnabled);
+}
 
 interface LockscreenState {
 	isLocked: boolean;
@@ -115,6 +133,9 @@ class LockscreenStore {
 	private async loadSettings() {
 		try {
 			const settings = await settingsService.getSettings();
+
+			// Update animation preference
+			updateUISettings(settings);
 
 			this.store.update((state) => ({
 				...state,

@@ -1,5 +1,6 @@
 <script lang="ts" generics="T extends { id: string | number }">
 	import Card from './Card.svelte';
+	import { transitionLink } from '$lib/utils/navigation.js';
 
 	interface EmptyState {
 		message: string;
@@ -37,6 +38,7 @@
 		{#if viewAllHref}
 			<a
 				href={viewAllHref}
+				use:transitionLink
 				class="text-sm text-gray-600 underline-offset-4 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-100"
 			>
 				{viewAllText}
@@ -50,6 +52,7 @@
 			{#if emptyState.ctaText && emptyState.ctaHref}
 				<a
 					href={emptyState.ctaHref}
+					use:transitionLink
 					class="mt-2 inline-flex items-center text-sm text-gray-700 underline-offset-4 hover:text-gray-900 hover:underline dark:text-gray-300 dark:hover:text-gray-100"
 				>
 					{emptyState.ctaText}

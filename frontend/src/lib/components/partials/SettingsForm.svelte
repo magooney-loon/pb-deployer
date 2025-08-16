@@ -23,6 +23,7 @@
 			lockscreenEnabled: boolean;
 			autoLockEnabled: boolean;
 			autoLockMinutes: number;
+			animationsEnabled: boolean;
 		}) => void;
 		onClearError?: () => void;
 		onClearSuccess?: () => void;
@@ -31,7 +32,8 @@
 	let formData = $state({
 		lockscreenEnabled: false,
 		autoLockEnabled: false,
-		autoLockMinutes: 15
+		autoLockMinutes: 15,
+		animationsEnabled: true
 	});
 
 	const autoLockOptions = [
@@ -48,7 +50,8 @@
 			formData = {
 				lockscreenEnabled: settings.security.lockscreenEnabled,
 				autoLockEnabled: settings.security.autoLockEnabled,
-				autoLockMinutes: settings.security.autoLockMinutes
+				autoLockMinutes: settings.security.autoLockMinutes,
+				animationsEnabled: settings.ui.animationsEnabled
 			};
 		}
 	});
@@ -65,7 +68,8 @@
 		onSave?.({
 			lockscreenEnabled: formData.lockscreenEnabled,
 			autoLockEnabled: formData.autoLockEnabled,
-			autoLockMinutes: formData.autoLockMinutes
+			autoLockMinutes: formData.autoLockMinutes,
+			animationsEnabled: formData.animationsEnabled
 		});
 	}
 
@@ -134,6 +138,21 @@
 				</div>
 			</div>
 		{/if}
+	</Card>
+
+	<!-- UI Settings Card -->
+	<Card
+		title="User Interface Settings"
+		subtitle="Configure visual preferences and animations"
+		class="space-y-6"
+	>
+		<FormField
+			id="animations-enabled"
+			label="Enable Page Animations"
+			type="checkbox"
+			bind:checked={formData.animationsEnabled}
+			helperText="Enable smooth page transitions and animations throughout the application"
+		/>
 	</Card>
 
 	<!-- Save Button Section -->
