@@ -22,11 +22,6 @@
 
 	onMount(async () => {
 		await logic.loadData();
-		logic.startAutoRefresh();
-	});
-
-	onDestroy(() => {
-		logic.destroy();
 	});
 </script>
 
@@ -38,16 +33,6 @@
 				Overview of your PocketBase deployment infrastructure
 			</p>
 		</div>
-		{#if !state.loading && state.refreshCounter > 0}
-			<div class="text-right">
-				<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
-					Refreshes: {state.refreshCounter}
-				</div>
-				<div class="text-xs text-gray-500 dark:text-gray-400">
-					Next refresh: {state.nextRefreshIn}s
-				</div>
-			</div>
-		{/if}
 	</div>
 </header>
 
