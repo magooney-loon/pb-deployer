@@ -58,13 +58,13 @@
 .geometric-bg {
 	position: relative;
 	background: radial-gradient(circle at center, #f1f5f9 0%, #e2e8f0 30%, #cbd5e1 60%, #94a3b8 100%);
-	background-size: 150% 150%;
+	background-size: 120% 120%;
 	animation: breathing-background 8s ease-in-out infinite;
 }
 
 [data-theme='dark'] .geometric-bg {
 	background: radial-gradient(circle at center, #334155 0%, #1e293b 30%, #0f172a 60%, #020617 100%);
-	background-size: 150% 150%;
+	background-size: 120% 120%;
 	animation: breathing-background 8s ease-in-out infinite;
 }
 
@@ -180,11 +180,11 @@
 @keyframes breathing-background {
 	0%,
 	100% {
-		background-size: 150% 150%;
+		background-size: 120% 120%;
 		background-position: center;
 	}
 	50% {
-		background-size: 200% 200%;
+		background-size: 280% 280%;
 		background-position: center;
 	}
 }
