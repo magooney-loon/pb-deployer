@@ -24,7 +24,7 @@
 </script>
 
 <nav
-	class="top-0 border-b border-gray-200/50 bg-white/80 backdrop-blur-lg dark:border-gray-800/50 dark:bg-gray-950/80"
+	class="top-0 border-b border-gray-200/50 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-950"
 >
 	<div class="mx-auto px-4 sm:px-6 lg:px-8">
 		<div class="flex h-14 items-center justify-between">

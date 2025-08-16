@@ -30,7 +30,7 @@
 	let isTouchDevice = $state<boolean>(false);
 	let animationId = 0;
 
-	const TRAIL_LENGTH: number = 9;
+	const TRAIL_LENGTH: number = 7;
 	const SPRING_STIFFNESS: number = 0.18;
 	const SPRING_DAMPING: number = 0.09;
 	const ORBIT_AMPLITUDE: number = 0.45;
@@ -42,16 +42,23 @@
 	}
 
 	function handleMousedown(event: MouseEvent): void {
-		// Create ripple effect on click
-		const ripple: Ripple = {
-			id: Date.now() + Math.random(),
-			x: event.clientX,
-			y: event.clientY,
-			scale: 0,
-			opacity: 1,
-			timestamp: Date.now()
-		};
-		ripples = [...ripples, ripple];
+		// Create Vercel-style multiple ring effect
+		const baseTime = Date.now();
+		const newRipples: Ripple[] = [];
+
+		// Create 3 concentric rings with staggered timing
+		for (let i = 0; i < 3; i++) {
+			newRipples.push({
+				id: baseTime + i + Math.random(),
+				x: event.clientX,
+				y: event.clientY,
+				scale: 0,
+				opacity: 1,
+				timestamp: baseTime + i * 50 // Stagger by 50ms
+			});
+		}
+
+		ripples = [...ripples, ...newRipples];
 	}
 
 	function updateTrail(): void {
@@ -96,13 +103,15 @@
 		for (let i = ripples.length - 1; i >= 0; i--) {
 			const ripple = ripples[i];
 			const elapsed = currentTime - ripple.timestamp;
-			const progress = elapsed / RIPPLE_DURATION;
+			const progress = Math.max(0, elapsed / RIPPLE_DURATION);
 
 			if (progress >= 1) {
 				ripples.splice(i, 1);
 			} else {
-				ripple.scale = progress * 2.5;
-				ripple.opacity = (1 - progress) * 0.7;
+				// Vercel-style easing and scaling
+				const easeOut = 1 - Math.pow(1 - progress, 3);
+				ripple.scale = easeOut * 1.8;
+				ripple.opacity = (1 - progress) * (0.4 - progress * 0.3);
 			}
 		}
 
@@ -182,8 +191,8 @@
 				style="
 				left: {dot.x - 3}px;
 				top: {dot.y - 3}px;
-				opacity: {((TRAIL_LENGTH - index) / TRAIL_LENGTH) * 0.4};
-				transform: scale({((TRAIL_LENGTH - index) / TRAIL_LENGTH) * 0.7});
+				opacity: {((TRAIL_LENGTH - index) / TRAIL_LENGTH) * 0.45};
+				transform: scale({((TRAIL_LENGTH - index) / TRAIL_LENGTH) * 0.45});
 			"
 			></div>
 		{/each}
@@ -226,11 +235,14 @@
 
 	.ripple {
 		position: absolute;
-		width: 30px;
-		height: 30px;
-		border: 2px solid #3b82f6;
+		width: 16px;
+		height: 16px;
+		border: 1px solid rgba(255, 255, 255, 0.6);
 		border-radius: 50%;
 		pointer-events: none;
-		background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 9%);
+		background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 60%);
+		box-shadow:
+			0 0 0 1px rgba(0, 0, 0, 0.05),
+			0 1px 3px rgba(0, 0, 0, 0.1);
 	}
 </style>
