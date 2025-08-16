@@ -7,6 +7,7 @@
 		icon,
 		dismissible = true,
 		onDismiss,
+		delay = 150,
 		class: className = ''
 	}: {
 		message: string;
@@ -14,6 +15,7 @@
 		icon?: string;
 		dismissible?: boolean;
 		onDismiss?: () => void;
+		delay?: number;
 		class?: string;
 	} = $props();
 
@@ -53,7 +55,12 @@
 
 	let currentIcon = $derived(icon || defaultIcons[type]);
 	let styles = $derived(typeStyles[type]);
-	let isVisible = $state(true);
+	let isVisible = $state(false);
+
+	// Show toast after delay
+	setTimeout(() => {
+		isVisible = true;
+	}, delay);
 </script>
 
 {#if isVisible}
