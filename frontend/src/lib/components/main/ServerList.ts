@@ -177,11 +177,18 @@ export class ServerListLogic {
 	}
 
 	public closeDeleteModal(): void {
+		// First close the modal to start the animation
 		this.updateState({
-			showDeleteModal: false,
-			serverToDelete: null,
-			apps: []
+			showDeleteModal: false
 		});
+
+		// Then clear the selected item after a short delay to prevent abrupt content change
+		setTimeout(() => {
+			this.updateState({
+				serverToDelete: null,
+				apps: []
+			});
+		}, 200);
 	}
 
 	public dismissError(): void {
