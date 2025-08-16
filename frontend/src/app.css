@@ -68,6 +68,56 @@
 	animation: breathing-background 8s ease-in-out infinite;
 }
 
+/* Subtle Dot Grid Overlay */
+.svg-grid::before {
+	content: '';
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background-image: radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.08) 1px, transparent 0);
+	background-size: 24px 24px;
+	mask: radial-gradient(
+		circle at center,
+		rgba(0, 0, 0, 1) 0%,
+		rgba(0, 0, 0, 0.8) 40%,
+		rgba(0, 0, 0, 0.3) 70%,
+		rgba(0, 0, 0, 0) 100%
+	);
+	-webkit-mask: radial-gradient(
+		circle at center,
+		rgba(0, 0, 0, 1) 0%,
+		rgba(0, 0, 0, 0.8) 40%,
+		rgba(0, 0, 0, 0.3) 70%,
+		rgba(0, 0, 0, 0) 100%
+	);
+	pointer-events: none;
+	z-index: 1;
+}
+
+[data-theme='dark'] .svg-grid::before {
+	background-image: radial-gradient(
+		circle at 1px 1px,
+		rgba(255, 255, 255, 0.04) 1px,
+		transparent 0
+	);
+	mask: radial-gradient(
+		circle at center,
+		rgba(0, 0, 0, 1) 0%,
+		rgba(0, 0, 0, 0.8) 40%,
+		rgba(0, 0, 0, 0.3) 70%,
+		rgba(0, 0, 0, 0) 100%
+	);
+	-webkit-mask: radial-gradient(
+		circle at center,
+		rgba(0, 0, 0, 1) 0%,
+		rgba(0, 0, 0, 0.8) 40%,
+		rgba(0, 0, 0, 0.3) 70%,
+		rgba(0, 0, 0, 0) 100%
+	);
+}
+
 /* Bottom Gradient Overlay */
 .gradient-overlay {
 	position: fixed;
