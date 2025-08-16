@@ -141,40 +141,9 @@
 	transition: all 0.3s ease;
 	padding-bottom: 1rem;
 	box-sizing: border-box;
-	animation: transient-breathing 8s ease-in-out infinite;
+	animation: transient-breathing 9s ease-in-out infinite;
 	transform-origin: bottom center;
 	background-size: 400% 100%;
-}
-
-/* Data-theme attribute based theming support */
-[data-theme='light'] .gradient-overlay {
-	background: linear-gradient(
-		to bottom,
-		rgba(0, 0, 0, 0) 0%,
-		rgba(0, 0, 0, 0.03) 10%,
-		rgba(0, 0, 0, 0.06) 20%,
-		rgba(0, 0, 0, 0.12) 35%,
-		rgba(0, 0, 0, 0.2) 50%,
-		rgba(0, 0, 0, 0.3) 65%,
-		rgba(0, 0, 0, 0.42) 80%,
-		rgba(0, 0, 0, 0.55) 90%,
-		rgba(0, 0, 0, 0.7) 100%
-	);
-}
-
-[data-theme='dark'] .gradient-overlay {
-	background: linear-gradient(
-		to bottom,
-		rgba(255, 255, 255, 0) 0%,
-		rgba(255, 255, 255, 0.005) 10%,
-		rgba(255, 255, 255, 0.01) 20%,
-		rgba(255, 255, 255, 0.02) 35%,
-		rgba(255, 255, 255, 0.03) 50%,
-		rgba(255, 255, 255, 0.04) 65%,
-		rgba(255, 255, 255, 0.06) 80%,
-		rgba(255, 255, 255, 0.08) 90%,
-		rgba(255, 255, 255, 0.1) 100%
-	) !important;
 }
 
 /* Subtle looping animations */
