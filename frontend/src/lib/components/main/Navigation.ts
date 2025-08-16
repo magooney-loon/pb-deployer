@@ -19,7 +19,7 @@ export class NavigationLogic {
 		{ href: '/', label: 'Dashboard', icon: '📊' },
 		{ href: '/servers', label: 'Servers', icon: '🖥️' },
 		{ href: '/apps', label: 'Applications', icon: '📱' },
-		{ href: '/settings', label: 'Settings', icon: '⚙️' }
+		{ href: '/docs', label: 'Docs', icon: '📚' }
 	];
 
 	constructor(initialPath: string = '/') {
