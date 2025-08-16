@@ -100,42 +100,42 @@
 
 <!-- Accordion-style Documentation -->
 <div class="mx-auto">
-	<div class="mb-8">
+	<header class="mb-8">
 		<h1 class="mb-2 text-3xl font-bold text-gray-900 dark:text-white">Documentation</h1>
 		<p class="text-gray-600 dark:text-gray-400">Complete guide to using pb-deployer</p>
+	</header>
+	<div class="mx-auto xl:w-2/3">
+		<Accordion
+			{sections}
+			loading={loadingStates}
+			{contentReady}
+			maxHeight="500px"
+			enableScroll={true}
+			onSectionOpen={handleSectionOpen}
+			onToggle={handleSectionToggle}
+		>
+			{#snippet children(section)}
+				{#if sectionContent[section.id]}
+					<MarkdownRenderer content={sectionContent[section.id]} />
+				{:else}
+					<div class="py-4">
+						<p class="text-gray-500 dark:text-gray-400">Content not available</p>
+					</div>
+				{/if}
+			{/snippet}
+
+			{#snippet loadingContent()}
+				<div class="flex items-center justify-center py-8">
+					<div class="text-center">
+						<div
+							class="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
+						></div>
+						<p class="text-gray-500 dark:text-gray-400">Loading content...</p>
+					</div>
+				</div>
+			{/snippet}
+		</Accordion>
 	</div>
-
-	<Accordion
-		{sections}
-		loading={loadingStates}
-		{contentReady}
-		maxHeight="500px"
-		enableScroll={true}
-		onSectionOpen={handleSectionOpen}
-		onToggle={handleSectionToggle}
-	>
-		{#snippet children(section)}
-			{#if sectionContent[section.id]}
-				<MarkdownRenderer content={sectionContent[section.id]} />
-			{:else}
-				<div class="py-4">
-					<p class="text-gray-500 dark:text-gray-400">Content not available</p>
-				</div>
-			{/if}
-		{/snippet}
-
-		{#snippet loadingContent()}
-			<div class="flex items-center justify-center py-8">
-				<div class="text-center">
-					<div
-						class="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
-					></div>
-					<p class="text-gray-500 dark:text-gray-400">Loading content...</p>
-				</div>
-			</div>
-		{/snippet}
-	</Accordion>
-
 	<!-- Scroll to Top Button - Vercel Style -->
 	{#if showScrollTop}
 		<button
