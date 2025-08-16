@@ -53,7 +53,12 @@
 	<Lockscreen />
 {:else}
 	<div class="svg-grid relative">
-		<WarningBanner size="xs" />
+		<WarningBanner
+			size="xs"
+			message="Always close this application using Ctrl+C to prevent data loss and ensure proper cleanup."
+			color="yellow"
+			icon="⚠️"
+		/>
 		<WarningBanner
 			size="xs"
 			message="Lockscreen Keybind: CTRL+L or CMD+L (if enabled)"

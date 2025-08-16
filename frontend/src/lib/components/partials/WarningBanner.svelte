@@ -2,7 +2,7 @@
 	import { slide } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
 	let {
-		message = 'Always close this application using Ctrl+C to prevent data loss and ensure proper cleanup.',
+		message = 'Ohaithere',
 		icon = '⚠️',
 		dismissible = true,
 		color = 'yellow',
