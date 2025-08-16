@@ -28,7 +28,6 @@
 		};
 	});
 
-	// Add keyboard shortcut to lock screen (Ctrl+L or Cmd+L)
 	function handleKeydown(e: KeyboardEvent) {
 		if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
 			e.preventDefault();
