@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"pb-deployer/internal/logger"
+
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
@@ -19,6 +21,7 @@ type Client struct {
 	conn   *ssh.Client
 	sftp   *sftp.Client
 	tracer Tracer
+	logger *logger.Logger
 }
 
 func NewClient(config Config) (*Client, error) {
@@ -58,6 +61,7 @@ func NewClient(config Config) (*Client, error) {
 	return &Client{
 		config: config,
 		tracer: &NoOpTracer{},
+		logger: logger.GetTunnelLogger(),
 	}, nil
 }
 
@@ -71,6 +75,7 @@ func (c *Client) SetTracer(tracer Tracer) {
 
 func (c *Client) Connect() error {
 	c.tracer.OnConnect(c.config.Host, c.config.User)
+	c.logger.SSHConnect(c.config.User, c.config.Host, c.config.Port)
 
 	authConfig := DevelopmentAuthConfig()
 	if c.config.KnownHostsFile != "" {
@@ -82,7 +87,7 @@ func (c *Client) Connect() error {
 	if err != nil {
 		c.tracer.OnError("get_host_key_callback", err)
 		// Fallback to insecure mode for this connection attempt
-		fmt.Printf("Warning: Using insecure host key verification due to error: %v\n", err)
+		c.logger.Warning("Using insecure host key verification due to error: %v", err)
 		hostKeyCallback = ssh.InsecureIgnoreHostKey()
 		usingInsecureMode = true
 	}
@@ -114,6 +119,7 @@ func (c *Client) Connect() error {
 		conn, err := ssh.Dial("tcp", addr, sshConfig)
 		if err == nil {
 			c.conn = conn
+			c.logger.SSHConnected(c.config.User, c.config.Host)
 			// Try to add host key for future connections if we used insecure mode
 			if usingInsecureMode {
 				go c.addHostKeyAfterConnection()
@@ -123,7 +129,7 @@ func (c *Client) Connect() error {
 
 		// Retry with insecure mode for unknown host key errors
 		if strings.Contains(err.Error(), "key is unknown") && !usingInsecureMode {
-			fmt.Printf("Host key unknown, retrying with insecure verification\n")
+			c.logger.Warning("Host key unknown, retrying with insecure verification")
 			sshConfig.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 			usingInsecureMode = true
 			// Don't count insecure retry against retry limit
@@ -145,6 +151,7 @@ func (c *Client) Connect() error {
 
 func (c *Client) Close() error {
 	c.tracer.OnDisconnect(c.config.Host)
+	c.logger.SSHDisconnected(c.config.Host)
 
 	if c.sftp != nil {
 		c.sftp.Close()
@@ -191,6 +198,7 @@ func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
 
 	fullCmd := c.buildCommand(cmd, cfg)
 	c.tracer.OnExecute(fullCmd)
+	c.logger.SSHCommand(fullCmd)
 
 	session, err := c.conn.NewSession()
 	if err != nil {
@@ -248,9 +256,11 @@ func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
 					result := &Result{
 						ExitCode: exitErr.ExitStatus(),
 					}
+					c.logger.SSHCommandResult(fullCmd, exitErr.ExitStatus(), 0)
 					c.tracer.OnExecuteResult(fullCmd, result, nil)
 					return result, nil
 				}
+				c.logger.SSHCommandResult(fullCmd, -1, 0)
 				c.tracer.OnExecuteResult(fullCmd, nil, err)
 				return nil, &Error{
 					Type:    ErrorExecution,
@@ -272,6 +282,7 @@ func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
 		result := &Result{
 			ExitCode: 0,
 		}
+		c.logger.SSHCommandResult(fullCmd, 0, 0)
 		c.tracer.OnExecuteResult(fullCmd, result, nil)
 		return result, nil
 	} else {
@@ -297,9 +308,11 @@ func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
 						ExitCode: exitErr.ExitStatus(),
 						Duration: duration,
 					}
+					c.logger.SSHCommandResult(fullCmd, exitErr.ExitStatus(), duration)
 					c.tracer.OnExecuteResult(fullCmd, result, nil)
 					return result, nil
 				}
+				c.logger.SSHCommandResult(fullCmd, -1, duration)
 				c.tracer.OnExecuteResult(fullCmd, nil, err)
 				return nil, &Error{
 					Type:    ErrorExecution,
@@ -314,6 +327,7 @@ func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
 				ExitCode: 0,
 				Duration: duration,
 			}
+			c.logger.SSHCommandResult(fullCmd, 0, duration)
 			c.tracer.OnExecuteResult(fullCmd, result, nil)
 			return result, nil
 
@@ -350,6 +364,7 @@ func (c *Client) ExecuteSudo(cmd string, opts ...ExecOption) (*Result, error) {
 
 func (c *Client) Upload(localPath, remotePath string, opts ...FileOption) error {
 	c.tracer.OnUpload(localPath, remotePath)
+	c.logger.FileTransfer("Upload", localPath, remotePath)
 
 	cfg := &fileTransferConfig{
 		mode: 0644,
@@ -427,6 +442,7 @@ func (c *Client) Upload(localPath, remotePath string, opts ...FileOption) error 
 		remoteFile.Chmod(os.FileMode(cfg.mode))
 	}
 
+	c.logger.FileTransferComplete("Upload", nil)
 	c.tracer.OnUploadComplete(localPath, remotePath, nil)
 	return nil
 }
@@ -461,12 +477,13 @@ func (c *Client) addHostKeyAfterConnection() {
 		file.WriteString(strings.Replace(result.Stdout, "localhost", c.config.Host, 1))
 		file.WriteString("\n")
 
-		fmt.Printf("Added host key for %s to known_hosts\n", c.config.Host)
+		c.logger.Success("Added host key for %s to known_hosts", c.config.Host)
 	}
 }
 
 func (c *Client) Download(remotePath, localPath string, opts ...FileOption) error {
 	c.tracer.OnDownload(remotePath, localPath)
+	c.logger.FileTransfer("Download", remotePath, localPath)
 
 	cfg := &fileTransferConfig{}
 	for _, opt := range opts {
@@ -540,6 +557,7 @@ func (c *Client) Download(remotePath, localPath string, opts ...FileOption) erro
 		localFile.Chmod(stat.Mode())
 	}
 
+	c.logger.FileTransferComplete("Download", nil)
 	c.tracer.OnDownloadComplete(remotePath, localPath, nil)
 	return nil
 }

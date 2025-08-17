@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"pb-deployer/internal/logger"
 )
 
 type Manager struct {
 	client SSHClient
 	tracer Tracer
+	logger *logger.Logger
 }
 
 func NewManager(client SSHClient) *Manager {
@@ -18,6 +21,7 @@ func NewManager(client SSHClient) *Manager {
 	return &Manager{
 		client: client,
 		tracer: &NoOpTracer{},
+		logger: logger.GetTunnelLogger(),
 	}
 }
 
@@ -29,6 +33,7 @@ func (m *Manager) SetTracer(tracer Tracer) {
 }
 
 func (m *Manager) CreateUser(username string, opts ...UserOption) error {
+	m.logger.SystemOperation(fmt.Sprintf("Creating user: %s", username))
 
 	cfg := &userConfig{
 		shell: "/bin/bash",
@@ -56,6 +61,7 @@ func (m *Manager) CreateUser(username string, opts ...UserOption) error {
 	}
 	cmd += fmt.Sprintf(" '%s'", username)
 
+	m.logger.SSHCommand(fmt.Sprintf("sudo %s", cmd))
 	result, err = m.client.ExecuteSudo(cmd)
 	if err != nil {
 		return err
@@ -70,6 +76,7 @@ func (m *Manager) CreateUser(username string, opts ...UserOption) error {
 	if len(cfg.groups) > 0 {
 		groupList := strings.Join(cfg.groups, ",")
 		cmd = fmt.Sprintf("usermod -aG '%s' '%s'", groupList, username)
+		m.logger.SystemOperation(fmt.Sprintf("Adding user %s to groups: %s", username, groupList))
 		result, err = m.client.ExecuteSudo(cmd)
 		if err != nil {
 			return err
@@ -85,6 +92,7 @@ func (m *Manager) CreateUser(username string, opts ...UserOption) error {
 	if cfg.sudoAccess {
 		sudoLine := fmt.Sprintf("%s ALL=(ALL:ALL) NOPASSWD:ALL", username)
 		cmd = fmt.Sprintf("echo '%s' > /etc/sudoers.d/%s", sudoLine, username)
+		m.logger.SystemOperation(fmt.Sprintf("Granting sudo access to user: %s", username))
 		result, err = m.client.ExecuteSudo(cmd)
 		if err != nil {
 			return err
@@ -108,6 +116,8 @@ func (m *Manager) SetupSSHKeys(username string, keys []string) error {
 	if len(keys) == 0 {
 		return nil
 	}
+
+	m.logger.SystemOperation(fmt.Sprintf("Setting up SSH keys for user: %s (%d keys)", username, len(keys)))
 
 	result, err := m.client.Execute(fmt.Sprintf("getent passwd %s | cut -d: -f6", username))
 	if err != nil {
@@ -146,6 +156,7 @@ func (m *Manager) SetupSSHKeys(username string, keys []string) error {
 }
 
 func (m *Manager) CreateDirectory(path, permissions, owner, group string) error {
+	m.logger.SystemOperation(fmt.Sprintf("Creating directory: %s", path))
 
 	cmd := fmt.Sprintf("mkdir -p '%s'", path)
 	result, err := m.client.ExecuteSudo(cmd)
@@ -173,6 +184,7 @@ func (m *Manager) CreateDirectory(path, permissions, owner, group string) error 
 }
 
 func (m *Manager) ServiceStart(name string) error {
+	m.logger.SystemOperation(fmt.Sprintf("Starting service: %s", name))
 	cmd := fmt.Sprintf("systemctl start %s", name)
 	result, err := m.client.ExecuteSudo(cmd)
 	if err != nil {
@@ -188,6 +200,7 @@ func (m *Manager) ServiceStart(name string) error {
 }
 
 func (m *Manager) ServiceStop(name string) error {
+	m.logger.SystemOperation(fmt.Sprintf("Stopping service: %s", name))
 	cmd := fmt.Sprintf("systemctl stop %s", name)
 	result, err := m.client.ExecuteSudo(cmd)
 	if err != nil {
@@ -203,6 +216,7 @@ func (m *Manager) ServiceStop(name string) error {
 }
 
 func (m *Manager) ServiceRestart(name string) error {
+	m.logger.SystemOperation(fmt.Sprintf("Restarting service: %s", name))
 	cmd := fmt.Sprintf("systemctl restart %s", name)
 	result, err := m.client.ExecuteSudo(cmd)
 	if err != nil {
@@ -218,6 +232,7 @@ func (m *Manager) ServiceRestart(name string) error {
 }
 
 func (m *Manager) ServiceEnable(name string) error {
+	m.logger.SystemOperation(fmt.Sprintf("Enabling service: %s", name))
 	cmd := fmt.Sprintf("systemctl enable %s", name)
 	result, err := m.client.ExecuteSudo(cmd)
 	if err != nil {
@@ -236,6 +251,8 @@ func (m *Manager) InstallPackages(packages ...string) error {
 	if len(packages) == 0 {
 		return nil
 	}
+
+	m.logger.SystemOperation(fmt.Sprintf("Installing packages: %s", strings.Join(packages, ", ")))
 
 	result, err := m.client.Execute("which apt", WithTimeout(5*time.Second))
 	if err == nil && result.ExitCode == 0 {

@@ -4,19 +4,25 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"pb-deployer/internal/logger"
 )
 
 type SetupManager struct {
 	manager *Manager
+	logger  *logger.Logger
 }
 
 func NewSetupManager(manager *Manager) *SetupManager {
 	return &SetupManager{
 		manager: manager,
+		logger:  logger.GetTunnelLogger(),
 	}
 }
 
 func (s *SetupManager) SetupPocketBaseServer(username string, publicKeys []string) error {
+	s.logger.SystemOperation(fmt.Sprintf("Setting up PocketBase server for user: %s", username))
+
 	err := s.manager.CreateUser(username,
 		WithHome(fmt.Sprintf("/home/%s", username)),
 		WithShell("/bin/bash"),
@@ -49,10 +55,13 @@ func (s *SetupManager) SetupPocketBaseServer(username string, publicKeys []strin
 		return fmt.Errorf("failed to install essentials: %w", err)
 	}
 
+	s.logger.Success("PocketBase server setup completed successfully")
 	return nil
 }
 
 func (s *SetupManager) CreatePocketBaseDirectories(username string) error {
+	s.logger.SystemOperation("Creating PocketBase directory structure")
+
 	err := s.manager.CreateDirectory("/opt/pocketbase", "755", "root", "root")
 	if err != nil {
 		return err
@@ -82,6 +91,8 @@ func (s *SetupManager) CreatePocketBaseDirectories(username string) error {
 }
 
 func (s *SetupManager) UpdateSystem() error {
+	s.logger.SystemOperation("Updating system packages")
+
 	result, err := s.manager.client.Execute("which apt", WithTimeout(5*time.Second))
 	if err == nil && result.ExitCode == 0 {
 		// Debian/Ubuntu
@@ -122,6 +133,8 @@ func (s *SetupManager) UpdateSystem() error {
 }
 
 func (s *SetupManager) InstallEssentials() error {
+	s.logger.SystemOperation("Installing essential packages")
+
 	essentials := []string{
 		"curl",
 		"wget",
@@ -134,6 +147,8 @@ func (s *SetupManager) InstallEssentials() error {
 }
 
 func (s *SetupManager) VerifySetup(username string) error {
+	s.logger.SystemOperation(fmt.Sprintf("Verifying setup for user: %s", username))
+
 	result, err := s.manager.client.Execute(fmt.Sprintf("id %s", username))
 	if err != nil || result.ExitCode != 0 {
 		return &Error{
@@ -177,10 +192,13 @@ func (s *SetupManager) VerifySetup(username string) error {
 		}
 	}
 
+	s.logger.Success("Setup verification completed successfully")
 	return nil
 }
 
 func (s *SetupManager) GetSetupInfo() (*SetupInfo, error) {
+	s.logger.SystemOperation("Gathering setup information")
+
 	info := &SetupInfo{}
 
 	sysInfo, err := s.manager.SystemInfo()

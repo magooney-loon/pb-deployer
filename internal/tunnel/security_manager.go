@@ -4,19 +4,25 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"pb-deployer/internal/logger"
 )
 
 type SecurityManager struct {
 	manager *Manager
+	logger  *logger.Logger
 }
 
 func NewSecurityManager(manager *Manager) *SecurityManager {
 	return &SecurityManager{
 		manager: manager,
+		logger:  logger.GetTunnelLogger(),
 	}
 }
 
 func (s *SecurityManager) SecureServer(config SecurityConfig) error {
+	s.logger.SystemOperation("Starting server security hardening")
+
 	if len(config.FirewallRules) > 0 {
 		err := s.SetupFirewall(config.FirewallRules)
 		if err != nil {
@@ -38,10 +44,12 @@ func (s *SecurityManager) SecureServer(config SecurityConfig) error {
 		}
 	}
 
+	s.logger.Success("Server security hardening completed")
 	return nil
 }
 
 func (s *SecurityManager) SetupFirewall(rules []FirewallRule) error {
+	s.logger.SystemOperation(fmt.Sprintf("Setting up firewall with %d rules", len(rules)))
 	var firewallCmd string
 
 	result, err := s.manager.client.Execute("which ufw", WithTimeout(5*time.Second))
@@ -67,6 +75,7 @@ func (s *SecurityManager) SetupFirewall(rules []FirewallRule) error {
 }
 
 func (s *SecurityManager) setupUFW(rules []FirewallRule) error {
+	s.logger.SystemOperation("Configuring UFW firewall")
 	s.manager.InstallPackages("ufw")
 
 	cmds := []string{
@@ -124,6 +133,7 @@ func (s *SecurityManager) setupUFW(rules []FirewallRule) error {
 }
 
 func (s *SecurityManager) setupFirewalld(rules []FirewallRule) error {
+	s.logger.SystemOperation("Configuring firewalld")
 	s.manager.ServiceStart("firewalld")
 
 	for _, rule := range rules {
@@ -164,6 +174,7 @@ func (s *SecurityManager) setupFirewalld(rules []FirewallRule) error {
 }
 
 func (s *SecurityManager) setupIPTables(rules []FirewallRule) error {
+	s.logger.SystemOperation("Configuring iptables")
 	s.manager.InstallPackages("iptables-persistent")
 
 	cmds := []string{
@@ -203,6 +214,7 @@ func (s *SecurityManager) setupIPTables(rules []FirewallRule) error {
 }
 
 func (s *SecurityManager) HardenSSH(config SSHConfig) error {
+	s.logger.SystemOperation("Hardening SSH configuration")
 	s.manager.client.ExecuteSudo("cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak")
 
 	var configLines []string
@@ -249,6 +261,7 @@ func (s *SecurityManager) HardenSSH(config SSHConfig) error {
 }
 
 func (s *SecurityManager) SetupFail2ban() error {
+	s.logger.SystemOperation("Setting up fail2ban intrusion detection")
 	err := s.manager.InstallPackages("fail2ban")
 	if err != nil {
 		return err
