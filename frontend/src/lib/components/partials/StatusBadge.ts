@@ -49,11 +49,11 @@ export function getAppStatusBadge(app: App): StatusBadgeResult {
 export function getAppStatusIcon(status: string): string {
 	switch (status) {
 		case 'online':
-			return '🟢';
+			return '';
 		case 'offline':
-			return '🔴';
+			return '';
 		default:
-			return '⚪';
+			return '';
 	}
 }
 
