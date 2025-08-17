@@ -164,7 +164,7 @@
 				label="Enable Mouse Effects"
 				type="checkbox"
 				bind:checked={formData.mouseEffectsEnabled}
-				helperText="Enable mouse trail and click ripple effects (disabled on touch devices)"
+				helperText="Enable mouse trail and click ripple effects"
 			/>
 		</div>
 	</Card>
