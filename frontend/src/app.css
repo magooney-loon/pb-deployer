@@ -153,7 +153,6 @@
 	background-size: 400% 100%;
 }
 
-/* Subtle looping animations */
 @keyframes transient-breathing {
 	0%,
 	100% {
@@ -194,7 +193,6 @@
 	}
 }
 
-/* Responsive adjustments */
 @media (max-width: 768px) {
 	.gradient-overlay {
 		height: calc(8rem * 0.8);
