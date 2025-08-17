@@ -49,7 +49,6 @@ go run cmd/scripts/main.go --install
 - Staging directory with atomic swaps
 - WebSocket updates with detailed operation tracking
 - Generic config management with validation
-- Safe production deployments with version tracking
 
 See `**/*/README.md` for detailed component documentation.
 
