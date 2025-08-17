@@ -135,7 +135,7 @@
 							label="Domain"
 							value={formData.domain}
 							placeholder="myapp.example.com"
-							helperText="The domain where your app will be accessible"
+							helperText="The domain where your app will be served"
 							required
 							disabled={creating}
 							oninput={(e) => (formData.domain = (e.target as HTMLInputElement).value)}
