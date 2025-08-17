@@ -12,6 +12,7 @@
 </div>
 
 **Server Setup**: Automated SSH user creation, directory structure, security hardening
+<br>
 **Deployment**: SFTP transfer protocol && systemd service management
 **Security**: UFW firewall, fail2ban, SSH lockdown with specialized managers
 **Observability**: Comprehensive tracing, connection pooling, health monitoring
