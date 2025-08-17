@@ -1,8 +1,10 @@
 package main
 
 import (
+	"archive/zip"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -149,6 +151,11 @@ func productionBuild(rootDir string, installDeps bool, distDir string) error {
 	// Build server binary
 	if err := buildServerBinary(rootDir, outputDir); err != nil {
 		return fmt.Errorf("failed to build server binary: %w", err)
+	}
+
+	// Create project archive
+	if err := createProjectArchive(rootDir, outputDir); err != nil {
+		return fmt.Errorf("failed to create project archive: %w", err)
 	}
 
 	printSuccess("✅ Production build completed! Files are in '%s'", distDir)
@@ -320,7 +327,7 @@ func runTestSuiteAndGenerateReport(rootDir, outputDir string) error {
 	start := time.Now()
 
 	reportFile := filepath.Join(reportsDir, "test-report.json")
-	cmd := exec.Command("go", "test", "-json", "./...")
+	cmd := exec.Command("go", "test", "-v", "-json", "./...")
 	cmd.Dir = rootDir
 
 	output, err := cmd.CombinedOutput()
@@ -337,7 +344,7 @@ func runTestSuiteAndGenerateReport(rootDir, outputDir string) error {
 	}
 
 	summaryFile := filepath.Join(reportsDir, "test-summary.txt")
-	cmd = exec.Command("go", "run", "./cmd/tests")
+	cmd = exec.Command("go", "run", "./cmd/tests", "-v")
 	cmd.Dir = rootDir
 
 	summaryOutput, err := cmd.CombinedOutput()
@@ -356,7 +363,7 @@ func runTestSuiteAndGenerateReport(rootDir, outputDir string) error {
 	coverageFile := filepath.Join(reportsDir, "coverage.out")
 	htmlCoverageFile := filepath.Join(reportsDir, "coverage.html")
 
-	cmd = exec.Command("go", "test", "-coverprofile="+coverageFile, "./...")
+	cmd = exec.Command("go", "test", "-v", "-coverprofile="+coverageFile, "./...")
 	cmd.Dir = rootDir
 	if err := cmd.Run(); err != nil {
 		printWarning("Failed to generate coverage report: %v", err)
@@ -566,6 +573,137 @@ func checkSystemRequirements() error {
 	return nil
 }
 
+func createProjectArchive(rootDir, outputDir string) error {
+	printStep("📦", "Creating production build archive...")
+
+	// Define the archive filename with timestamp
+	timestamp := time.Now().Format("20060102-150405")
+	archiveName := fmt.Sprintf("pb-deployer-production-%s.zip", timestamp)
+	// Create zip file outside dist directory first to avoid infinite loop
+	tempArchivePath := filepath.Join(rootDir, archiveName)
+
+	// Check if dist directory exists
+	distDir := filepath.Join(rootDir, "dist")
+	if _, err := os.Stat(distDir); os.IsNotExist(err) {
+		return fmt.Errorf("dist directory not found - please run production build first")
+	}
+
+	// Create the zip file
+	zipFile, err := os.Create(tempArchivePath)
+	if err != nil {
+		return fmt.Errorf("failed to create archive file: %w", err)
+	}
+	defer zipFile.Close()
+
+	zipWriter := zip.NewWriter(zipFile)
+	defer zipWriter.Close()
+
+	fileCount := 0
+	totalSize := int64(0)
+
+	// Walk through all files in the dist directory
+	err = filepath.Walk(distDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Get relative path from dist directory
+		relPath, err := filepath.Rel(distDir, path)
+		if err != nil {
+			return err
+		}
+
+		// Skip the dist directory itself
+		if relPath == "." {
+			return nil
+		}
+
+		// Handle directories
+		if info.IsDir() {
+			// Create directory entry in zip
+			_, err := zipWriter.Create(relPath + "/")
+			return err
+		}
+
+		// Skip .DS_Store files
+		fileName := filepath.Base(path)
+		if fileName == ".DS_Store" {
+			return nil
+		}
+
+		// Create a new file entry in the zip
+		header, err := zip.FileInfoHeader(info)
+		if err != nil {
+			return err
+		}
+		header.Name = relPath
+		header.Method = zip.Deflate
+
+		writer, err := zipWriter.CreateHeader(header)
+		if err != nil {
+			return err
+		}
+
+		// Open the file to be added
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+
+		// Copy file content to zip
+		written, err := io.Copy(writer, file)
+		if err != nil {
+			return err
+		}
+
+		fileCount++
+		totalSize += written
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to create archive: %w", err)
+	}
+
+	// Move the zip file into the dist directory
+	finalArchivePath := filepath.Join(distDir, archiveName)
+	err = os.Rename(tempArchivePath, finalArchivePath)
+	if err != nil {
+		return fmt.Errorf("failed to move archive to dist directory: %w", err)
+	}
+
+	// Get archive file size
+	archiveInfo, err := os.Stat(finalArchivePath)
+	if err != nil {
+		return fmt.Errorf("failed to get archive info: %w", err)
+	}
+
+	// Format sizes for display
+	formatSize := func(size int64) string {
+		const unit = 1024
+		if size < unit {
+			return fmt.Sprintf("%d B", size)
+		}
+		div, exp := int64(unit), 0
+		for n := size / unit; n >= unit; n /= unit {
+			div *= unit
+			exp++
+		}
+		return fmt.Sprintf("%.1f %cB", float64(size)/float64(div), "KMGTPE"[exp])
+	}
+
+	printSuccess("Production build archive created: dist/%s", archiveName)
+	printInfo("  Files archived: %d", fileCount)
+	printInfo("  Original size: %s", formatSize(totalSize))
+	printInfo("  Compressed size: %s", formatSize(archiveInfo.Size()))
+	compressionRatio := float64(archiveInfo.Size()) / float64(totalSize) * 100
+	printInfo("  Compression ratio: %.1f%%", compressionRatio)
+
+	return nil
+}
+
 func checkCommand(command string, args ...string) bool {
 	cmd := exec.Command(command, args...)
 	return cmd.Run() == nil
@@ -624,6 +762,7 @@ func printBuildSummary(duration time.Duration, isProduction bool) {
 		fmt.Printf("  %spb_public/%s directory\n", Green, Reset)
 		fmt.Printf("  %stest-reports/%s directory\n", Green, Reset)
 		fmt.Printf("  %spackage.yaml%s metadata\n", Green, Reset)
+		fmt.Printf("  %spb-deployer-*.zip%s archive\n", Green, Reset)
 		fmt.Printf("  %sdist/%s location\n", Cyan, Reset)
 	}
 

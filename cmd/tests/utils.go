@@ -12,13 +12,8 @@ import (
 // GetTestPackages returns a list of test packages to run
 func GetTestPackages() []string {
 	return []string{
-		"./internal/utils",
-		"./internal/tracer",
+		"./internal/tunnel",
 		// Add more packages here as they are created
-		// "./internal/config",
-		// "./internal/deployment",
-		// "./internal/docker",
-		// etc.
 	}
 }
 

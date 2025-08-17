@@ -1,442 +1,433 @@
 package tunnel
 
 import (
-	"sync"
 	"time"
-
-	"golang.org/x/crypto/ssh"
 )
 
-// ServerConfig represents server connection information
-type ServerConfig struct {
-	ID             string
-	Name           string
-	Host           string
-	Port           int
-	RootUsername   string
-	AppUsername    string
-	UseSSHAgent    bool
-	ManualKeyPath  string
-	SecurityLocked bool
+// SSHClient defines the interface for SSH operations
+type SSHClient interface {
+	Connect() error
+	Close() error
+	IsConnected() bool
+	Execute(cmd string, opts ...ExecOption) (*Result, error)
+	ExecuteSudo(cmd string, opts ...ExecOption) (*Result, error)
+	Upload(localPath, remotePath string, opts ...FileOption) error
+	Download(remotePath, localPath string, opts ...FileOption) error
+	Ping() error
+	HostInfo() (string, error)
+	SetTracer(tracer Tracer)
 }
 
-// SessionConfig holds configuration for SSH sessions
-type SessionConfig struct {
-	Timeout     time.Duration
-	Environment map[string]string
-	PTY         bool
-	PTYConfig   *PTYConfig
+// Config holds SSH connection configuration
+type Config struct {
+	Host       string
+	Port       int
+	User       string
+	Password   string        // Optional: password auth
+	PrivateKey string        // Optional: key auth
+	Passphrase string        // Optional: passphrase for encrypted key
+	Timeout    time.Duration // Connection timeout
+	RetryCount int           // Number of connection retries
+	RetryDelay time.Duration // Delay between retries
 }
 
-// PTYConfig holds PTY configuration
-type PTYConfig struct {
-	Term   string
-	Height int
-	Width  int
-	Modes  ssh.TerminalModes
+// Result represents command execution result
+type Result struct {
+	Stdout   string
+	Stderr   string
+	ExitCode int
+	Duration time.Duration
 }
 
-// DefaultPTYConfig returns default PTY configuration
-func DefaultPTYConfig() *PTYConfig {
-	return &PTYConfig{
-		Term:   "xterm-256color",
-		Height: 24,
-		Width:  80,
-		Modes: ssh.TerminalModes{
-			ssh.ECHO:          0,
-			ssh.TTY_OP_ISPEED: 14400,
-			ssh.TTY_OP_OSPEED: 14400,
-		},
-	}
+// ServiceStatus represents the status of a system service
+type ServiceStatus struct {
+	Name        string
+	Active      bool
+	Running     bool
+	Enabled     bool
+	Description string
+	Since       time.Time
+	MainPID     int
 }
 
-// OperationResult represents the result of an operation
-type OperationResult struct {
-	Success   bool
-	Message   string
-	Details   map[string]any
-	Duration  time.Duration
-	Timestamp time.Time
+// FirewallRule represents a firewall rule configuration
+type FirewallRule struct {
+	Port        int
+	Protocol    string // tcp, udp
+	Source      string // IP address or CIDR
+	Action      string // allow, deny
+	Description string
 }
 
-// ExecutionOptions holds options for command execution
-type ExecutionOptions struct {
-	Timeout       time.Duration
-	Sudo          bool
-	SudoUser      string
-	Environment   map[string]string
-	WorkingDir    string
-	CombineOutput bool
-	Stream        bool
+// SSHConfig represents SSH hardening configuration
+type SSHConfig struct {
+	PasswordAuth        bool
+	RootLogin           bool
+	PubkeyAuth          bool
+	MaxAuthTries        int
+	ClientAliveInterval int
+	ClientAliveCountMax int
+	AllowUsers          []string
+	AllowGroups         []string
+	DenyUsers           []string
+	DenyGroups          []string
 }
 
-// DefaultExecutionOptions returns default execution options
-func DefaultExecutionOptions() *ExecutionOptions {
-	return &ExecutionOptions{
-		Timeout:       30 * time.Second,
-		Sudo:          false,
-		CombineOutput: true,
-		Stream:        false,
-	}
-}
-
-// HealthCheckConfig represents health check configuration
-type HealthCheckConfig struct {
-	Interval            time.Duration
-	Timeout             time.Duration
-	MaxConsecutiveFails int
-	RecoveryRetries     int
-	EnableAutoRecovery  bool
-}
-
-// DefaultHealthCheckConfig returns default health check configuration
-func DefaultHealthCheckConfig() *HealthCheckConfig {
-	return &HealthCheckConfig{
-		Interval:            30 * time.Second,
-		Timeout:             10 * time.Second,
-		MaxConsecutiveFails: 3,
-		RecoveryRetries:     2,
-		EnableAutoRecovery:  true,
-	}
-}
-
-// DeploymentConfig holds deployment-specific configuration
-type DeploymentConfig struct {
-	Strategy           DeploymentStrategy
-	MaxRetries         int
-	RetryDelay         time.Duration
-	HealthCheckTimeout time.Duration
-	BackupEnabled      bool
-	BackupPath         string
-	ValidationEnabled  bool
-	ArtifactValidation bool
-}
-
-// DeploymentStrategy represents deployment strategies
-type DeploymentStrategy string
-
-const (
-	DeploymentStrategyRolling   DeploymentStrategy = "rolling"
-	DeploymentStrategyBlueGreen DeploymentStrategy = "blue-green"
-	DeploymentStrategyCanary    DeploymentStrategy = "canary"
-	DeploymentStrategyRecreate  DeploymentStrategy = "recreate"
-)
-
-// DeploymentSpec defines a deployment specification
-type DeploymentSpec struct {
-	Name              string
-	Version           string
-	Environment       string
-	ArtifactPath      string
-	ServiceName       string
-	WorkingDirectory  string
-	PreDeployHooks    []string
-	PostDeployHooks   []string
-	HealthCheckURL    string
-	HealthCheckPath   string
-	Configuration     map[string]string
-	EnvironmentVars   map[string]string
-	Replicas          int
-	Strategy          DeploymentStrategy
-	RollbackOnFailure bool
-	Dependencies      []string
-}
-
-// DeploymentResult represents the result of a deployment
-type DeploymentResult struct {
-	Success         bool
-	Message         string
-	Version         string
-	PreviousVersion string
-	RollbackData    map[string]any
-	StartTime       time.Time
-	EndTime         time.Time
-	Duration        time.Duration
-	Steps           []DeploymentStep
-}
-
-// DeploymentStep represents a single deployment step
-type DeploymentStep struct {
-	Name      string
-	Status    StepStatus
-	Message   string
-	StartTime time.Time
-	EndTime   time.Time
-	Error     error
-}
-
-// StepStatus represents the status of a deployment step
-type StepStatus string
-
-const (
-	StepStatusPending   StepStatus = "pending"
-	StepStatusRunning   StepStatus = "running"
-	StepStatusCompleted StepStatus = "completed"
-	StepStatusFailed    StepStatus = "failed"
-	StepStatusSkipped   StepStatus = "skipped"
-)
-
-// DeploymentStatus represents the status of a deployment
-type DeploymentStatus struct {
-	Name          string
-	State         DeploymentState
-	Version       string
-	Environment   string
-	Health        HealthStatus
-	LastUpdated   time.Time
-	Replicas      DeploymentReplicas
-	Configuration map[string]string
-	Events        []DeploymentEvent
-}
-
-// DeploymentState represents deployment states
-type DeploymentState string
-
-const (
-	DeploymentStateDeploying   DeploymentState = "deploying"
-	DeploymentStateHealthy     DeploymentState = "healthy"
-	DeploymentStateUnhealthy   DeploymentState = "unhealthy"
-	DeploymentStateFailed      DeploymentState = "failed"
-	DeploymentStateRollingBack DeploymentState = "rolling_back"
-	DeploymentStateUnknown     DeploymentState = "unknown"
-)
-
-// HealthStatus represents health check status
-type HealthStatus string
-
-const (
-	HealthStatusHealthy   HealthStatus = "healthy"
-	HealthStatusUnhealthy HealthStatus = "unhealthy"
-	HealthStatusUnknown   HealthStatus = "unknown"
-)
-
-// DeploymentReplicas represents replica information
-type DeploymentReplicas struct {
-	Desired   int
-	Available int
-	Ready     int
-	Updated   int
-}
-
-// DeploymentEvent represents a deployment event
-type DeploymentEvent struct {
-	Type      string
-	Message   string
-	Timestamp time.Time
-	Reason    string
-}
-
-// DeploymentInfo provides summary information about a deployment
-type DeploymentInfo struct {
+// AppConfig represents application deployment configuration
+type AppConfig struct {
 	Name        string
 	Version     string
-	Environment string
-	State       DeploymentState
-	Health      HealthStatus
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	Source      string   // Local path or URL
+	Target      string   // Remote path
+	Service     string   // Service name to restart
+	Backup      bool     // Backup before deploy
+	PreDeploy   []string // Commands to run before
+	PostDeploy  []string // Commands to run after
+	HealthCheck string   // URL or command to verify
 }
 
-// DeploymentHealth represents detailed health information
-type DeploymentHealth struct {
-	Overall    HealthStatus
-	Components map[string]ComponentHealth
-	LastCheck  time.Time
-	Message    string
-}
-
-// ComponentHealth represents health of a specific component
-type ComponentHealth struct {
-	Name    string
-	Status  HealthStatus
-	Message string
-	Checks  []HealthCheck
-}
-
-// HealthCheck represents an individual health check
-type HealthCheck struct {
-	Name     string
-	Status   HealthStatus
-	Message  string
-	Duration time.Duration
-	LastRun  time.Time
-}
-
-// MonitoringConfig holds monitoring configuration
-type MonitoringConfig struct {
-	Enabled         bool
-	MetricsEndpoint string
-	HealthEndpoint  string
-	LogLevel        string
-	LogPath         string
-	AlertThresholds AlertThresholds
-}
-
-// AlertThresholds defines thresholds for alerts
-type AlertThresholds struct {
-	MaxConnectionFailures int
-	MaxCommandFailures    int
-	MaxResponseTime       time.Duration
-	MinHealthyConnections int
-}
-
-// SecurityContext holds security-related context
-type SecurityContext struct {
-	RequiresSudo      bool
-	SudoPassword      string // Should be handled securely
-	AllowedCommands   []string
-	ForbiddenCommands []string
-	MaxCommandLength  int
-	EnableAudit       bool
-}
-
-// ValidateCommand checks if a command is allowed
-func (sc *SecurityContext) ValidateCommand(cmd string) error {
-	if sc.MaxCommandLength > 0 && len(cmd) > sc.MaxCommandLength {
-		return ErrCommandFailed
-	}
-
-	// Check forbidden commands
-	for _, forbidden := range sc.ForbiddenCommands {
-		if containsCommand(cmd, forbidden) {
-			return ErrPermissionDenied
-		}
-	}
-
-	// If allowed commands are specified, check if command is in the list
-	if len(sc.AllowedCommands) > 0 {
-		allowed := false
-		for _, allowedCmd := range sc.AllowedCommands {
-			if containsCommand(cmd, allowedCmd) {
-				allowed = true
-				break
-			}
-		}
-		if !allowed {
-			return ErrPermissionDenied
-		}
-	}
-
-	return nil
-}
-
-// containsCommand is a helper to check if a command contains a pattern
-func containsCommand(cmd, pattern string) bool {
-	// Simple contains check - could be enhanced with regex
-	return len(cmd) >= len(pattern) &&
-		(cmd == pattern ||
-			(len(cmd) > len(pattern) && cmd[:len(pattern)+1] == pattern+" "))
-}
-
-// Event represents a system event
-type Event struct {
-	Type      EventType
-	Timestamp time.Time
-	Source    string
-	Target    string
-	Message   string
-	Data      map[string]any
-	Error     error
-}
-
-// EventType represents the type of event
-type EventType int
+// ErrorType represents different types of SSH errors
+type ErrorType int
 
 const (
-	EventConnectionCreated EventType = iota
-	EventConnectionClosed
-	EventConnectionFailed
-	EventCommandExecuted
-	EventCommandFailed
-	EventHealthCheckPassed
-	EventHealthCheckFailed
-	EventSecurityViolation
-	EventConfigurationChanged
+	ErrorUnknown ErrorType = iota
+	ErrorConnection
+	ErrorAuth
+	ErrorExecution
+	ErrorTimeout
+	ErrorFileTransfer
+	ErrorNotFound
+	ErrorPermission
 )
 
-func (et EventType) String() string {
-	switch et {
-	case EventConnectionCreated:
-		return "connection_created"
-	case EventConnectionClosed:
-		return "connection_closed"
-	case EventConnectionFailed:
-		return "connection_failed"
-	case EventCommandExecuted:
-		return "command_executed"
-	case EventCommandFailed:
-		return "command_failed"
-	case EventHealthCheckPassed:
-		return "health_check_passed"
-	case EventHealthCheckFailed:
-		return "health_check_failed"
-	case EventSecurityViolation:
-		return "security_violation"
-	case EventConfigurationChanged:
-		return "configuration_changed"
-	default:
-		return "unknown"
+// Error represents an SSH operation error
+type Error struct {
+	Type    ErrorType
+	Message string
+	Cause   error
+}
+
+// Error implements the error interface
+func (e *Error) Error() string {
+	if e.Cause != nil {
+		return e.Message + ": " + e.Cause.Error()
+	}
+	return e.Message
+}
+
+// Unwrap returns the underlying error
+func (e *Error) Unwrap() error {
+	return e.Cause
+}
+
+// Command represents a command to be executed
+type Command struct {
+	Cmd  string
+	Opts []ExecOption
+}
+
+// Cmd creates a new command
+func Cmd(cmd string, opts ...ExecOption) Command {
+	return Command{Cmd: cmd, Opts: opts}
+}
+
+// ExecConfig holds execution configuration
+type execConfig struct {
+	timeout  time.Duration
+	env      map[string]string
+	workDir  string
+	stream   func(string)
+	sudo     bool
+	sudoPass string
+}
+
+// ExecOption is a functional option for command execution
+type ExecOption func(*execConfig)
+
+// WithTimeout sets command timeout
+func WithTimeout(d time.Duration) ExecOption {
+	return func(c *execConfig) {
+		c.timeout = d
 	}
 }
 
-// EventHandler handles events
-type EventHandler interface {
-	HandleEvent(event Event)
-}
-
-// EventBus distributes events to handlers
-type EventBus struct {
-	handlers []EventHandler
-	mu       sync.RWMutex
-}
-
-// Subscribe adds an event handler
-func (eb *EventBus) Subscribe(handler EventHandler) {
-	eb.mu.Lock()
-	defer eb.mu.Unlock()
-	eb.handlers = append(eb.handlers, handler)
-}
-
-// Publish sends an event to all handlers
-func (eb *EventBus) Publish(event Event) {
-	eb.mu.RLock()
-	handlers := eb.handlers
-	eb.mu.RUnlock()
-
-	for _, handler := range handlers {
-		go handler.HandleEvent(event)
+// WithEnv sets environment variable
+func WithEnv(key, value string) ExecOption {
+	return func(c *execConfig) {
+		if c.env == nil {
+			c.env = make(map[string]string)
+		}
+		c.env[key] = value
 	}
 }
 
-// ProgressReporter handles progress reporting
-type ProgressReporter struct {
-	updates chan ProgressUpdate
-	done    chan struct{}
-}
-
-// NewProgressReporter creates a new progress reporter
-func NewProgressReporter(bufferSize int) *ProgressReporter {
-	return &ProgressReporter{
-		updates: make(chan ProgressUpdate, bufferSize),
-		done:    make(chan struct{}),
+// WithWorkDir sets working directory
+func WithWorkDir(dir string) ExecOption {
+	return func(c *execConfig) {
+		c.workDir = dir
 	}
 }
 
-// Report sends a progress update
-func (pr *ProgressReporter) Report(update ProgressUpdate) {
-	select {
-	case pr.updates <- update:
-	case <-pr.done:
+// WithStream sets output stream handler
+func WithStream(handler func(string)) ExecOption {
+	return func(c *execConfig) {
+		c.stream = handler
 	}
 }
 
-// Updates returns the updates channel
-func (pr *ProgressReporter) Updates() <-chan ProgressUpdate {
-	return pr.updates
+// WithSudo executes command with sudo
+func WithSudo() ExecOption {
+	return func(c *execConfig) {
+		c.sudo = true
+	}
 }
 
-// Close closes the progress reporter
-func (pr *ProgressReporter) Close() {
-	close(pr.done)
-	close(pr.updates)
+// WithSudoPassword sets sudo password (if needed)
+func WithSudoPassword(pass string) ExecOption {
+	return func(c *execConfig) {
+		c.sudoPass = pass
+	}
+}
+
+// UserConfig holds user creation configuration
+type userConfig struct {
+	home       string
+	shell      string
+	groups     []string
+	sudoAccess bool
+	systemUser bool
+}
+
+// UserOption is a functional option for user creation
+type UserOption func(*userConfig)
+
+// WithHome sets user home directory
+func WithHome(path string) UserOption {
+	return func(c *userConfig) {
+		c.home = path
+	}
+}
+
+// WithShell sets user shell
+func WithShell(shell string) UserOption {
+	return func(c *userConfig) {
+		c.shell = shell
+	}
+}
+
+// WithGroups adds user to groups
+func WithGroups(groups ...string) UserOption {
+	return func(c *userConfig) {
+		c.groups = append(c.groups, groups...)
+	}
+}
+
+// WithSudoAccess grants sudo access
+func WithSudoAccess() UserOption {
+	return func(c *userConfig) {
+		c.sudoAccess = true
+	}
+}
+
+// WithSystemUser creates a system user
+func WithSystemUser() UserOption {
+	return func(c *userConfig) {
+		c.systemUser = true
+	}
+}
+
+// FileTransferConfig holds file transfer configuration
+type fileTransferConfig struct {
+	progress func(int)
+	mode     uint32
+	preserve bool
+}
+
+// FileOption is a functional option for file operations
+type FileOption func(*fileTransferConfig)
+
+// WithProgress sets progress callback
+func WithProgress(handler func(int)) FileOption {
+	return func(c *fileTransferConfig) {
+		c.progress = handler
+	}
+}
+
+// WithFileMode sets file permissions
+func WithFileMode(mode uint32) FileOption {
+	return func(c *fileTransferConfig) {
+		c.mode = mode
+	}
+}
+
+// WithPreserve preserves file attributes
+func WithPreserve() FileOption {
+	return func(c *fileTransferConfig) {
+		c.preserve = true
+	}
+}
+
+// Template represents a server setup template
+type Template interface {
+	Apply(mgr *Manager) error
+}
+
+// TemplateWebServer configures a web server
+type TemplateWebServer struct {
+	Domain   string
+	SSL      bool
+	PHP      bool
+	Database string // mysql, postgres, none
+	Firewall bool
+}
+
+// TemplateDocker configures Docker environment
+type TemplateDocker struct {
+	ComposeVersion bool
+	Swarm          bool
+	Registry       string
+}
+
+// Transaction represents a transactional operation
+type Transaction struct {
+	client   SSHClient
+	rollback []func() error
+}
+
+// BatchResult holds results from batch operations
+type BatchResult struct {
+	Results []Result
+	Errors  []error
+}
+
+// Package represents a system package
+type Package struct {
+	Name    string
+	Version string
+	Status  string
+}
+
+// SystemInfo holds system information
+type SystemInfo struct {
+	OS           string
+	OSVersion    string
+	Kernel       string
+	Architecture string
+	Hostname     string
+	CPUCount     int
+	MemoryMB     int
+	DiskGB       int
+	Uptime       time.Duration
+}
+
+// Directory represents a directory to create
+type Directory struct {
+	Path        string
+	Permissions string
+	Owner       string
+	Group       string
+}
+
+// Tracer provides optional tracing/logging hooks
+type Tracer interface {
+	// OnConnect is called when connection is established
+	OnConnect(host string, user string)
+	// OnDisconnect is called when connection is closed
+	OnDisconnect(host string)
+	// OnExecute is called before command execution
+	OnExecute(cmd string)
+	// OnExecuteResult is called after command execution
+	OnExecuteResult(cmd string, result *Result, err error)
+	// OnUpload is called before file upload
+	OnUpload(local, remote string)
+	// OnUploadComplete is called after file upload
+	OnUploadComplete(local, remote string, err error)
+	// OnDownload is called before file download
+	OnDownload(remote, local string)
+	// OnDownloadComplete is called after file download
+	OnDownloadComplete(remote, local string, err error)
+	// OnError is called when an error occurs
+	OnError(operation string, err error)
+}
+
+// NoOpTracer is a tracer that does nothing
+type NoOpTracer struct{}
+
+func (n *NoOpTracer) OnConnect(host string, user string)                    {}
+func (n *NoOpTracer) OnDisconnect(host string)                              {}
+func (n *NoOpTracer) OnExecute(cmd string)                                  {}
+func (n *NoOpTracer) OnExecuteResult(cmd string, result *Result, err error) {}
+func (n *NoOpTracer) OnUpload(local, remote string)                         {}
+func (n *NoOpTracer) OnUploadComplete(local, remote string, err error)      {}
+func (n *NoOpTracer) OnDownload(remote, local string)                       {}
+func (n *NoOpTracer) OnDownloadComplete(remote, local string, err error)    {}
+func (n *NoOpTracer) OnError(operation string, err error)                   {}
+
+// SimpleLogger is a basic tracer that logs to stdout
+type SimpleLogger struct {
+	Verbose bool
+}
+
+func (s *SimpleLogger) OnConnect(host string, user string) {
+	if s.Verbose {
+		println("SSH: Connecting to", host, "as", user)
+	}
+}
+
+func (s *SimpleLogger) OnDisconnect(host string) {
+	if s.Verbose {
+		println("SSH: Disconnected from", host)
+	}
+}
+
+func (s *SimpleLogger) OnExecute(cmd string) {
+	if s.Verbose {
+		println("SSH: Executing:", cmd)
+	}
+}
+
+func (s *SimpleLogger) OnExecuteResult(cmd string, result *Result, err error) {
+	if s.Verbose {
+		if err != nil {
+			println("SSH: Command failed:", err.Error())
+		} else {
+			println("SSH: Command completed with exit code:", result.ExitCode)
+		}
+	}
+}
+
+func (s *SimpleLogger) OnUpload(local, remote string) {
+	if s.Verbose {
+		println("SSH: Uploading", local, "to", remote)
+	}
+}
+
+func (s *SimpleLogger) OnUploadComplete(local, remote string, err error) {
+	if s.Verbose {
+		if err != nil {
+			println("SSH: Upload failed:", err.Error())
+		} else {
+			println("SSH: Upload completed")
+		}
+	}
+}
+
+func (s *SimpleLogger) OnDownload(remote, local string) {
+	if s.Verbose {
+		println("SSH: Downloading", remote, "to", local)
+	}
+}
+
+func (s *SimpleLogger) OnDownloadComplete(remote, local string, err error) {
+	if s.Verbose {
+		if err != nil {
+			println("SSH: Download failed:", err.Error())
+		} else {
+			println("SSH: Download completed")
+		}
+	}
+}
+
+func (s *SimpleLogger) OnError(operation string, err error) {
+	println("SSH Error in", operation+":", err.Error())
 }

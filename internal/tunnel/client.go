@@ -1,510 +1,662 @@
 package tunnel
 
 import (
-	"context"
+	"bufio"
+	"bytes"
 	"fmt"
 	"io"
-	"net"
-	"sync"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/agent"
 )
 
-// sshClient implements the SSHClient interface with proper lifecycle management
-type sshClient struct {
-	config      ConnectionConfig
-	conn        *ssh.Client
-	tracer      SSHTracer
-	mu          sync.RWMutex
-	connected   bool
-	lastUsed    time.Time
-	connectedAt time.Time
+// Client represents a single SSH connection to a server
+type Client struct {
+	config Config
+	conn   *ssh.Client
+	sftp   *sftp.Client
+	tracer Tracer
 }
 
-// NewSSHClient creates a new SSH client instance
-func NewSSHClient(config ConnectionConfig, tracer SSHTracer) SSHClient {
-	return &sshClient{
+// NewClient creates a new SSH client
+func NewClient(config Config) (*Client, error) {
+	// Set defaults
+	if config.Port == 0 {
+		config.Port = 22
+	}
+	if config.Timeout == 0 {
+		config.Timeout = 30 * time.Second
+	}
+	if config.RetryCount == 0 {
+		config.RetryCount = 3
+	}
+	if config.RetryDelay == 0 {
+		config.RetryDelay = 5 * time.Second
+	}
+
+	// Validate config
+	if config.Host == "" {
+		return nil, &Error{
+			Type:    ErrorConnection,
+			Message: "host is required",
+		}
+	}
+	if config.User == "" {
+		return nil, &Error{
+			Type:    ErrorConnection,
+			Message: "user is required",
+		}
+	}
+	if config.Password == "" && config.PrivateKey == "" {
+		return nil, &Error{
+			Type:    ErrorAuth,
+			Message: "either password or private key is required",
+		}
+	}
+
+	return &Client{
 		config: config,
-		tracer: tracer,
+		tracer: &NoOpTracer{},
+	}, nil
+}
+
+// SetTracer sets the tracer for logging/debugging
+func (c *Client) SetTracer(tracer Tracer) {
+	if tracer != nil {
+		c.tracer = tracer
+	} else {
+		c.tracer = &NoOpTracer{}
 	}
 }
 
-// Connect establishes the SSH connection with authentication and host key verification
-func (c *sshClient) Connect(ctx context.Context) error {
-	span := c.tracer.TraceConnection(ctx, c.config.Host, c.config.Port, c.config.Username)
-	defer span.End()
+// Connect establishes SSH connection
+func (c *Client) Connect() error {
+	c.tracer.OnConnect(c.config.Host, c.config.User)
 
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.connected && c.conn != nil {
-		span.Event("already_connected")
-		return nil
+	// Build SSH client config
+	sshConfig := &ssh.ClientConfig{
+		User:            c.config.User,
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // TODO: Add proper host key verification
+		Timeout:         c.config.Timeout,
 	}
 
-	// Create SSH configuration
-	sshConfig, err := c.createSSHConfig()
-	if err != nil {
-		span.EndWithError(err)
-		return WrapConnectionError(c.config.Host, c.config.Port, c.config.Username, err)
+	// Setup authentication
+	if c.config.PrivateKey != "" {
+		signer, err := c.parsePrivateKey()
+		if err != nil {
+			c.tracer.OnError("parse_private_key", err)
+			return &Error{
+				Type:    ErrorAuth,
+				Message: "failed to parse private key",
+				Cause:   err,
+			}
+		}
+		sshConfig.Auth = []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
+		}
+	} else if c.config.Password != "" {
+		sshConfig.Auth = []ssh.AuthMethod{
+			ssh.Password(c.config.Password),
+		}
 	}
 
-	// Create address
-	addr := fmt.Sprintf("%s:%d", c.config.Host, c.config.Port)
+	// Connect with retries
+	var lastErr error
+	for i := 0; i <= c.config.RetryCount; i++ {
+		if i > 0 {
+			time.Sleep(c.config.RetryDelay)
+		}
 
-	// Set up dialer with timeout
-	dialer := &net.Dialer{
-		Timeout: c.config.Timeout,
+		addr := fmt.Sprintf("%s:%d", c.config.Host, c.config.Port)
+		conn, err := ssh.Dial("tcp", addr, sshConfig)
+		if err == nil {
+			c.conn = conn
+			return nil
+		}
+
+		lastErr = err
+		c.tracer.OnError("connect", err)
 	}
 
-	span.Event("dialing", map[string]any{
-		"address": addr,
-		"timeout": c.config.Timeout,
-	})
+	c.tracer.OnDisconnect(c.config.Host)
+	return &Error{
+		Type:    ErrorConnection,
+		Message: fmt.Sprintf("failed to connect after %d attempts", c.config.RetryCount+1),
+		Cause:   lastErr,
+	}
+}
 
-	// Create connection with timeout context
-	dialCtx, cancel := context.WithTimeout(ctx, c.config.Timeout)
-	defer cancel()
+// Close closes the SSH connection
+func (c *Client) Close() error {
+	c.tracer.OnDisconnect(c.config.Host)
 
-	netConn, err := dialer.DialContext(dialCtx, "tcp", addr)
-	if err != nil {
-		span.EndWithError(err)
-		return WrapConnectionError(c.config.Host, c.config.Port, c.config.Username, err)
+	if c.sftp != nil {
+		c.sftp.Close()
+		c.sftp = nil
 	}
 
-	// Create SSH connection
-	sshConn, chans, reqs, err := ssh.NewClientConn(netConn, addr, sshConfig)
-	if err != nil {
-		netConn.Close()
-		span.EndWithError(err)
-		return WrapConnectionError(c.config.Host, c.config.Port, c.config.Username, err)
+	if c.conn != nil {
+		err := c.conn.Close()
+		c.conn = nil
+		return err
 	}
-
-	// Create SSH client
-	c.conn = ssh.NewClient(sshConn, chans, reqs)
-	c.connected = true
-	c.connectedAt = time.Now()
-	c.lastUsed = time.Now()
-
-	span.Event("connection_established", map[string]any{
-		"host":         c.config.Host,
-		"port":         c.config.Port,
-		"user":         c.config.Username,
-		"connected_at": c.connectedAt,
-	})
 
 	return nil
 }
 
-// Execute runs a command synchronously and returns the output
-func (c *sshClient) Execute(ctx context.Context, cmd string) (string, error) {
-	span := c.tracer.TraceCommand(ctx, cmd, false)
-	defer span.End()
-
-	c.mu.Lock()
-	if !c.connected || c.conn == nil {
-		c.mu.Unlock()
-		err := ErrClientNotConnected
-		span.EndWithError(err)
-		return "", err
-	}
-	c.lastUsed = time.Now()
-	conn := c.conn
-	c.mu.Unlock()
-
-	// Create session
-	session, err := conn.NewSession()
-	if err != nil {
-		span.EndWithError(err)
-		return "", WrapCommandError(cmd, 0, "", err)
-	}
-	defer session.Close()
-
-	span.SetFields(map[string]any{
-		"command": cmd,
-		"host":    c.config.Host,
-		"user":    c.config.Username,
-	})
-
-	start := time.Now()
-
-	// Run command with timeout
-	outputCh := make(chan []byte, 1)
-	errCh := make(chan error, 1)
-
-	go func() {
-		output, err := session.CombinedOutput(cmd)
-		if err != nil {
-			errCh <- err
-		} else {
-			outputCh <- output
-		}
-	}()
-
-	// Wait for completion or timeout
-	select {
-	case <-ctx.Done():
-		session.Signal(ssh.SIGTERM)
-		err := ctx.Err()
-		span.EndWithError(err)
-		return "", WrapCommandError(cmd, 0, "", err)
-
-	case err := <-errCh:
-		duration := time.Since(start)
-
-		// Extract exit code if possible
-		exitCode := 0
-		if exitErr, ok := err.(*ssh.ExitError); ok {
-			exitCode = exitErr.ExitStatus()
-		}
-
-		span.Event("command_failed", map[string]any{
-			"duration":  duration,
-			"exit_code": exitCode,
-		})
-		span.EndWithError(err)
-
-		return "", WrapCommandError(cmd, exitCode, "", err)
-
-	case output := <-outputCh:
-		duration := time.Since(start)
-		outputStr := string(output)
-
-		span.Event("command_completed", map[string]any{
-			"duration":    duration,
-			"output_size": len(output),
-		})
-
-		return outputStr, nil
-	}
-}
-
-// ExecuteStream runs a command and streams output through a channel
-func (c *sshClient) ExecuteStream(ctx context.Context, cmd string) (<-chan string, error) {
-	span := c.tracer.TraceCommand(ctx, cmd, true)
-
-	c.mu.Lock()
-	if !c.connected || c.conn == nil {
-		c.mu.Unlock()
-		err := ErrClientNotConnected
-		span.EndWithError(err)
-		return nil, err
-	}
-	c.lastUsed = time.Now()
-	conn := c.conn
-	c.mu.Unlock()
-
-	// Create session
-	session, err := conn.NewSession()
-	if err != nil {
-		span.EndWithError(err)
-		return nil, WrapCommandError(cmd, 0, "", err)
-	}
-
-	// Get stdout and stderr pipes
-	stdout, err := session.StdoutPipe()
-	if err != nil {
-		session.Close()
-		span.EndWithError(err)
-		return nil, WrapCommandError(cmd, 0, "", err)
-	}
-
-	stderr, err := session.StderrPipe()
-	if err != nil {
-		session.Close()
-		span.EndWithError(err)
-		return nil, WrapCommandError(cmd, 0, "", err)
-	}
-
-	// Start command
-	if err := session.Start(cmd); err != nil {
-		session.Close()
-		span.EndWithError(err)
-		return nil, WrapCommandError(cmd, 0, "", err)
-	}
-
-	span.SetFields(map[string]any{
-		"command":   cmd,
-		"streaming": true,
-		"host":      c.config.Host,
-		"user":      c.config.Username,
-	})
-
-	// Create output channel
-	outputCh := make(chan string, StreamBufferSize/1024)
-
-	// Start streaming goroutine
-	go func() {
-		defer func() {
-			session.Close()
-			close(outputCh)
-			span.End()
-		}()
-
-		// Merge stdout and stderr
-		merged := io.MultiReader(stdout, stderr)
-		buffer := make([]byte, DefaultBufferSize)
-
-		for {
-			select {
-			case <-ctx.Done():
-				session.Signal(ssh.SIGTERM)
-				return
-			default:
-				n, err := merged.Read(buffer)
-				if n > 0 {
-					output := string(buffer[:n])
-					select {
-					case outputCh <- output:
-					case <-ctx.Done():
-						return
-					}
-				}
-				if err != nil {
-					if err != io.EOF {
-						span.Event("stream_error", map[string]any{
-							"error": err.Error(),
-						})
-					}
-					return
-				}
-			}
-		}
-	}()
-
-	span.Event("stream_started", map[string]any{
-		"command": cmd,
-	})
-
-	return outputCh, nil
-}
-
-// IsConnected returns true if the SSH connection is active
-func (c *sshClient) IsConnected() bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	if !c.connected || c.conn == nil {
+// IsConnected checks if the client is connected
+func (c *Client) IsConnected() bool {
+	if c.conn == nil {
 		return false
 	}
 
-	// Simple health check by creating a session
+	// Try to create a session to verify connection
 	session, err := c.conn.NewSession()
 	if err != nil {
-		c.connected = false
 		return false
 	}
 	session.Close()
-
 	return true
 }
 
-// Close closes the SSH connection and cleans up resources
-func (c *sshClient) Close() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+// Execute runs a command on the remote server
+func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
+	if c.conn == nil {
+		return nil, &Error{
+			Type:    ErrorConnection,
+			Message: "not connected",
+		}
+	}
 
-	if !c.connected || c.conn == nil {
+	// Apply options
+	cfg := &execConfig{
+		timeout: 60 * time.Second,
+	}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	// Build command with environment and working directory
+	fullCmd := c.buildCommand(cmd, cfg)
+	c.tracer.OnExecute(fullCmd)
+
+	// Create session
+	session, err := c.conn.NewSession()
+	if err != nil {
+		c.tracer.OnError("create_session", err)
+		return nil, &Error{
+			Type:    ErrorExecution,
+			Message: "failed to create session",
+			Cause:   err,
+		}
+	}
+	defer session.Close()
+
+	// Set up output capture or streaming
+	var stdout, stderr bytes.Buffer
+
+	if cfg.stream != nil {
+		// Stream output
+		stdoutPipe, err := session.StdoutPipe()
+		if err != nil {
+			return nil, &Error{
+				Type:    ErrorExecution,
+				Message: "failed to create stdout pipe",
+				Cause:   err,
+			}
+		}
+
+		stderrPipe, err := session.StderrPipe()
+		if err != nil {
+			return nil, &Error{
+				Type:    ErrorExecution,
+				Message: "failed to create stderr pipe",
+				Cause:   err,
+			}
+		}
+
+		// Start command
+		if err := session.Start(fullCmd); err != nil {
+			c.tracer.OnError("start_command", err)
+			return nil, &Error{
+				Type:    ErrorExecution,
+				Message: "failed to start command",
+				Cause:   err,
+			}
+		}
+
+		// Stream output
+		go c.streamOutput(stdoutPipe, cfg.stream)
+		go c.streamOutput(stderrPipe, cfg.stream)
+
+		// Wait with timeout
+		done := make(chan error)
+		go func() {
+			done <- session.Wait()
+		}()
+
+		select {
+		case err := <-done:
+			if err != nil {
+				if exitErr, ok := err.(*ssh.ExitError); ok {
+					result := &Result{
+						ExitCode: exitErr.ExitStatus(),
+					}
+					c.tracer.OnExecuteResult(fullCmd, result, nil)
+					return result, nil
+				}
+				c.tracer.OnExecuteResult(fullCmd, nil, err)
+				return nil, &Error{
+					Type:    ErrorExecution,
+					Message: "command failed",
+					Cause:   err,
+				}
+			}
+		case <-time.After(cfg.timeout):
+			session.Signal(ssh.SIGTERM)
+			time.Sleep(2 * time.Second)
+			session.Signal(ssh.SIGKILL)
+			c.tracer.OnExecuteResult(fullCmd, nil, fmt.Errorf("timeout"))
+			return nil, &Error{
+				Type:    ErrorTimeout,
+				Message: fmt.Sprintf("command timed out after %v", cfg.timeout),
+			}
+		}
+
+		result := &Result{
+			ExitCode: 0,
+		}
+		c.tracer.OnExecuteResult(fullCmd, result, nil)
+		return result, nil
+	} else {
+		// Capture output
+		session.Stdout = &stdout
+		session.Stderr = &stderr
+
+		// Run with timeout
+		done := make(chan error)
+		start := time.Now()
+
+		go func() {
+			done <- session.Run(fullCmd)
+		}()
+
+		select {
+		case err := <-done:
+			duration := time.Since(start)
+			if err != nil {
+				if exitErr, ok := err.(*ssh.ExitError); ok {
+					result := &Result{
+						Stdout:   stdout.String(),
+						Stderr:   stderr.String(),
+						ExitCode: exitErr.ExitStatus(),
+						Duration: duration,
+					}
+					c.tracer.OnExecuteResult(fullCmd, result, nil)
+					return result, nil
+				}
+				c.tracer.OnExecuteResult(fullCmd, nil, err)
+				return nil, &Error{
+					Type:    ErrorExecution,
+					Message: "command failed",
+					Cause:   err,
+				}
+			}
+
+			result := &Result{
+				Stdout:   stdout.String(),
+				Stderr:   stderr.String(),
+				ExitCode: 0,
+				Duration: duration,
+			}
+			c.tracer.OnExecuteResult(fullCmd, result, nil)
+			return result, nil
+
+		case <-time.After(cfg.timeout):
+			session.Signal(ssh.SIGTERM)
+			time.Sleep(2 * time.Second)
+			session.Signal(ssh.SIGKILL)
+			c.tracer.OnExecuteResult(fullCmd, nil, fmt.Errorf("timeout"))
+			return nil, &Error{
+				Type:    ErrorTimeout,
+				Message: fmt.Sprintf("command timed out after %v", cfg.timeout),
+			}
+		}
+	}
+}
+
+// ExecuteSudo runs a command with sudo
+func (c *Client) ExecuteSudo(cmd string, opts ...ExecOption) (*Result, error) {
+	// Add sudo to options
+	opts = append(opts, WithSudo())
+
+	// Apply options to get config
+	cfg := &execConfig{
+		timeout: 60 * time.Second,
+	}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	// Prepend sudo to command
+	sudoCmd := "sudo "
+	if cfg.sudoPass != "" {
+		// Use sudo with password stdin
+		sudoCmd = fmt.Sprintf("echo '%s' | sudo -S ", cfg.sudoPass)
+	}
+
+	return c.Execute(sudoCmd+cmd, opts...)
+}
+
+// Upload uploads a file to the remote server
+func (c *Client) Upload(localPath, remotePath string, opts ...FileOption) error {
+	c.tracer.OnUpload(localPath, remotePath)
+
+	// Apply options
+	cfg := &fileTransferConfig{
+		mode: 0644,
+	}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	// Ensure SFTP client is connected
+	if err := c.ensureSFTP(); err != nil {
+		c.tracer.OnUploadComplete(localPath, remotePath, err)
+		return err
+	}
+
+	// Open local file
+	localFile, err := os.Open(localPath)
+	if err != nil {
+		err = &Error{
+			Type:    ErrorFileTransfer,
+			Message: "failed to open local file",
+			Cause:   err,
+		}
+		c.tracer.OnUploadComplete(localPath, remotePath, err)
+		return err
+	}
+	defer localFile.Close()
+
+	// Get file info
+	stat, err := localFile.Stat()
+	if err != nil {
+		err = &Error{
+			Type:    ErrorFileTransfer,
+			Message: "failed to stat local file",
+			Cause:   err,
+		}
+		c.tracer.OnUploadComplete(localPath, remotePath, err)
+		return err
+	}
+
+	// Create remote file
+	remoteFile, err := c.sftp.Create(remotePath)
+	if err != nil {
+		// Try to create parent directory
+		remoteDir := filepath.Dir(remotePath)
+		c.sftp.MkdirAll(remoteDir)
+
+		// Retry creating file
+		remoteFile, err = c.sftp.Create(remotePath)
+		if err != nil {
+			err = &Error{
+				Type:    ErrorFileTransfer,
+				Message: "failed to create remote file",
+				Cause:   err,
+			}
+			c.tracer.OnUploadComplete(localPath, remotePath, err)
+			return err
+		}
+	}
+	defer remoteFile.Close()
+
+	// Copy with progress tracking
+	if cfg.progress != nil {
+		err = c.copyWithProgress(localFile, remoteFile, stat.Size(), cfg.progress)
+	} else {
+		_, err = io.Copy(remoteFile, localFile)
+	}
+
+	if err != nil {
+		err = &Error{
+			Type:    ErrorFileTransfer,
+			Message: "failed to copy file",
+			Cause:   err,
+		}
+		c.tracer.OnUploadComplete(localPath, remotePath, err)
+		return err
+	}
+
+	// Set file permissions
+	if cfg.preserve {
+		remoteFile.Chmod(stat.Mode())
+	} else {
+		remoteFile.Chmod(os.FileMode(cfg.mode))
+	}
+
+	c.tracer.OnUploadComplete(localPath, remotePath, nil)
+	return nil
+}
+
+// Download downloads a file from the remote server
+func (c *Client) Download(remotePath, localPath string, opts ...FileOption) error {
+	c.tracer.OnDownload(remotePath, localPath)
+
+	// Apply options
+	cfg := &fileTransferConfig{}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	// Ensure SFTP client is connected
+	if err := c.ensureSFTP(); err != nil {
+		c.tracer.OnDownloadComplete(remotePath, localPath, err)
+		return err
+	}
+
+	// Open remote file
+	remoteFile, err := c.sftp.Open(remotePath)
+	if err != nil {
+		err = &Error{
+			Type:    ErrorFileTransfer,
+			Message: "failed to open remote file",
+			Cause:   err,
+		}
+		c.tracer.OnDownloadComplete(remotePath, localPath, err)
+		return err
+	}
+	defer remoteFile.Close()
+
+	// Get file info
+	stat, err := remoteFile.Stat()
+	if err != nil {
+		err = &Error{
+			Type:    ErrorFileTransfer,
+			Message: "failed to stat remote file",
+			Cause:   err,
+		}
+		c.tracer.OnDownloadComplete(remotePath, localPath, err)
+		return err
+	}
+
+	// Create local file
+	localFile, err := os.Create(localPath)
+	if err != nil {
+		// Try to create parent directory
+		localDir := filepath.Dir(localPath)
+		os.MkdirAll(localDir, 0755)
+
+		// Retry creating file
+		localFile, err = os.Create(localPath)
+		if err != nil {
+			err = &Error{
+				Type:    ErrorFileTransfer,
+				Message: "failed to create local file",
+				Cause:   err,
+			}
+			c.tracer.OnDownloadComplete(remotePath, localPath, err)
+			return err
+		}
+	}
+	defer localFile.Close()
+
+	// Copy with progress tracking
+	if cfg.progress != nil {
+		err = c.copyWithProgress(remoteFile, localFile, stat.Size(), cfg.progress)
+	} else {
+		_, err = io.Copy(localFile, remoteFile)
+	}
+
+	if err != nil {
+		err = &Error{
+			Type:    ErrorFileTransfer,
+			Message: "failed to copy file",
+			Cause:   err,
+		}
+		c.tracer.OnDownloadComplete(remotePath, localPath, err)
+		return err
+	}
+
+	// Set file permissions if preserving
+	if cfg.preserve {
+		localFile.Chmod(stat.Mode())
+	}
+
+	c.tracer.OnDownloadComplete(remotePath, localPath, nil)
+	return nil
+}
+
+// Helper methods
+
+func (c *Client) parsePrivateKey() (ssh.Signer, error) {
+	key := []byte(c.config.PrivateKey)
+
+	// Check if it's a file path
+	if !strings.Contains(c.config.PrivateKey, "BEGIN") {
+		// Try to read as file
+		keyData, err := os.ReadFile(c.config.PrivateKey)
+		if err == nil {
+			key = keyData
+		}
+	}
+
+	// Parse the key
+	if c.config.Passphrase != "" {
+		return ssh.ParsePrivateKeyWithPassphrase(key, []byte(c.config.Passphrase))
+	}
+	return ssh.ParsePrivateKey(key)
+}
+
+func (c *Client) buildCommand(cmd string, cfg *execConfig) string {
+	var parts []string
+
+	// Add environment variables
+	for k, v := range cfg.env {
+		parts = append(parts, fmt.Sprintf("export %s='%s';", k, v))
+	}
+
+	// Change directory if specified
+	if cfg.workDir != "" {
+		parts = append(parts, fmt.Sprintf("cd '%s';", cfg.workDir))
+	}
+
+	// Add the actual command
+	parts = append(parts, cmd)
+
+	return strings.Join(parts, " ")
+}
+
+func (c *Client) ensureSFTP() error {
+	if c.sftp != nil {
 		return nil
 	}
 
-	err := c.conn.Close()
-	c.conn = nil
-	c.connected = false
-
-	if c.tracer != nil {
-		span := c.tracer.TraceConnection(context.Background(), c.config.Host, c.config.Port, c.config.Username)
-		span.Event("connection_closed", map[string]any{
-			"host":      c.config.Host,
-			"port":      c.config.Port,
-			"user":      c.config.Username,
-			"duration":  time.Since(c.connectedAt),
-			"last_used": c.lastUsed,
-		})
-		span.End()
+	if c.conn == nil {
+		return &Error{
+			Type:    ErrorConnection,
+			Message: "not connected",
+		}
 	}
 
-	return err
+	sftp, err := sftp.NewClient(c.conn)
+	if err != nil {
+		return &Error{
+			Type:    ErrorFileTransfer,
+			Message: "failed to create SFTP client",
+			Cause:   err,
+		}
+	}
+
+	c.sftp = sftp
+	return nil
 }
 
-// createSSHConfig creates the SSH client configuration
-func (c *sshClient) createSSHConfig() (*ssh.ClientConfig, error) {
-	// Create authentication methods
-	authMethods, err := c.createAuthMethods()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create auth methods: %w", err)
+func (c *Client) streamOutput(reader io.Reader, handler func(string)) {
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
+		handler(scanner.Text())
 	}
-
-	if len(authMethods) == 0 {
-		return nil, ErrNoAuthMethod
-	}
-
-	// Create host key callback
-	hostKeyCallback, err := c.createHostKeyCallback()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create host key callback: %w", err)
-	}
-
-	config := &ssh.ClientConfig{
-		User:            c.config.Username,
-		Auth:            authMethods,
-		HostKeyCallback: hostKeyCallback,
-		Timeout:         c.config.Timeout,
-	}
-
-	return config, nil
 }
 
-// createAuthMethods creates SSH authentication methods based on configuration
-func (c *sshClient) createAuthMethods() ([]ssh.AuthMethod, error) {
-	var authMethods []ssh.AuthMethod
+func (c *Client) copyWithProgress(src io.Reader, dst io.Writer, total int64, progress func(int)) error {
+	buffer := make([]byte, 32*1024) // 32KB buffer
+	var written int64
 
-	switch c.config.AuthMethod.Type {
-	case "key":
-		if len(c.config.AuthMethod.PrivateKey) > 0 {
-			// Use provided private key
-			signer, err := ssh.ParsePrivateKey(c.config.AuthMethod.PrivateKey)
+	for {
+		n, err := src.Read(buffer)
+		if n > 0 {
+			nw, err := dst.Write(buffer[:n])
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse private key: %w", err)
+				return err
 			}
-			authMethods = append(authMethods, ssh.PublicKeys(signer))
-		} else if c.config.AuthMethod.KeyPath != "" {
-			// Load from file
-			signer, err := c.loadPrivateKeyFromFile(c.config.AuthMethod.KeyPath, "")
-			if err != nil {
-				return nil, fmt.Errorf("failed to load private key from %s: %w", c.config.AuthMethod.KeyPath, err)
+			if nw != n {
+				return io.ErrShortWrite
 			}
-			authMethods = append(authMethods, ssh.PublicKeys(signer))
+
+			written += int64(nw)
+			if progress != nil && total > 0 {
+				percent := int((written * 100) / total)
+				progress(percent)
+			}
 		}
 
-	case "agent":
-		// Use SSH agent
-		agentAuth, err := c.connectToAgent()
+		if err == io.EOF {
+			break
+		}
 		if err != nil {
-			return nil, fmt.Errorf("failed to connect to SSH agent: %w", err)
+			return err
 		}
-		authMethods = append(authMethods, agentAuth)
-
-	case "password":
-		if c.config.AuthMethod.Password != "" {
-			authMethods = append(authMethods, ssh.Password(c.config.AuthMethod.Password))
-		}
-
-	default:
-		return nil, fmt.Errorf("unsupported auth method: %s", c.config.AuthMethod.Type)
 	}
 
-	return authMethods, nil
+	return nil
 }
 
-// loadPrivateKeyFromFile loads a private key from file
-func (c *sshClient) loadPrivateKeyFromFile(keyPath, passphrase string) (ssh.Signer, error) {
-	// This would typically read from file system
-	// For now, we'll return an error indicating file reading is not implemented
-	return nil, fmt.Errorf("file reading not implemented in this context")
-}
-
-// connectToAgent connects to SSH agent
-func (c *sshClient) connectToAgent() (ssh.AuthMethod, error) {
-	socket := "/tmp/ssh-agent.sock" // This should come from environment
-	conn, err := net.Dial("unix", socket)
+// Ping tests the connection with a simple command
+func (c *Client) Ping() error {
+	result, err := c.Execute("echo ping", WithTimeout(5*time.Second))
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to SSH agent: %w", err)
+		return err
 	}
-
-	agentClient := agent.NewClient(conn)
-	return ssh.PublicKeysCallback(agentClient.Signers), nil
-}
-
-// createHostKeyCallback creates the host key verification callback
-func (c *sshClient) createHostKeyCallback() (ssh.HostKeyCallback, error) {
-	switch c.config.HostKeyMode {
-	case HostKeyStrict:
-		// In a real implementation, this would check known_hosts file
-		return ssh.FixedHostKey(nil), fmt.Errorf("strict host key checking not implemented")
-
-	case HostKeyAcceptNew:
-		return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-			// Log the new host key acceptance
-			if c.tracer != nil {
-				span := c.tracer.TraceConnection(context.Background(), hostname, c.config.Port, c.config.Username)
-				span.Event("host_key_accepted", map[string]any{
-					"hostname":    hostname,
-					"remote_addr": remote.String(),
-					"key_type":    key.Type(),
-				})
-				span.End()
-			}
-			return nil
-		}, nil
-
-	case HostKeyInsecure:
-		return ssh.InsecureIgnoreHostKey(), nil
-
-	default:
-		return nil, fmt.Errorf("unsupported host key mode: %d", c.config.HostKeyMode)
+	if !strings.Contains(result.Stdout, "ping") {
+		return &Error{
+			Type:    ErrorConnection,
+			Message: "ping failed",
+		}
 	}
+	return nil
 }
 
-// GetLastUsed returns the last used timestamp (for pool management)
-func (c *sshClient) GetLastUsed() time.Time {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.lastUsed
-}
-
-// GetConnectionInfo returns connection information for diagnostics
-func (c *sshClient) GetConnectionInfo() map[string]any {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	info := map[string]any{
-		"host":      c.config.Host,
-		"port":      c.config.Port,
-		"user":      c.config.Username,
-		"connected": c.connected,
-		"last_used": c.lastUsed,
+// HostInfo returns basic host information
+func (c *Client) HostInfo() (string, error) {
+	result, err := c.Execute("uname -a", WithTimeout(10*time.Second))
+	if err != nil {
+		return "", err
 	}
-
-	if c.connected {
-		info["connected_at"] = c.connectedAt
-		info["connection_duration"] = time.Since(c.connectedAt)
-	}
-
-	return info
+	return strings.TrimSpace(result.Stdout), nil
 }
-
-// SSHTracer interface for tracing SSH operations
-type SSHTracer interface {
-	TraceConnection(ctx context.Context, host string, port int, user string) Span
-	TraceCommand(ctx context.Context, cmd string, streaming bool) Span
-}
-
-// Span interface for tracing spans
-type Span interface {
-	End()
-	EndWithError(error)
-	Event(name string, fields ...map[string]any)
-	SetFields(fields map[string]any)
-}
-
-// NoOpTracer provides a no-op implementation for when tracing is disabled
-type NoOpTracer struct{}
-
-func (t *NoOpTracer) TraceConnection(ctx context.Context, host string, port int, user string) Span {
-	return &NoOpSpan{}
-}
-
-func (t *NoOpTracer) TraceCommand(ctx context.Context, cmd string, streaming bool) Span {
-	return &NoOpSpan{}
-}
-
-// NoOpSpan provides a no-op implementation for spans
-type NoOpSpan struct{}
-
-func (s *NoOpSpan) End()                                                {}
-func (s *NoOpSpan) EndWithError(error)                                  {}
-func (s *NoOpSpan) Event(name string, fields ...map[string]any) {}
-func (s *NoOpSpan) SetFields(fields map[string]any)             {}
