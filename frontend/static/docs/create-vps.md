@@ -15,25 +15,15 @@ Go to [Hetzner Cloud](https://hetzner.cloud/?ref=OziePwGckx9o) and create an acc
 
 ## 3. Setup SSH Keys
 
-### Generate SSH Key (Linux Mint)
+### Generate SSH Key
 
-Use the Password app on Linux Mint or terminal:
-
-```bash
-ssh-keygen -t ed25519 -C "your-email@example.com"
-```
+Use the Password app on Linux Mint or create your own key manually.
 
 ### Add to Hetzner
 
-1. Copy your public key: `cat ~/.ssh/id_ed25519.pub`
+1. Open the Password app and copy the pub key
 2. In Hetzner console: **SSH Keys** → **Add SSH Key**
 3. Paste the key and save
 4. Select it when creating your server
-
-### Test Connection
-
-```bash
-ssh root@YOUR_SERVER_IP
-```
 
 Done! You should be connected to your VPS.
