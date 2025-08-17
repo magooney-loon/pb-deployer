@@ -9,6 +9,19 @@ import (
 	"time"
 )
 
+// GetTestPackages returns a list of test packages to run
+func GetTestPackages() []string {
+	return []string{
+		"./internal/utils",
+		"./internal/tracer",
+		// Add more packages here as they are created
+		// "./internal/config",
+		// "./internal/deployment",
+		// "./internal/docker",
+		// etc.
+	}
+}
+
 // Global flags
 var (
 	Verbose bool = false
@@ -204,19 +217,6 @@ func RunTestSuite(packages []string) TestSuite {
 
 	suite.Duration = time.Since(start)
 	return suite
-}
-
-// GetTestPackages returns a list of test packages to run
-func GetTestPackages() []string {
-	return []string{
-		"./internal/utils",
-		"./internal/tracer",
-		// Add more packages here as they are created
-		// "./internal/config",
-		// "./internal/deployment",
-		// "./internal/docker",
-		// etc.
-	}
 }
 
 // ExitWithCode exits the program with appropriate exit code based on test results
