@@ -1,5 +1,3 @@
-**NOT BATTLE-TESTED; I USE IT FOR MY SIDE PROJECTS ON HERTZNER UBUNTU VPS WITH NO ISSUES SO FAR**
-
 <div align="center">
   <img src="frontend/static/favicon.svg" alt="Logo" width="200">
   <h1 align="center">pb-deployer</h1>
