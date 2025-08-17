@@ -18,6 +18,7 @@ export {
 	getServerStatusBadge,
 	getAppStatusBadge,
 	getAppStatusIcon,
+	getDeploymentStatusBadge,
 	formatTimestamp,
 	type StatusBadgeVariant,
 	type StatusBadgeResult

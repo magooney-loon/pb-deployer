@@ -1,9 +1,16 @@
 import { ApiClient, type Server, type App } from '$lib/api/index.js';
-import { getServerStatusBadge, getAppStatusIcon } from '$lib/components/partials/index.js';
+import type { Deployment } from '$lib/api/deployment/types.js';
+import {
+	getServerStatusBadge,
+	getAppStatusIcon,
+	getDeploymentStatusBadge,
+	getAppStatusBadge
+} from '$lib/components/partials/index.js';
 
 export interface DashboardState {
 	servers: Server[];
 	apps: App[];
+	deployments: Deployment[];
 	loading: boolean;
 	error: string | null;
 }
@@ -15,6 +22,7 @@ export interface DashboardMetrics {
 	onlineApps: App[];
 	recentServers: Server[];
 	recentApps: App[];
+	recentDeployments: Deployment[];
 	serverStatusCounts: {
 		ready: number;
 		setupRequired: number;
@@ -47,6 +55,7 @@ export class DashboardLogic {
 		return {
 			servers: [],
 			apps: [],
+			deployments: [],
 			loading: true,
 			error: null
 		};
@@ -69,24 +78,28 @@ export class DashboardLogic {
 		try {
 			this.updateState({ loading: true, error: null });
 
-			const [serversResponse, appsResponse] = await Promise.all([
+			const [serversResponse, appsResponse, deploymentsResponse] = await Promise.all([
 				this.api.servers.getServers(),
-				this.api.apps.getApps()
+				this.api.apps.getApps(),
+				this.api.deployments.getDeployments()
 			]);
 
 			const servers = serversResponse.servers || [];
 			const apps = appsResponse.apps || [];
+			const deployments = deploymentsResponse.deployments || [];
 
 			this.updateState({
 				servers,
-				apps
+				apps,
+				deployments
 			});
 		} catch (err) {
 			const error = err instanceof Error ? err.message : 'Failed to load dashboard data';
 			this.updateState({
 				error,
 				servers: [],
-				apps: []
+				apps: [],
+				deployments: []
 			});
 		} finally {
 			this.updateState({ loading: false });
@@ -98,7 +111,7 @@ export class DashboardLogic {
 	}
 
 	public getMetrics(): DashboardMetrics {
-		const { servers, apps } = this.state;
+		const { servers, apps, deployments } = this.state;
 
 		const readyServers = servers?.filter((s) => s.setup_complete) || [];
 
@@ -106,6 +119,7 @@ export class DashboardLogic {
 
 		const recentServers = servers?.slice(0, 3) || [];
 		const recentApps = apps?.slice(0, 5) || [];
+		const recentDeployments = deployments?.slice(0, 3) || [];
 
 		const serverStatusCounts = {
 			ready: readyServers.length,
@@ -133,6 +147,7 @@ export class DashboardLogic {
 			onlineApps,
 			recentServers,
 			recentApps,
+			recentDeployments,
 			serverStatusCounts,
 			appStatusCounts,
 			deploymentInfo: {
@@ -153,5 +168,13 @@ export class DashboardLogic {
 
 	public hasData(): boolean {
 		return (this.state.servers?.length || 0) > 0 || (this.state.apps?.length || 0) > 0;
+	}
+
+	public getDeploymentStatusBadge(deployment: Deployment) {
+		return getDeploymentStatusBadge(deployment);
+	}
+
+	public getAppStatusBadge(app: App) {
+		return getAppStatusBadge(app);
 	}
 }

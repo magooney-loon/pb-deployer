@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { DashboardLogic, type DashboardState } from './Dashboard.js';
 	import type { Server, App } from '$lib/api/index.js';
+	import type { Deployment } from '$lib/api/deployment/types.js';
 	import {
 		Toast,
 		LoadingSpinner,
@@ -68,7 +69,7 @@
 		</MetricCard>
 	</div>
 
-	<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+	<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
 		<!-- Recent Servers -->
 		<RecentItemsCard
 			title="Recent Servers"
@@ -109,14 +110,18 @@
 			}}
 		>
 			{#snippet children(app: App)}
+				{@const appBadge = logic.getAppStatusBadge(app)}
 				<div class="flex-1">
 					<div class="flex items-center">
 						<span class="text-sm font-medium text-gray-900 dark:text-gray-100">
 							{app.name}
 						</span>
-						<span class="ml-2 text-xs">
-							<Icon name="green-circle" size="h-3 w-3" />
-						</span>
+						<StatusBadge
+							status="{logic.getStatusIcon(app.status)} {appBadge.text}"
+							variant={appBadge.variant}
+							class="ml-2"
+							dot
+						/>
 					</div>
 					<div class="text-xs text-gray-500 dark:text-gray-400">
 						<a
@@ -143,6 +148,41 @@
 						<span>Open</span>
 						<Icon name="link" size="h-3 w-3" />
 					</a>
+				</div>
+			{/snippet}
+		</RecentItemsCard>
+
+		<!-- Recent Deployments -->
+		<RecentItemsCard
+			title="Recent Deployments"
+			items={metrics.recentDeployments}
+			viewAllHref="/deployments"
+			emptyState={{
+				message: 'No deployments yet',
+				ctaText: metrics.totalApps > 0 ? 'Deploy an app →' : undefined,
+				ctaHref: metrics.totalApps > 0 ? '/apps' : undefined,
+				secondaryText: metrics.totalApps === 0 ? 'Create an app first' : undefined
+			}}
+		>
+			{#snippet children(deployment: Deployment)}
+				{@const deploymentBadge = logic.getDeploymentStatusBadge(deployment)}
+				<div class="flex-1">
+					<div class="flex items-center">
+						<span class="text-sm font-medium text-gray-900 dark:text-gray-100">
+							Deployment #{deployment.id.slice(-8)}
+						</span>
+						<StatusBadge
+							status={deploymentBadge.text}
+							variant={deploymentBadge.variant}
+							class="ml-2"
+						/>
+					</div>
+					<div class="text-xs text-gray-500 dark:text-gray-400">
+						App ID: {deployment.app_id.slice(-8)}
+					</div>
+					<div class="text-xs text-gray-400 dark:text-gray-500">
+						{new Date(deployment.created).toLocaleDateString()}
+					</div>
 				</div>
 			{/snippet}
 		</RecentItemsCard>

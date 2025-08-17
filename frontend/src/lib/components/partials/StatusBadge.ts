@@ -1,4 +1,5 @@
 import type { Server, App } from '$lib/api/index.js';
+import type { Deployment } from '$lib/api/deployment/types.js';
 
 export type StatusBadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'gray';
 
@@ -54,6 +55,40 @@ export function getAppStatusIcon(status: string): string {
 			return '';
 		default:
 			return '';
+	}
+}
+
+export function getDeploymentStatusBadge(deployment: Deployment): StatusBadgeResult {
+	const status = deployment.status.toLowerCase();
+	switch (status) {
+		case 'completed':
+		case 'success':
+			return {
+				text: 'Completed',
+				variant: 'success'
+			};
+		case 'pending':
+			return {
+				text: 'Pending',
+				variant: 'warning'
+			};
+		case 'running':
+		case 'in_progress':
+			return {
+				text: 'Running',
+				variant: 'info'
+			};
+		case 'failed':
+		case 'error':
+			return {
+				text: 'Failed',
+				variant: 'error'
+			};
+		default:
+			return {
+				text: 'Unknown',
+				variant: 'gray'
+			};
 	}
 }
 
