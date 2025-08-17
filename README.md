@@ -40,6 +40,8 @@ go run cmd/scripts/main.go --install
 5. **Version Management**: Rollback support with file storage
 
 See `**/*/README.md` for detailed docs.
+<br>
+See `frontend/static/docs/` for tutorial.
 
 ## Contribution
 PRs are encouraged, but consider opening a discussion first for minor/major changelogs.
