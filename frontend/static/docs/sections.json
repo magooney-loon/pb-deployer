@@ -7,7 +7,7 @@
 	},
 	{
 		"id": "cloudflare-proxy",
-		"title": "Step 2: Cloudflare Proxy (Optional)",
+		"title": "Step 2: Cloudflare Proxy",
 		"icon": "☁️",
 		"file": "cloudflare-proxy.md"
 	},
