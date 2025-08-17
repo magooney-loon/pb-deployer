@@ -6,21 +6,17 @@ import (
 	"time"
 )
 
-// SetupManager handles server setup operations for PocketBase deployment
 type SetupManager struct {
 	manager *Manager
 }
 
-// NewSetupManager creates a new setup manager
 func NewSetupManager(manager *Manager) *SetupManager {
 	return &SetupManager{
 		manager: manager,
 	}
 }
 
-// SetupPocketBaseServer sets up a server for PocketBase deployment
 func (s *SetupManager) SetupPocketBaseServer(username string, publicKeys []string) error {
-	// Create PocketBase user
 	err := s.manager.CreateUser(username,
 		WithHome(fmt.Sprintf("/home/%s", username)),
 		WithShell("/bin/bash"),
@@ -31,7 +27,6 @@ func (s *SetupManager) SetupPocketBaseServer(username string, publicKeys []strin
 		return fmt.Errorf("failed to create user: %w", err)
 	}
 
-	// Setup SSH keys
 	if len(publicKeys) > 0 {
 		err = s.manager.SetupSSHKeys(username, publicKeys)
 		if err != nil {
@@ -39,19 +34,16 @@ func (s *SetupManager) SetupPocketBaseServer(username string, publicKeys []strin
 		}
 	}
 
-	// Create PocketBase directory structure
 	err = s.CreatePocketBaseDirectories(username)
 	if err != nil {
 		return fmt.Errorf("failed to create directories: %w", err)
 	}
 
-	// Update system packages
 	err = s.UpdateSystem()
 	if err != nil {
 		return fmt.Errorf("failed to update system: %w", err)
 	}
 
-	// Install essential packages
 	err = s.InstallEssentials()
 	if err != nil {
 		return fmt.Errorf("failed to install essentials: %w", err)
@@ -60,33 +52,27 @@ func (s *SetupManager) SetupPocketBaseServer(username string, publicKeys []strin
 	return nil
 }
 
-// CreatePocketBaseDirectories creates the standard PocketBase directory structure
 func (s *SetupManager) CreatePocketBaseDirectories(username string) error {
-	// Main PocketBase directory
 	err := s.manager.CreateDirectory("/opt/pocketbase", "755", "root", "root")
 	if err != nil {
 		return err
 	}
 
-	// Apps directory where PocketBase instances will be deployed
 	err = s.manager.CreateDirectory("/opt/pocketbase/apps", "755", username, username)
 	if err != nil {
 		return err
 	}
 
-	// Backups directory for rollbacks
 	err = s.manager.CreateDirectory("/opt/pocketbase/backups", "755", username, username)
 	if err != nil {
 		return err
 	}
 
-	// Logs directory
 	err = s.manager.CreateDirectory("/opt/pocketbase/logs", "755", username, username)
 	if err != nil {
 		return err
 	}
 
-	// Scripts directory for utility scripts
 	err = s.manager.CreateDirectory("/opt/pocketbase/scripts", "755", username, username)
 	if err != nil {
 		return err
@@ -95,9 +81,7 @@ func (s *SetupManager) CreatePocketBaseDirectories(username string) error {
 	return nil
 }
 
-// UpdateSystem updates all system packages
 func (s *SetupManager) UpdateSystem() error {
-	// Detect package manager and run update
 	result, err := s.manager.client.Execute("which apt", WithTimeout(5*time.Second))
 	if err == nil && result.ExitCode == 0 {
 		// Debian/Ubuntu
@@ -137,7 +121,6 @@ func (s *SetupManager) UpdateSystem() error {
 	return nil
 }
 
-// InstallEssentials installs essential packages needed for PocketBase deployment
 func (s *SetupManager) InstallEssentials() error {
 	essentials := []string{
 		"curl",
@@ -150,9 +133,7 @@ func (s *SetupManager) InstallEssentials() error {
 	return s.manager.InstallPackages(essentials...)
 }
 
-// VerifySetup verifies that the server setup was successful
 func (s *SetupManager) VerifySetup(username string) error {
-	// Check if user exists
 	result, err := s.manager.client.Execute(fmt.Sprintf("id %s", username))
 	if err != nil || result.ExitCode != 0 {
 		return &Error{
@@ -161,7 +142,6 @@ func (s *SetupManager) VerifySetup(username string) error {
 		}
 	}
 
-	// Check if user has sudo access
 	result, err = s.manager.client.Execute(fmt.Sprintf("sudo -l -U %s", username))
 	if err != nil || result.ExitCode != 0 {
 		return &Error{
@@ -170,7 +150,6 @@ func (s *SetupManager) VerifySetup(username string) error {
 		}
 	}
 
-	// Check if directories exist
 	directories := []string{
 		"/opt/pocketbase",
 		"/opt/pocketbase/apps",
@@ -188,7 +167,6 @@ func (s *SetupManager) VerifySetup(username string) error {
 		}
 	}
 
-	// Check if essential packages are installed
 	essentials := []string{"curl", "wget", "unzip"}
 	for _, pkg := range essentials {
 		if result, err := s.manager.client.Execute(fmt.Sprintf("which %s", pkg)); err != nil || result.ExitCode != 0 {
@@ -202,11 +180,9 @@ func (s *SetupManager) VerifySetup(username string) error {
 	return nil
 }
 
-// GetSetupInfo returns information about the current setup
 func (s *SetupManager) GetSetupInfo() (*SetupInfo, error) {
 	info := &SetupInfo{}
 
-	// Get system info
 	sysInfo, err := s.manager.SystemInfo()
 	if err == nil {
 		info.OS = sysInfo.OS
@@ -214,11 +190,9 @@ func (s *SetupManager) GetSetupInfo() (*SetupInfo, error) {
 		info.Hostname = sysInfo.Hostname
 	}
 
-	// Check if PocketBase directories exist
 	result, err := s.manager.client.Execute("test -d /opt/pocketbase")
 	info.PocketBaseSetup = (err == nil && result.ExitCode == 0)
 
-	// List existing apps
 	if info.PocketBaseSetup {
 		if result, err := s.manager.client.Execute("ls -1 /opt/pocketbase/apps"); err == nil && result.ExitCode == 0 {
 			for _, app := range strings.Split(strings.TrimSpace(result.Stdout), "\n") {
@@ -232,7 +206,6 @@ func (s *SetupManager) GetSetupInfo() (*SetupInfo, error) {
 	return info, nil
 }
 
-// SetupInfo holds information about the server setup
 type SetupInfo struct {
 	OS              string
 	Architecture    string

@@ -6,21 +6,17 @@ import (
 	"time"
 )
 
-// SecurityManager handles server security and hardening operations
 type SecurityManager struct {
 	manager *Manager
 }
 
-// NewSecurityManager creates a new security manager
 func NewSecurityManager(manager *Manager) *SecurityManager {
 	return &SecurityManager{
 		manager: manager,
 	}
 }
 
-// SecureServer applies basic security hardening for PocketBase servers
 func (s *SecurityManager) SecureServer(config SecurityConfig) error {
-	// Setup firewall rules
 	if len(config.FirewallRules) > 0 {
 		err := s.SetupFirewall(config.FirewallRules)
 		if err != nil {
@@ -28,7 +24,6 @@ func (s *SecurityManager) SecureServer(config SecurityConfig) error {
 		}
 	}
 
-	// Harden SSH configuration
 	if config.HardenSSH {
 		err := s.HardenSSH(config.SSHConfig)
 		if err != nil {
@@ -36,7 +31,6 @@ func (s *SecurityManager) SecureServer(config SecurityConfig) error {
 		}
 	}
 
-	// Setup fail2ban
 	if config.EnableFail2ban {
 		err := s.SetupFail2ban()
 		if err != nil {
@@ -47,22 +41,17 @@ func (s *SecurityManager) SecureServer(config SecurityConfig) error {
 	return nil
 }
 
-// SetupFirewall configures firewall rules
 func (s *SecurityManager) SetupFirewall(rules []FirewallRule) error {
-	// Detect firewall system
 	var firewallCmd string
 
-	// Check for ufw
 	result, err := s.manager.client.Execute("which ufw", WithTimeout(5*time.Second))
 	if err == nil && result.ExitCode == 0 {
 		firewallCmd = "ufw"
 	} else {
-		// Check for firewalld
 		result, err = s.manager.client.Execute("which firewall-cmd", WithTimeout(5*time.Second))
 		if err == nil && result.ExitCode == 0 {
 			firewallCmd = "firewalld"
 		} else {
-			// Default to iptables
 			firewallCmd = "iptables"
 		}
 	}
@@ -77,12 +66,9 @@ func (s *SecurityManager) SetupFirewall(rules []FirewallRule) error {
 	}
 }
 
-// setupUFW configures UFW firewall
 func (s *SecurityManager) setupUFW(rules []FirewallRule) error {
-	// Install UFW if not present
 	s.manager.InstallPackages("ufw")
 
-	// Reset and configure UFW
 	cmds := []string{
 		"ufw --force reset",
 		"ufw default deny incoming",
@@ -102,7 +88,6 @@ func (s *SecurityManager) setupUFW(rules []FirewallRule) error {
 		}
 	}
 
-	// Add rules
 	for _, rule := range rules {
 		var cmd string
 		if rule.Source != "" {
@@ -124,7 +109,6 @@ func (s *SecurityManager) setupUFW(rules []FirewallRule) error {
 		}
 	}
 
-	// Enable UFW
 	result, err := s.manager.client.ExecuteSudo("ufw --force enable")
 	if err != nil {
 		return err
@@ -139,12 +123,9 @@ func (s *SecurityManager) setupUFW(rules []FirewallRule) error {
 	return nil
 }
 
-// setupFirewalld configures firewalld
 func (s *SecurityManager) setupFirewalld(rules []FirewallRule) error {
-	// Start firewalld
 	s.manager.ServiceStart("firewalld")
 
-	// Add rules
 	for _, rule := range rules {
 		var cmd string
 		if rule.Action == "allow" {
@@ -168,7 +149,6 @@ func (s *SecurityManager) setupFirewalld(rules []FirewallRule) error {
 		}
 	}
 
-	// Reload firewalld
 	result, err := s.manager.client.ExecuteSudo("firewall-cmd --reload")
 	if err != nil {
 		return err
@@ -183,12 +163,9 @@ func (s *SecurityManager) setupFirewalld(rules []FirewallRule) error {
 	return nil
 }
 
-// setupIPTables configures iptables
 func (s *SecurityManager) setupIPTables(rules []FirewallRule) error {
-	// Install iptables-persistent to save rules
 	s.manager.InstallPackages("iptables-persistent")
 
-	// Basic iptables setup
 	cmds := []string{
 		"iptables -F",
 		"iptables -P INPUT DROP",
@@ -202,7 +179,6 @@ func (s *SecurityManager) setupIPTables(rules []FirewallRule) error {
 		s.manager.client.ExecuteSudo(cmd)
 	}
 
-	// Add rules
 	for _, rule := range rules {
 		action := "ACCEPT"
 		if rule.Action == "deny" {
@@ -221,18 +197,14 @@ func (s *SecurityManager) setupIPTables(rules []FirewallRule) error {
 		s.manager.client.ExecuteSudo(cmd)
 	}
 
-	// Save iptables rules
 	s.manager.client.ExecuteSudo("iptables-save > /etc/iptables/rules.v4")
 
 	return nil
 }
 
-// HardenSSH applies SSH hardening configuration
 func (s *SecurityManager) HardenSSH(config SSHConfig) error {
-	// Backup current SSH config
 	s.manager.client.ExecuteSudo("cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak")
 
-	// Build SSH configuration
 	var configLines []string
 	configLines = append(configLines, "# SSH Hardening Configuration")
 	configLines = append(configLines, fmt.Sprintf("PasswordAuthentication %s", boolToYesNo(config.PasswordAuth)))
@@ -249,7 +221,6 @@ func (s *SecurityManager) HardenSSH(config SSHConfig) error {
 		configLines = append(configLines, fmt.Sprintf("AllowGroups %s", strings.Join(config.AllowGroups, " ")))
 	}
 
-	// Write new SSH config
 	configContent := strings.Join(configLines, "\n")
 	cmd := fmt.Sprintf("echo '%s' > /etc/ssh/sshd_config.d/99-hardening.conf", configContent)
 	result, err := s.manager.client.ExecuteSudo(cmd)
@@ -263,10 +234,8 @@ func (s *SecurityManager) HardenSSH(config SSHConfig) error {
 		}
 	}
 
-	// Test SSH config
 	result, err = s.manager.client.ExecuteSudo("sshd -t")
 	if err != nil || result.ExitCode != 0 {
-		// Restore backup
 		s.manager.client.ExecuteSudo("rm /etc/ssh/sshd_config.d/99-hardening.conf")
 		return &Error{
 			Type:    ErrorExecution,
@@ -274,21 +243,17 @@ func (s *SecurityManager) HardenSSH(config SSHConfig) error {
 		}
 	}
 
-	// Restart SSH service
 	s.manager.ServiceRestart("sshd")
 
 	return nil
 }
 
-// SetupFail2ban installs and configures fail2ban
 func (s *SecurityManager) SetupFail2ban() error {
-	// Install fail2ban
 	err := s.manager.InstallPackages("fail2ban")
 	if err != nil {
 		return err
 	}
 
-	// Basic fail2ban configuration
 	jailConfig := `[DEFAULT]
 bantime = 3600
 findtime = 600
@@ -312,14 +277,12 @@ backend = systemd`
 		}
 	}
 
-	// Enable and start fail2ban
 	s.manager.ServiceEnable("fail2ban")
 	s.manager.ServiceRestart("fail2ban")
 
 	return nil
 }
 
-// GetDefaultPocketBaseRules returns default firewall rules for PocketBase
 func (s *SecurityManager) GetDefaultPocketBaseRules() []FirewallRule {
 	return []FirewallRule{
 		{Port: 22, Protocol: "tcp", Action: "allow", Description: "SSH"},
@@ -328,7 +291,6 @@ func (s *SecurityManager) GetDefaultPocketBaseRules() []FirewallRule {
 	}
 }
 
-// GetDefaultSSHConfig returns default SSH hardening configuration
 func (s *SecurityManager) GetDefaultSSHConfig() SSHConfig {
 	return SSHConfig{
 		PasswordAuth:        false,
@@ -340,7 +302,6 @@ func (s *SecurityManager) GetDefaultSSHConfig() SSHConfig {
 	}
 }
 
-// SecurityConfig holds security configuration options
 type SecurityConfig struct {
 	FirewallRules  []FirewallRule
 	HardenSSH      bool
@@ -348,7 +309,6 @@ type SecurityConfig struct {
 	EnableFail2ban bool
 }
 
-// Helper function
 func boolToYesNo(b bool) string {
 	if b {
 		return "yes"

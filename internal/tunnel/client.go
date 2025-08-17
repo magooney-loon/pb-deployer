@@ -14,7 +14,6 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// Client represents a single SSH connection to a server
 type Client struct {
 	config Config
 	conn   *ssh.Client
@@ -22,9 +21,7 @@ type Client struct {
 	tracer Tracer
 }
 
-// NewClient creates a new SSH client
 func NewClient(config Config) (*Client, error) {
-	// Set defaults
 	if config.Port == 0 {
 		config.Port = 22
 	}
@@ -38,7 +35,6 @@ func NewClient(config Config) (*Client, error) {
 		config.RetryDelay = 5 * time.Second
 	}
 
-	// Validate config
 	if config.Host == "" {
 		return nil, &Error{
 			Type:    ErrorConnection,
@@ -51,7 +47,7 @@ func NewClient(config Config) (*Client, error) {
 			Message: "user is required",
 		}
 	}
-	// Validate SSH agent is available
+
 	if !IsAgentAvailable() {
 		return nil, &Error{
 			Type:    ErrorAuth,
@@ -65,7 +61,6 @@ func NewClient(config Config) (*Client, error) {
 	}, nil
 }
 
-// SetTracer sets the tracer for logging/debugging
 func (c *Client) SetTracer(tracer Tracer) {
 	if tracer != nil {
 		c.tracer = tracer
@@ -74,11 +69,9 @@ func (c *Client) SetTracer(tracer Tracer) {
 	}
 }
 
-// Connect establishes SSH connection
 func (c *Client) Connect() error {
 	c.tracer.OnConnect(c.config.Host, c.config.User)
 
-	// Build SSH client config with corruption-resistant auth
 	authConfig := DevelopmentAuthConfig()
 	if c.config.KnownHostsFile != "" {
 		authConfig.KnownHostsFile = c.config.KnownHostsFile
@@ -100,7 +93,6 @@ func (c *Client) Connect() error {
 		Timeout:         c.config.Timeout,
 	}
 
-	// Setup authentication
 	authMethods, err := GetAuthMethods(authConfig)
 	if err != nil {
 		c.tracer.OnError("get_auth_methods", err)
@@ -112,7 +104,6 @@ func (c *Client) Connect() error {
 	}
 	sshConfig.Auth = authMethods
 
-	// Connect with retries
 	var lastErr error
 	for i := 0; i <= c.config.RetryCount; i++ {
 		if i > 0 {
@@ -123,19 +114,19 @@ func (c *Client) Connect() error {
 		conn, err := ssh.Dial("tcp", addr, sshConfig)
 		if err == nil {
 			c.conn = conn
-			// If we successfully connected, try to add the host key for future connections
+			// Try to add host key for future connections if we used insecure mode
 			if usingInsecureMode {
 				go c.addHostKeyAfterConnection()
 			}
 			return nil
 		}
 
-		// If this is a host key error and we haven't tried insecure mode, try it
+		// Retry with insecure mode for unknown host key errors
 		if strings.Contains(err.Error(), "key is unknown") && !usingInsecureMode {
 			fmt.Printf("Host key unknown, retrying with insecure verification\n")
 			sshConfig.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 			usingInsecureMode = true
-			// Don't increment retry counter for this attempt
+			// Don't count insecure retry against retry limit
 			i--
 			continue
 		}
@@ -152,7 +143,6 @@ func (c *Client) Connect() error {
 	}
 }
 
-// Close closes the SSH connection
 func (c *Client) Close() error {
 	c.tracer.OnDisconnect(c.config.Host)
 
@@ -170,13 +160,12 @@ func (c *Client) Close() error {
 	return nil
 }
 
-// IsConnected checks if the client is connected
 func (c *Client) IsConnected() bool {
 	if c.conn == nil {
 		return false
 	}
 
-	// Try to create a session to verify connection
+	// Test connection by creating a session
 	session, err := c.conn.NewSession()
 	if err != nil {
 		return false
@@ -185,7 +174,6 @@ func (c *Client) IsConnected() bool {
 	return true
 }
 
-// Execute runs a command on the remote server
 func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
 	if c.conn == nil {
 		return nil, &Error{
@@ -194,7 +182,6 @@ func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
 		}
 	}
 
-	// Apply options
 	cfg := &execConfig{
 		timeout: 60 * time.Second,
 	}
@@ -202,11 +189,9 @@ func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
 		opt(cfg)
 	}
 
-	// Build command with environment and working directory
 	fullCmd := c.buildCommand(cmd, cfg)
 	c.tracer.OnExecute(fullCmd)
 
-	// Create session
 	session, err := c.conn.NewSession()
 	if err != nil {
 		c.tracer.OnError("create_session", err)
@@ -218,11 +203,9 @@ func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
 	}
 	defer session.Close()
 
-	// Set up output capture or streaming
 	var stdout, stderr bytes.Buffer
 
 	if cfg.stream != nil {
-		// Stream output
 		stdoutPipe, err := session.StdoutPipe()
 		if err != nil {
 			return nil, &Error{
@@ -241,7 +224,6 @@ func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
 			}
 		}
 
-		// Start command
 		if err := session.Start(fullCmd); err != nil {
 			c.tracer.OnError("start_command", err)
 			return nil, &Error{
@@ -251,11 +233,9 @@ func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
 			}
 		}
 
-		// Stream output
 		go c.streamOutput(stdoutPipe, cfg.stream)
 		go c.streamOutput(stderrPipe, cfg.stream)
 
-		// Wait with timeout
 		done := make(chan error)
 		go func() {
 			done <- session.Wait()
@@ -295,11 +275,10 @@ func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
 		c.tracer.OnExecuteResult(fullCmd, result, nil)
 		return result, nil
 	} else {
-		// Capture output
+
 		session.Stdout = &stdout
 		session.Stderr = &stderr
 
-		// Run with timeout
 		done := make(chan error)
 		start := time.Now()
 
@@ -351,12 +330,9 @@ func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
 	}
 }
 
-// ExecuteSudo runs a command with sudo
 func (c *Client) ExecuteSudo(cmd string, opts ...ExecOption) (*Result, error) {
-	// Add sudo to options
 	opts = append(opts, WithSudo())
 
-	// Apply options to get config
 	cfg := &execConfig{
 		timeout: 60 * time.Second,
 	}
@@ -364,21 +340,17 @@ func (c *Client) ExecuteSudo(cmd string, opts ...ExecOption) (*Result, error) {
 		opt(cfg)
 	}
 
-	// Prepend sudo to command
 	sudoCmd := "sudo "
 	if cfg.sudoPass != "" {
-		// Use sudo with password stdin
 		sudoCmd = fmt.Sprintf("echo '%s' | sudo -S ", cfg.sudoPass)
 	}
 
 	return c.Execute(sudoCmd+cmd, opts...)
 }
 
-// Upload uploads a file to the remote server
 func (c *Client) Upload(localPath, remotePath string, opts ...FileOption) error {
 	c.tracer.OnUpload(localPath, remotePath)
 
-	// Apply options
 	cfg := &fileTransferConfig{
 		mode: 0644,
 	}
@@ -386,13 +358,11 @@ func (c *Client) Upload(localPath, remotePath string, opts ...FileOption) error 
 		opt(cfg)
 	}
 
-	// Ensure SFTP client is connected
 	if err := c.ensureSFTP(); err != nil {
 		c.tracer.OnUploadComplete(localPath, remotePath, err)
 		return err
 	}
 
-	// Open local file
 	localFile, err := os.Open(localPath)
 	if err != nil {
 		err = &Error{
@@ -405,7 +375,6 @@ func (c *Client) Upload(localPath, remotePath string, opts ...FileOption) error 
 	}
 	defer localFile.Close()
 
-	// Get file info
 	stat, err := localFile.Stat()
 	if err != nil {
 		err = &Error{
@@ -417,14 +386,12 @@ func (c *Client) Upload(localPath, remotePath string, opts ...FileOption) error 
 		return err
 	}
 
-	// Create remote file
 	remoteFile, err := c.sftp.Create(remotePath)
 	if err != nil {
-		// Try to create parent directory
+		// Create parent directory and retry
 		remoteDir := filepath.Dir(remotePath)
 		c.sftp.MkdirAll(remoteDir)
 
-		// Retry creating file
 		remoteFile, err = c.sftp.Create(remotePath)
 		if err != nil {
 			err = &Error{
@@ -438,7 +405,6 @@ func (c *Client) Upload(localPath, remotePath string, opts ...FileOption) error 
 	}
 	defer remoteFile.Close()
 
-	// Copy with progress tracking
 	if cfg.progress != nil {
 		err = c.copyWithProgress(localFile, remoteFile, stat.Size(), cfg.progress)
 	} else {
@@ -455,7 +421,6 @@ func (c *Client) Upload(localPath, remotePath string, opts ...FileOption) error 
 		return err
 	}
 
-	// Set file permissions
 	if cfg.preserve {
 		remoteFile.Chmod(stat.Mode())
 	} else {
@@ -466,20 +431,18 @@ func (c *Client) Upload(localPath, remotePath string, opts ...FileOption) error 
 	return nil
 }
 
-// addHostKeyAfterConnection attempts to add the host key after a successful insecure connection
+// addHostKeyAfterConnection attempts to add host key after insecure connection
 func (c *Client) addHostKeyAfterConnection() {
 	if c.conn == nil {
 		return
 	}
 
-	// Get the server's host key
 	session, err := c.conn.NewSession()
 	if err != nil {
 		return
 	}
 	defer session.Close()
 
-	// Try to get the host key and add it to known_hosts
 	result, err := c.Execute("ssh-keyscan -t rsa,ecdsa,ed25519 localhost 2>/dev/null | head -1")
 	if err == nil && result.ExitCode == 0 && result.Stdout != "" {
 		home, err := os.UserHomeDir()
@@ -494,7 +457,6 @@ func (c *Client) addHostKeyAfterConnection() {
 		}
 		defer file.Close()
 
-		// Add a comment and the host key
 		file.WriteString(fmt.Sprintf("# Added automatically for %s\n", c.config.Host))
 		file.WriteString(strings.Replace(result.Stdout, "localhost", c.config.Host, 1))
 		file.WriteString("\n")
@@ -503,23 +465,19 @@ func (c *Client) addHostKeyAfterConnection() {
 	}
 }
 
-// Download downloads a file from the remote server
 func (c *Client) Download(remotePath, localPath string, opts ...FileOption) error {
 	c.tracer.OnDownload(remotePath, localPath)
 
-	// Apply options
 	cfg := &fileTransferConfig{}
 	for _, opt := range opts {
 		opt(cfg)
 	}
 
-	// Ensure SFTP client is connected
 	if err := c.ensureSFTP(); err != nil {
 		c.tracer.OnDownloadComplete(remotePath, localPath, err)
 		return err
 	}
 
-	// Open remote file
 	remoteFile, err := c.sftp.Open(remotePath)
 	if err != nil {
 		err = &Error{
@@ -532,7 +490,6 @@ func (c *Client) Download(remotePath, localPath string, opts ...FileOption) erro
 	}
 	defer remoteFile.Close()
 
-	// Get file info
 	stat, err := remoteFile.Stat()
 	if err != nil {
 		err = &Error{
@@ -544,14 +501,12 @@ func (c *Client) Download(remotePath, localPath string, opts ...FileOption) erro
 		return err
 	}
 
-	// Create local file
 	localFile, err := os.Create(localPath)
 	if err != nil {
-		// Try to create parent directory
+		// Create parent directory and retry
 		localDir := filepath.Dir(localPath)
 		os.MkdirAll(localDir, 0755)
 
-		// Retry creating file
 		localFile, err = os.Create(localPath)
 		if err != nil {
 			err = &Error{
@@ -565,7 +520,6 @@ func (c *Client) Download(remotePath, localPath string, opts ...FileOption) erro
 	}
 	defer localFile.Close()
 
-	// Copy with progress tracking
 	if cfg.progress != nil {
 		err = c.copyWithProgress(remoteFile, localFile, stat.Size(), cfg.progress)
 	} else {
@@ -582,7 +536,6 @@ func (c *Client) Download(remotePath, localPath string, opts ...FileOption) erro
 		return err
 	}
 
-	// Set file permissions if preserving
 	if cfg.preserve {
 		localFile.Chmod(stat.Mode())
 	}
@@ -591,22 +544,17 @@ func (c *Client) Download(remotePath, localPath string, opts ...FileOption) erro
 	return nil
 }
 
-// Helper methods
-
 func (c *Client) buildCommand(cmd string, cfg *execConfig) string {
 	var parts []string
 
-	// Add environment variables
 	for k, v := range cfg.env {
 		parts = append(parts, fmt.Sprintf("export %s='%s';", k, v))
 	}
 
-	// Change directory if specified
 	if cfg.workDir != "" {
 		parts = append(parts, fmt.Sprintf("cd '%s';", cfg.workDir))
 	}
 
-	// Add the actual command
 	parts = append(parts, cmd)
 
 	return strings.Join(parts, " ")
@@ -645,7 +593,7 @@ func (c *Client) streamOutput(reader io.Reader, handler func(string)) {
 }
 
 func (c *Client) copyWithProgress(src io.Reader, dst io.Writer, total int64, progress func(int)) error {
-	buffer := make([]byte, 32*1024) // 32KB buffer
+	buffer := make([]byte, 32*1024)
 	var written int64
 
 	for {
@@ -677,7 +625,6 @@ func (c *Client) copyWithProgress(src io.Reader, dst io.Writer, total int64, pro
 	return nil
 }
 
-// Ping tests the connection with a simple command
 func (c *Client) Ping() error {
 	result, err := c.Execute("echo ping", WithTimeout(5*time.Second))
 	if err != nil {
@@ -692,7 +639,6 @@ func (c *Client) Ping() error {
 	return nil
 }
 
-// HostInfo returns basic host information
 func (c *Client) HostInfo() (string, error) {
 	result, err := c.Execute("uname -a", WithTimeout(10*time.Second))
 	if err != nil {

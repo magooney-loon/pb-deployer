@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-// SSHClient defines the interface for SSH operations
 type SSHClient interface {
 	Connect() error
 	Close() error
@@ -19,18 +18,16 @@ type SSHClient interface {
 	SetTracer(tracer Tracer)
 }
 
-// Config holds SSH connection configuration
 type Config struct {
 	Host           string
 	Port           int
 	User           string
-	KnownHostsFile string        // Optional custom known_hosts file path
-	Timeout        time.Duration // Connection timeout
-	RetryCount     int           // Number of connection retries
-	RetryDelay     time.Duration // Delay between retries
+	KnownHostsFile string
+	Timeout        time.Duration
+	RetryCount     int
+	RetryDelay     time.Duration
 }
 
-// Result represents command execution result
 type Result struct {
 	Stdout   string
 	Stderr   string
@@ -38,7 +35,6 @@ type Result struct {
 	Duration time.Duration
 }
 
-// ServiceStatus represents the status of a system service
 type ServiceStatus struct {
 	Name        string
 	Active      bool
@@ -49,16 +45,14 @@ type ServiceStatus struct {
 	MainPID     int
 }
 
-// FirewallRule represents a firewall rule configuration
 type FirewallRule struct {
 	Port        int
-	Protocol    string // tcp, udp
-	Source      string // IP address or CIDR
-	Action      string // allow, deny
+	Protocol    string
+	Source      string
+	Action      string
 	Description string
 }
 
-// SSHConfig represents SSH hardening configuration
 type SSHConfig struct {
 	PasswordAuth        bool
 	RootLogin           bool
@@ -72,20 +66,18 @@ type SSHConfig struct {
 	DenyGroups          []string
 }
 
-// AppConfig represents application deployment configuration
 type AppConfig struct {
 	Name        string
 	Version     string
-	Source      string   // Local path or URL
-	Target      string   // Remote path
-	Service     string   // Service name to restart
-	Backup      bool     // Backup before deploy
-	PreDeploy   []string // Commands to run before
-	PostDeploy  []string // Commands to run after
-	HealthCheck string   // URL or command to verify
+	Source      string
+	Target      string
+	Service     string
+	Backup      bool
+	PreDeploy   []string
+	PostDeploy  []string
+	HealthCheck string
 }
 
-// ErrorType represents different types of SSH errors
 type ErrorType int
 
 const (
@@ -100,14 +92,12 @@ const (
 	ErrorVerification
 )
 
-// Error represents an SSH operation error
 type Error struct {
 	Type    ErrorType
 	Message string
 	Cause   error
 }
 
-// Error implements the error interface
 func (e *Error) Error() string {
 	if e.Cause != nil {
 		return e.Message + ": " + e.Cause.Error()
@@ -115,23 +105,19 @@ func (e *Error) Error() string {
 	return e.Message
 }
 
-// Unwrap returns the underlying error
 func (e *Error) Unwrap() error {
 	return e.Cause
 }
 
-// Command represents a command to be executed
 type Command struct {
 	Cmd  string
 	Opts []ExecOption
 }
 
-// Cmd creates a new command
 func Cmd(cmd string, opts ...ExecOption) Command {
 	return Command{Cmd: cmd, Opts: opts}
 }
 
-// ExecConfig holds execution configuration
 type execConfig struct {
 	timeout  time.Duration
 	env      map[string]string
@@ -141,17 +127,14 @@ type execConfig struct {
 	sudoPass string
 }
 
-// ExecOption is a functional option for command execution
 type ExecOption func(*execConfig)
 
-// WithTimeout sets command timeout
 func WithTimeout(d time.Duration) ExecOption {
 	return func(c *execConfig) {
 		c.timeout = d
 	}
 }
 
-// WithEnv sets environment variable
 func WithEnv(key, value string) ExecOption {
 	return func(c *execConfig) {
 		if c.env == nil {
@@ -161,35 +144,30 @@ func WithEnv(key, value string) ExecOption {
 	}
 }
 
-// WithWorkDir sets working directory
 func WithWorkDir(dir string) ExecOption {
 	return func(c *execConfig) {
 		c.workDir = dir
 	}
 }
 
-// WithStream sets output stream handler
 func WithStream(handler func(string)) ExecOption {
 	return func(c *execConfig) {
 		c.stream = handler
 	}
 }
 
-// WithSudo executes command with sudo
 func WithSudo() ExecOption {
 	return func(c *execConfig) {
 		c.sudo = true
 	}
 }
 
-// WithSudoPassword sets sudo password (if needed)
 func WithSudoPassword(pass string) ExecOption {
 	return func(c *execConfig) {
 		c.sudoPass = pass
 	}
 }
 
-// UserConfig holds user creation configuration
 type userConfig struct {
 	home       string
 	shell      string
@@ -198,105 +176,82 @@ type userConfig struct {
 	systemUser bool
 }
 
-// UserOption is a functional option for user creation
 type UserOption func(*userConfig)
 
-// WithHome sets user home directory
 func WithHome(path string) UserOption {
 	return func(c *userConfig) {
 		c.home = path
 	}
 }
 
-// WithShell sets user shell
 func WithShell(shell string) UserOption {
 	return func(c *userConfig) {
 		c.shell = shell
 	}
 }
 
-// WithGroups adds user to groups
 func WithGroups(groups ...string) UserOption {
 	return func(c *userConfig) {
 		c.groups = append(c.groups, groups...)
 	}
 }
 
-// WithSudoAccess grants sudo access
 func WithSudoAccess() UserOption {
 	return func(c *userConfig) {
 		c.sudoAccess = true
 	}
 }
 
-// WithSystemUser creates a system user
 func WithSystemUser() UserOption {
 	return func(c *userConfig) {
 		c.systemUser = true
 	}
 }
 
-// FileTransferConfig holds file transfer configuration
 type fileTransferConfig struct {
 	progress func(int)
 	mode     uint32
 	preserve bool
 }
 
-// FileOption is a functional option for file operations
 type FileOption func(*fileTransferConfig)
 
-// WithProgress sets progress callback
 func WithProgress(handler func(int)) FileOption {
 	return func(c *fileTransferConfig) {
 		c.progress = handler
 	}
 }
 
-// WithFileMode sets file permissions
 func WithFileMode(mode uint32) FileOption {
 	return func(c *fileTransferConfig) {
 		c.mode = mode
 	}
 }
 
-// WithPreserve preserves file attributes
 func WithPreserve() FileOption {
 	return func(c *fileTransferConfig) {
 		c.preserve = true
 	}
 }
 
-// SystemInfo holds basic system information
 type SystemInfo struct {
 	OS           string
 	Architecture string
 	Hostname     string
 }
 
-// Tracer provides optional tracing/logging hooks
 type Tracer interface {
-	// OnConnect is called when connection is established
 	OnConnect(host string, user string)
-	// OnDisconnect is called when connection is closed
 	OnDisconnect(host string)
-	// OnExecute is called before command execution
 	OnExecute(cmd string)
-	// OnExecuteResult is called after command execution
 	OnExecuteResult(cmd string, result *Result, err error)
-	// OnUpload is called before file upload
 	OnUpload(local, remote string)
-	// OnUploadComplete is called after file upload
 	OnUploadComplete(local, remote string, err error)
-	// OnDownload is called before file download
 	OnDownload(remote, local string)
-	// OnDownloadComplete is called after file download
 	OnDownloadComplete(remote, local string, err error)
-	// OnError is called when an error occurs
 	OnError(operation string, err error)
 }
 
-// NoOpTracer is a tracer that does nothing
 type NoOpTracer struct{}
 
 func (n *NoOpTracer) OnConnect(host string, user string)                    {}
@@ -309,7 +264,6 @@ func (n *NoOpTracer) OnDownload(remote, local string)                       {}
 func (n *NoOpTracer) OnDownloadComplete(remote, local string, err error)    {}
 func (n *NoOpTracer) OnError(operation string, err error)                   {}
 
-// SimpleLogger is a basic tracer that logs to stdout
 type SimpleLogger struct {
 	Verbose bool
 }
@@ -377,5 +331,3 @@ func (s *SimpleLogger) OnDownloadComplete(remote, local string, err error) {
 func (s *SimpleLogger) OnError(operation string, err error) {
 	fmt.Printf("SSH Error in %s: %s\n", operation, err.Error())
 }
-
-// Production deployment uses SSH agent authentication with strict host key verification

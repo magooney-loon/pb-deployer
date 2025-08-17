@@ -6,13 +6,11 @@ import (
 	"time"
 )
 
-// Manager handles server operations through a single interface
 type Manager struct {
 	client SSHClient
 	tracer Tracer
 }
 
-// NewManager creates a new manager instance
 func NewManager(client SSHClient) *Manager {
 	if client == nil {
 		panic("client cannot be nil")
@@ -23,7 +21,6 @@ func NewManager(client SSHClient) *Manager {
 	}
 }
 
-// SetTracer sets the tracer for the manager
 func (m *Manager) SetTracer(tracer Tracer) {
 	m.tracer = tracer
 	if m.client != nil {
@@ -31,9 +28,8 @@ func (m *Manager) SetTracer(tracer Tracer) {
 	}
 }
 
-// CreateUser creates a new system user
 func (m *Manager) CreateUser(username string, opts ...UserOption) error {
-	// Apply options
+
 	cfg := &userConfig{
 		shell: "/bin/bash",
 		home:  fmt.Sprintf("/home/%s", username),
@@ -42,14 +38,12 @@ func (m *Manager) CreateUser(username string, opts ...UserOption) error {
 		opt(cfg)
 	}
 
-	// Check if user exists
 	result, err := m.client.Execute(fmt.Sprintf("id %s", username), WithTimeout(5*time.Second))
 	if err == nil && result.ExitCode == 0 {
-		// User already exists
+
 		return nil
 	}
 
-	// Build useradd command
 	cmd := "useradd"
 	if cfg.systemUser {
 		cmd += " -r"
@@ -62,7 +56,6 @@ func (m *Manager) CreateUser(username string, opts ...UserOption) error {
 	}
 	cmd += fmt.Sprintf(" '%s'", username)
 
-	// Create user
 	result, err = m.client.ExecuteSudo(cmd)
 	if err != nil {
 		return err
@@ -74,7 +67,6 @@ func (m *Manager) CreateUser(username string, opts ...UserOption) error {
 		}
 	}
 
-	// Add to groups
 	if len(cfg.groups) > 0 {
 		groupList := strings.Join(cfg.groups, ",")
 		cmd = fmt.Sprintf("usermod -aG '%s' '%s'", groupList, username)
@@ -90,7 +82,6 @@ func (m *Manager) CreateUser(username string, opts ...UserOption) error {
 		}
 	}
 
-	// Setup sudo access
 	if cfg.sudoAccess {
 		sudoLine := fmt.Sprintf("%s ALL=(ALL:ALL) NOPASSWD:ALL", username)
 		cmd = fmt.Sprintf("echo '%s' > /etc/sudoers.d/%s", sudoLine, username)
@@ -113,13 +104,11 @@ func (m *Manager) CreateUser(username string, opts ...UserOption) error {
 	return nil
 }
 
-// SetupSSHKeys configures SSH keys for a user
 func (m *Manager) SetupSSHKeys(username string, keys []string) error {
 	if len(keys) == 0 {
 		return nil
 	}
 
-	// Get user home directory
 	result, err := m.client.Execute(fmt.Sprintf("getent passwd %s | cut -d: -f6", username))
 	if err != nil {
 		return err
@@ -132,7 +121,6 @@ func (m *Manager) SetupSSHKeys(username string, keys []string) error {
 	sshDir := fmt.Sprintf("%s/.ssh", homeDir)
 	authKeysFile := fmt.Sprintf("%s/authorized_keys", sshDir)
 
-	// Create .ssh directory
 	cmd := fmt.Sprintf("mkdir -p '%s' && chmod 700 '%s' && chown '%s:%s' '%s'",
 		sshDir, sshDir, username, username, sshDir)
 	result, err = m.client.ExecuteSudo(cmd)
@@ -140,7 +128,6 @@ func (m *Manager) SetupSSHKeys(username string, keys []string) error {
 		return err
 	}
 
-	// Write authorized_keys file
 	keysContent := strings.Join(keys, "\n")
 	cmd = fmt.Sprintf("echo '%s' > '%s' && chmod 600 '%s' && chown '%s:%s' '%s'",
 		keysContent, authKeysFile, authKeysFile, username, username, authKeysFile)
@@ -158,9 +145,8 @@ func (m *Manager) SetupSSHKeys(username string, keys []string) error {
 	return nil
 }
 
-// CreateDirectory creates a directory with specified permissions
 func (m *Manager) CreateDirectory(path, permissions, owner, group string) error {
-	// Create directory
+
 	cmd := fmt.Sprintf("mkdir -p '%s'", path)
 	result, err := m.client.ExecuteSudo(cmd)
 	if err != nil {
@@ -173,13 +159,11 @@ func (m *Manager) CreateDirectory(path, permissions, owner, group string) error 
 		}
 	}
 
-	// Set permissions if specified
 	if permissions != "" {
 		cmd = fmt.Sprintf("chmod %s '%s'", permissions, path)
 		m.client.ExecuteSudo(cmd)
 	}
 
-	// Set ownership if specified
 	if owner != "" && group != "" {
 		cmd = fmt.Sprintf("chown %s:%s '%s'", owner, group, path)
 		m.client.ExecuteSudo(cmd)
@@ -188,7 +172,6 @@ func (m *Manager) CreateDirectory(path, permissions, owner, group string) error 
 	return nil
 }
 
-// ServiceStart starts a system service
 func (m *Manager) ServiceStart(name string) error {
 	cmd := fmt.Sprintf("systemctl start %s", name)
 	result, err := m.client.ExecuteSudo(cmd)
@@ -204,7 +187,6 @@ func (m *Manager) ServiceStart(name string) error {
 	return nil
 }
 
-// ServiceStop stops a system service
 func (m *Manager) ServiceStop(name string) error {
 	cmd := fmt.Sprintf("systemctl stop %s", name)
 	result, err := m.client.ExecuteSudo(cmd)
@@ -220,7 +202,6 @@ func (m *Manager) ServiceStop(name string) error {
 	return nil
 }
 
-// ServiceRestart restarts a system service
 func (m *Manager) ServiceRestart(name string) error {
 	cmd := fmt.Sprintf("systemctl restart %s", name)
 	result, err := m.client.ExecuteSudo(cmd)
@@ -236,7 +217,6 @@ func (m *Manager) ServiceRestart(name string) error {
 	return nil
 }
 
-// ServiceEnable enables a service to start on boot
 func (m *Manager) ServiceEnable(name string) error {
 	cmd := fmt.Sprintf("systemctl enable %s", name)
 	result, err := m.client.ExecuteSudo(cmd)
@@ -252,13 +232,11 @@ func (m *Manager) ServiceEnable(name string) error {
 	return nil
 }
 
-// InstallPackages installs system packages
 func (m *Manager) InstallPackages(packages ...string) error {
 	if len(packages) == 0 {
 		return nil
 	}
 
-	// Detect package manager and install
 	result, err := m.client.Execute("which apt", WithTimeout(5*time.Second))
 	if err == nil && result.ExitCode == 0 {
 		// Debian/Ubuntu
@@ -298,11 +276,9 @@ func (m *Manager) InstallPackages(packages ...string) error {
 	return nil
 }
 
-// SystemInfo returns basic system information
 func (m *Manager) SystemInfo() (*SystemInfo, error) {
 	info := &SystemInfo{}
 
-	// Get OS information
 	result, err := m.client.Execute("lsb_release -a 2>/dev/null || cat /etc/os-release")
 	if err == nil {
 		for _, line := range strings.Split(result.Stdout, "\n") {
@@ -320,13 +296,11 @@ func (m *Manager) SystemInfo() (*SystemInfo, error) {
 		}
 	}
 
-	// Get hostname
 	result, err = m.client.Execute("hostname")
 	if err == nil {
 		info.Hostname = strings.TrimSpace(result.Stdout)
 	}
 
-	// Get architecture
 	result, err = m.client.Execute("uname -m")
 	if err == nil {
 		info.Architecture = strings.TrimSpace(result.Stdout)
