@@ -17,21 +17,16 @@
 		"icon": "⚙️",
 		"file": "setup-server.md"
 	},
-	{
-		"id": "secure-server",
-		"title": "Step 4: Secure Server",
-		"icon": "🔒",
-		"file": "secure-server.md"
-	},
+
 	{
 		"id": "deploy-app",
-		"title": "Step 5: Deploy App",
+		"title": "Step 4: Deploy App",
 		"icon": "🚀",
 		"file": "deploy-app.md"
 	},
 	{
 		"id": "update-rollback",
-		"title": "Step 6: Update/Rollback App",
+		"title": "Step 5: Update/Rollback App",
 		"icon": "🔄",
 		"file": "update-rollback.md"
 	}
