@@ -90,54 +90,33 @@ export class ServerSetupClient {
 	 * This creates the necessary users, directories, and installs essential packages
 	 */
 	async setupServer(setupRequest: SetupRequest): Promise<SetupResponse> {
-		console.debug('[SetupClient] Starting server setup:', setupRequest);
+		const url = `${this.pb.baseURL}/api/setup/server`;
+
+		const response = await fetch(url, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: this.pb.authStore.token ? `Bearer ${this.pb.authStore.token}` : ''
+			},
+			body: JSON.stringify(setupRequest)
+		});
+
+		const responseText = await response.text();
+
+		if (!response.ok) {
+			let errorData;
+			try {
+				errorData = JSON.parse(responseText);
+			} catch {
+				throw new Error(`Setup failed (${response.status})`);
+			}
+			throw new Error(errorData.error || 'Setup failed');
+		}
 
 		try {
-			const url = `${this.pb.baseUrl}/api/setup/server`;
-			console.debug('[SetupClient] Making setup request to:', url);
-
-			const response = await fetch(url, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: this.pb.authStore.token ? `Bearer ${this.pb.authStore.token}` : ''
-				},
-				body: JSON.stringify(setupRequest)
-			});
-
-			console.debug('[SetupClient] Setup response status:', response.status);
-
-			const responseText = await response.text();
-			console.debug('[SetupClient] Setup response text:', responseText);
-
-			if (!response.ok) {
-				let errorData;
-				try {
-					errorData = JSON.parse(responseText);
-				} catch (parseError) {
-					console.error('[SetupClient] Failed to parse error response:', parseError);
-					throw new Error(
-						`Setup failed with status ${response.status}. Response: ${responseText.substring(0, 200)}...`
-					);
-				}
-				console.error('[SetupClient] Setup error response:', errorData);
-				throw new Error(errorData.error || `Setup failed with status ${response.status}`);
-			}
-
-			let data;
-			try {
-				data = JSON.parse(responseText);
-			} catch (parseError) {
-				console.error('[SetupClient] Failed to parse success response:', parseError);
-				throw new Error(
-					`Setup response parsing failed. Response: ${responseText.substring(0, 200)}...`
-				);
-			}
-			console.debug('[SetupClient] Setup success response:', data);
-			return data as SetupResponse;
-		} catch (error) {
-			console.error('[SetupClient] Setup server failed:', error);
-			throw error;
+			return JSON.parse(responseText) as SetupResponse;
+		} catch {
+			throw new Error('Invalid response format');
 		}
 	}
 
@@ -146,53 +125,33 @@ export class ServerSetupClient {
 	 * This configures firewall, hardens SSH, and sets up fail2ban
 	 */
 	async secureServer(securityRequest: SecurityRequest): Promise<SecurityResponse> {
-		console.debug('[SetupClient] Starting server security:', securityRequest);
-		try {
-			const url = `${this.pb.baseUrl}/api/setup/security`;
-			console.debug('[SetupClient] Making security request to:', url);
+		const url = `${this.pb.baseURL}/api/setup/security`;
 
-			const response = await fetch(url, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: this.pb.authStore.token ? `Bearer ${this.pb.authStore.token}` : ''
-				},
-				body: JSON.stringify(securityRequest)
-			});
+		const response = await fetch(url, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: this.pb.authStore.token ? `Bearer ${this.pb.authStore.token}` : ''
+			},
+			body: JSON.stringify(securityRequest)
+		});
 
-			console.debug('[SetupClient] Security response status:', response.status);
+		const responseText = await response.text();
 
-			const responseText = await response.text();
-			console.debug('[SetupClient] Security response text:', responseText);
-
-			if (!response.ok) {
-				let errorData;
-				try {
-					errorData = JSON.parse(responseText);
-				} catch (parseError) {
-					console.error('[SetupClient] Failed to parse error response:', parseError);
-					throw new Error(
-						`Security setup failed with status ${response.status}. Response: ${responseText.substring(0, 200)}...`
-					);
-				}
-				console.error('[SetupClient] Security error response:', errorData);
-				throw new Error(errorData.error || `Security setup failed with status ${response.status}`);
-			}
-
-			let data;
+		if (!response.ok) {
+			let errorData;
 			try {
-				data = JSON.parse(responseText);
-			} catch (parseError) {
-				console.error('[SetupClient] Failed to parse success response:', parseError);
-				throw new Error(
-					`Security response parsing failed. Response: ${responseText.substring(0, 200)}...`
-				);
+				errorData = JSON.parse(responseText);
+			} catch {
+				throw new Error(`Security setup failed (${response.status})`);
 			}
-			console.debug('[SetupClient] Security success response:', data);
-			return data as SecurityResponse;
-		} catch (error) {
-			console.error('[SetupClient] Secure server failed:', error);
-			throw error;
+			throw new Error(errorData.error || 'Security setup failed');
+		}
+
+		try {
+			return JSON.parse(responseText) as SecurityResponse;
+		} catch {
+			throw new Error('Invalid response format');
 		}
 	}
 
@@ -200,53 +159,33 @@ export class ServerSetupClient {
 	 * Validate server setup and configuration
 	 */
 	async validateServer(validationRequest: ValidationRequest): Promise<ValidationResponse> {
-		console.debug('[SetupClient] Starting server validation:', validationRequest);
-		try {
-			const url = `${this.pb.baseUrl}/api/setup/validate`;
-			console.debug('[SetupClient] Making validation request to:', url);
+		const url = `${this.pb.baseURL}/api/setup/validate`;
 
-			const response = await fetch(url, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: this.pb.authStore.token ? `Bearer ${this.pb.authStore.token}` : ''
-				},
-				body: JSON.stringify(validationRequest)
-			});
+		const response = await fetch(url, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: this.pb.authStore.token ? `Bearer ${this.pb.authStore.token}` : ''
+			},
+			body: JSON.stringify(validationRequest)
+		});
 
-			console.debug('[SetupClient] Validation response status:', response.status);
+		const responseText = await response.text();
 
-			const responseText = await response.text();
-			console.debug('[SetupClient] Validation response text:', responseText);
-
-			if (!response.ok) {
-				let errorData;
-				try {
-					errorData = JSON.parse(responseText);
-				} catch (parseError) {
-					console.error('[SetupClient] Failed to parse error response:', parseError);
-					throw new Error(
-						`Validation failed with status ${response.status}. Response: ${responseText.substring(0, 200)}...`
-					);
-				}
-				console.error('[SetupClient] Validation error response:', errorData);
-				throw new Error(errorData.error || `Validation failed with status ${response.status}`);
-			}
-
-			let data;
+		if (!response.ok) {
+			let errorData;
 			try {
-				data = JSON.parse(responseText);
-			} catch (parseError) {
-				console.error('[SetupClient] Failed to parse success response:', parseError);
-				throw new Error(
-					`Validation response parsing failed. Response: ${responseText.substring(0, 200)}...`
-				);
+				errorData = JSON.parse(responseText);
+			} catch {
+				throw new Error(`Validation failed (${response.status})`);
 			}
-			console.debug('[SetupClient] Validation success response:', data);
-			return data as ValidationResponse;
-		} catch (error) {
-			console.error('[SetupClient] Validate server failed:', error);
-			throw error;
+			throw new Error(errorData.error || 'Validation failed');
+		}
+
+		try {
+			return JSON.parse(responseText) as ValidationResponse;
+		} catch {
+			throw new Error('Invalid response format');
 		}
 	}
 
@@ -254,67 +193,49 @@ export class ServerSetupClient {
 	 * Helper method to setup server from database record
 	 */
 	async setupServerFromRecord(serverId: string): Promise<SetupResponse> {
-		try {
-			// Get server details from database
-			const server = await this.pb.collection('servers').getOne(serverId);
+		const server = await this.pb.collection('servers').getOne(serverId);
 
-			const setupRequest: SetupRequest = {
-				host: server.host,
-				port: server.port || 22,
-				user: server.root_username,
-				username: server.app_username,
-				public_keys: [] // TODO: Get public keys from user's SSH agent or input
-			};
+		const setupRequest: SetupRequest = {
+			host: server.host,
+			port: server.port || 22,
+			user: server.root_username,
+			username: server.app_username,
+			public_keys: [] // TODO: Get public keys from user's SSH agent or input
+		};
 
-			return await this.setupServer(setupRequest);
-		} catch (error) {
-			console.error('[SetupClient] Setup server from record failed:', error);
-			throw error;
-		}
+		return await this.setupServer(setupRequest);
 	}
 
 	/**
 	 * Helper method to secure server from database record
 	 */
 	async secureServerFromRecord(serverId: string): Promise<SecurityResponse> {
-		try {
-			// Get server details from database
-			const server = await this.pb.collection('servers').getOne(serverId);
+		const server = await this.pb.collection('servers').getOne(serverId);
 
-			const securityRequest: SecurityRequest = {
-				host: server.host,
-				port: server.port || 22,
-				user: server.root_username,
-				enable_fail2ban: true
-				// firewall_rules and ssh_config will use defaults if not provided
-			};
+		const securityRequest: SecurityRequest = {
+			host: server.host,
+			port: server.port || 22,
+			user: server.root_username,
+			enable_fail2ban: true
+			// firewall_rules and ssh_config will use defaults if not provided
+		};
 
-			return await this.secureServer(securityRequest);
-		} catch (error) {
-			console.error('[SetupClient] Secure server from record failed:', error);
-			throw error;
-		}
+		return await this.secureServer(securityRequest);
 	}
 
 	/**
 	 * Helper method to validate server from database record
 	 */
 	async validateServerFromRecord(serverId: string): Promise<ValidationResponse> {
-		try {
-			// Get server details from database
-			const server = await this.pb.collection('servers').getOne(serverId);
+		const server = await this.pb.collection('servers').getOne(serverId);
 
-			const validationRequest: ValidationRequest = {
-				host: server.host,
-				port: server.port || 22,
-				user: server.root_username,
-				username: server.app_username
-			};
+		const validationRequest: ValidationRequest = {
+			host: server.host,
+			port: server.port || 22,
+			user: server.root_username,
+			username: server.app_username
+		};
 
-			return await this.validateServer(validationRequest);
-		} catch (error) {
-			console.error('[SetupClient] Validate server from record failed:', error);
-			throw error;
-		}
+		return await this.validateServer(validationRequest);
 	}
 }

@@ -27,7 +27,7 @@ func RegisterSetupHandlers(e *core.ServeEvent, app core.App) {
 	})
 
 	e.Router.POST("/api/setup/validate", func(c *core.RequestEvent) error {
-		return handleServerValidation(c, app)
+		return handleServerValidation(c)
 	})
 }
 
@@ -41,6 +41,11 @@ func handleServerSetup(c *core.RequestEvent, app core.App) error {
 		User       string   `json:"user"`
 		Username   string   `json:"username"`
 		PublicKeys []string `json:"public_keys"`
+	}
+
+	// Step tracking for progress
+	sendStep := func(step int, message string) {
+		log.Printf("[SetupAPI] Step %d/6: %s", step, message)
 	}
 
 	var req setupRequest
@@ -78,18 +83,17 @@ func handleServerSetup(c *core.RequestEvent, app core.App) error {
 		req.Port = 22
 	}
 
+	sendStep(1, "Checking SSH agent and creating connection")
+
 	// Check SSH agent availability
-	log.Printf("[SetupAPI] Checking SSH agent availability")
 	if !tunnel.IsAgentAvailable() {
 		log.Printf("[SetupAPI] SSH agent is not available")
 		return c.JSON(http.StatusBadRequest, map[string]any{
-			"error": "SSH agent is required but not available",
+			"error": "SSH agent required",
 		})
 	}
-	log.Printf("[SetupAPI] SSH agent is available")
 
 	// Create SSH client
-	log.Printf("[SetupAPI] Creating SSH client for %s@%s:%d", req.User, req.Host, req.Port)
 	client, err := createSSHClient(req.Host, req.Port, req.User)
 	if err != nil {
 		log.Printf("[SetupAPI] Failed to create SSH client: %v", err)
@@ -98,97 +102,66 @@ func handleServerSetup(c *core.RequestEvent, app core.App) error {
 		})
 	}
 	defer client.Close()
-	log.Printf("[SetupAPI] SSH client created successfully")
 
-	// Connect to server
-	log.Printf("[SetupAPI] Attempting to connect to server...")
+	sendStep(2, "Connecting to server")
 	if err := client.Connect(); err != nil {
 		// Check if this is a host key unknown error
 		if strings.Contains(err.Error(), "key is unknown") {
-			log.Printf("[SetupAPI] Host key unknown, attempting to add manually: %v", err)
-
-			// Try to add the host key manually
 			if addErr := addHostKeyManually(req.Host, req.Port); addErr != nil {
-				log.Printf("[SetupAPI] Failed to add host key manually: %v", addErr)
 				return c.JSON(http.StatusInternalServerError, map[string]any{
-					"error":   fmt.Sprintf("Host key unknown and failed to add automatically: %v", addErr),
-					"details": err.Error(),
+					"error": "Host key verification failed",
 				})
 			}
-
-			// Retry connection after adding host key
-			log.Printf("[SetupAPI] Host key added, retrying connection...")
 			if retryErr := client.Connect(); retryErr != nil {
-				log.Printf("[SetupAPI] Connection still failed after adding host key: %v", retryErr)
 				return c.JSON(http.StatusInternalServerError, map[string]any{
-					"error":   fmt.Sprintf("Connection failed even after adding host key: %v", retryErr),
-					"details": err.Error(),
+					"error": "Connection failed after host key addition",
 				})
 			}
-			log.Printf("[SetupAPI] Successfully connected after adding host key")
-		} else if strings.Contains(err.Error(), "illegal base64 data") || strings.Contains(err.Error(), "knownhosts:") {
-			log.Printf("[SetupAPI] Connection failed due to known_hosts corruption: %v", err)
+		} else if strings.Contains(err.Error(), "known_hosts") {
 			return c.JSON(http.StatusInternalServerError, map[string]any{
-				"error":   "SSH connection failed due to corrupted known_hosts file. Please check line 14 in ~/.ssh/known_hosts or remove the corrupted entry.",
-				"details": err.Error(),
+				"error": "Corrupted known_hosts file",
 			})
 		} else {
-			log.Printf("[SetupAPI] Failed to connect to server: %v", err)
 			return c.JSON(http.StatusInternalServerError, map[string]any{
-				"error": fmt.Sprintf("Failed to connect to server: %v", err),
+				"error": "Connection failed",
 			})
 		}
 	}
-	log.Printf("[SetupAPI] Successfully connected to server")
-
-	// Validate SSH connection
-	log.Printf("[SetupAPI] Validating SSH connection...")
+	sendStep(3, "Validating SSH connection")
 	if err := validateSSHConnection(client); err != nil {
-		log.Printf("[SetupAPI] SSH connection validation failed: %v", err)
 		return c.JSON(http.StatusInternalServerError, map[string]any{
-			"error": fmt.Sprintf("SSH connection validation failed: %v", err),
+			"error": "SSH validation failed",
 		})
 	}
-	log.Printf("[SetupAPI] SSH connection validation successful")
 
-	// Create managers
-	log.Printf("[SetupAPI] Creating tunnel manager and setup manager")
+	sendStep(4, "Setting up PocketBase server environment")
 	manager := tunnel.NewManager(client)
 	setupManager := tunnel.NewSetupManager(manager)
-
-	// Setup PocketBase server
-	log.Printf("[SetupAPI] Starting PocketBase server setup for user: %s", req.Username)
 	err = setupManager.SetupPocketBaseServer(req.Username, req.PublicKeys)
 	if err != nil {
-		log.Printf("[SetupAPI] Server setup failed: %v", err)
 		return c.JSON(http.StatusInternalServerError, map[string]any{
-			"error": fmt.Sprintf("Server setup failed: %v", err),
+			"error": "Server setup failed",
 		})
 	}
-	log.Printf("[SetupAPI] PocketBase server setup completed")
 
-	// Verify setup
-	log.Printf("[SetupAPI] Verifying setup for user: %s", req.Username)
+	sendStep(5, "Verifying setup and gathering system info")
 	if err := setupManager.VerifySetup(req.Username); err != nil {
-		log.Printf("[SetupAPI] Setup verification failed: %v", err)
 		return c.JSON(http.StatusInternalServerError, map[string]any{
-			"error": fmt.Sprintf("Setup verification failed: %v", err),
+			"error": "Setup verification failed",
 		})
 	}
-	log.Printf("[SetupAPI] Setup verification successful")
-
-	// Get setup info
-	log.Printf("[SetupAPI] Getting setup info...")
 	setupInfo, err := setupManager.GetSetupInfo()
 	if err != nil {
-		log.Printf("[SetupAPI] Failed to get setup info: %v", err)
 		return c.JSON(http.StatusInternalServerError, map[string]any{
-			"error": fmt.Sprintf("Failed to get setup info: %v", err),
+			"error": "Failed to get setup info",
 		})
 	}
-	log.Printf("[SetupAPI] Setup info retrieved successfully")
 
-	log.Printf("[SetupAPI] Server setup completed successfully for %s@%s", req.User, req.Host)
+	sendStep(6, "Updating database and finalizing")
+	err = updateServerSetupStatus(app, req.Host, true, false)
+	if err != nil {
+		log.Printf("[SetupAPI] Warning: Failed to update server setup status: %v", err)
+	}
 	return c.JSON(http.StatusOK, map[string]any{
 		"success": true,
 		"message": "Server setup completed successfully",
@@ -213,6 +186,11 @@ func handleServerSecurity(c *core.RequestEvent, app core.App) error {
 		FirewallRules  []tunnel.FirewallRule `json:"firewall_rules"`
 		SSHConfig      *tunnel.SSHConfig     `json:"ssh_config"`
 		EnableFail2ban bool                  `json:"enable_fail2ban"`
+	}
+
+	// Step tracking for security process
+	sendStep := func(step int, message string) {
+		log.Printf("[SecurityAPI] Step %d/4: %s", step, message)
 	}
 
 	var req securityRequest
@@ -244,63 +222,42 @@ func handleServerSecurity(c *core.RequestEvent, app core.App) error {
 		req.Port = 22
 	}
 
-	// Check SSH agent availability
-	log.Printf("[SecurityAPI] Checking SSH agent availability")
+	sendStep(1, "Connecting to server")
 	if !tunnel.IsAgentAvailable() {
-		log.Printf("[SecurityAPI] SSH agent is not available")
 		return c.JSON(http.StatusBadRequest, map[string]any{
-			"error": "SSH agent is required but not available",
+			"error": "SSH agent required",
 		})
 	}
-	log.Printf("[SecurityAPI] SSH agent is available")
-
-	// Create SSH client
-	log.Printf("[SecurityAPI] Creating SSH client for %s@%s:%d", req.User, req.Host, req.Port)
 	client, err := createSSHClient(req.Host, req.Port, req.User)
 	if err != nil {
-		log.Printf("[SecurityAPI] Failed to create SSH client: %v", err)
 		return c.JSON(http.StatusInternalServerError, map[string]any{
-			"error": fmt.Sprintf("Failed to create SSH client: %v", err),
+			"error": "Failed to create SSH client",
 		})
 	}
 	defer client.Close()
-	log.Printf("[SecurityAPI] SSH client created successfully")
 
-	// Connect to server
-	log.Printf("[SecurityAPI] Attempting to connect to server...")
 	if err := client.Connect(); err != nil {
-		log.Printf("[SecurityAPI] Failed to connect to server: %v", err)
 		return c.JSON(http.StatusInternalServerError, map[string]any{
-			"error": fmt.Sprintf("Failed to connect to server: %v", err),
+			"error": "Failed to connect to server",
 		})
 	}
-	log.Printf("[SecurityAPI] Successfully connected to server")
 
-	// Create security manager
-	log.Printf("[SecurityAPI] Creating tunnel manager and security manager")
+	sendStep(2, "Configuring security settings")
 	manager := tunnel.NewManager(client)
 	securityManager := tunnel.NewSecurityManager(manager)
 
-	// Use default firewall rules if none provided
 	if len(req.FirewallRules) == 0 {
-		log.Printf("[SecurityAPI] No firewall rules provided, using defaults")
 		req.FirewallRules = securityManager.GetDefaultPocketBaseRules()
-	} else {
-		log.Printf("[SecurityAPI] Using %d custom firewall rules", len(req.FirewallRules))
 	}
 
-	// Use default SSH config if none provided
 	var sshConfig tunnel.SSHConfig
 	if req.SSHConfig != nil {
-		log.Printf("[SecurityAPI] Using custom SSH config")
 		sshConfig = *req.SSHConfig
 	} else {
-		log.Printf("[SecurityAPI] Using default SSH config")
 		sshConfig = securityManager.GetDefaultSSHConfig()
 	}
 
-	// Apply security configuration
-	log.Printf("[SecurityAPI] Applying security configuration (fail2ban: %v)", req.EnableFail2ban)
+	sendStep(3, "Applying firewall, SSH hardening, and fail2ban")
 	securityConfig := tunnel.SecurityConfig{
 		FirewallRules:  req.FirewallRules,
 		HardenSSH:      true,
@@ -310,14 +267,16 @@ func handleServerSecurity(c *core.RequestEvent, app core.App) error {
 
 	err = securityManager.SecureServer(securityConfig)
 	if err != nil {
-		log.Printf("[SecurityAPI] Security hardening failed: %v", err)
 		return c.JSON(http.StatusInternalServerError, map[string]any{
-			"error": fmt.Sprintf("Security hardening failed: %v", err),
+			"error": "Security hardening failed",
 		})
 	}
-	log.Printf("[SecurityAPI] Security hardening completed successfully")
 
-	log.Printf("[SecurityAPI] Server security hardening completed successfully for %s@%s", req.User, req.Host)
+	sendStep(4, "Updating database")
+	err = updateServerSetupStatus(app, req.Host, false, true)
+	if err != nil {
+		log.Printf("[SecurityAPI] Warning: Failed to update server security status: %v", err)
+	}
 	return c.JSON(http.StatusOK, map[string]any{
 		"success": true,
 		"message": "Server security hardening completed successfully",
@@ -330,7 +289,7 @@ func handleServerSecurity(c *core.RequestEvent, app core.App) error {
 }
 
 // handleServerValidation validates server setup and configuration
-func handleServerValidation(c *core.RequestEvent, app core.App) error {
+func handleServerValidation(c *core.RequestEvent) error {
 	log.Printf("[ValidationAPI] Starting server validation process")
 
 	type validationRequest struct {
@@ -496,6 +455,37 @@ func addHostKeyManually(host string, port int) error {
 	}
 
 	log.Printf("[SetupAPI] Successfully added host key for %s to known_hosts", host)
+	return nil
+}
+
+// updateServerSetupStatus updates the setup_complete and security_locked status for a server
+func updateServerSetupStatus(app core.App, host string, setupComplete, securityLocked bool) error {
+	// Find the server by host
+	serverRecord, err := app.FindFirstRecordByFilter(
+		"servers",
+		"host = {:host}",
+		map[string]any{"host": host},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to find server record: %w", err)
+	}
+
+	// Update the fields
+	if setupComplete {
+		serverRecord.Set("setup_complete", true)
+		log.Printf("[SetupAPI] Marking server %s as setup complete", host)
+	}
+	if securityLocked {
+		serverRecord.Set("security_locked", true)
+		log.Printf("[SetupAPI] Marking server %s as security locked", host)
+	}
+
+	// Save the record
+	if err := app.Save(serverRecord); err != nil {
+		return fmt.Errorf("failed to save server record: %w", err)
+	}
+
+	log.Printf("[SetupAPI] Successfully updated server status in database")
 	return nil
 }
 

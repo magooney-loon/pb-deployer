@@ -175,8 +175,7 @@
 					<div class="flex-1">
 						<h4 class="font-medium text-blue-900 dark:text-blue-100">SSH Authentication</h4>
 						<p class="mt-1 text-sm text-blue-800 dark:text-blue-200">
-							This production deployment tool uses SSH agent authentication exclusively. Ensure your
-							SSH agent is running and has your keys loaded before setup.
+							Ensure your SSH agent is running and has your keys loaded before setup.
 						</p>
 						<div class="mt-2 text-xs text-blue-700 dark:text-blue-300">
 							<code class="rounded bg-blue-100 px-1 py-0.5 dark:bg-blue-800">ssh-add -l</code> to verify

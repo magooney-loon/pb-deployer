@@ -5,7 +5,7 @@
 	import { WarningBanner } from '$lib/components/partials';
 	import Icon from '$lib/components/icons/Icon.svelte';
 	import { onMount } from 'svelte';
-	import { lockscreenState, lockScreen } from '$lib/components/main/Settings';
+	import { lockscreenState } from '$lib/components/main/Settings';
 	import Lockscreen from './settings/components/Lockscreen.svelte';
 	import SplashScreen from '$lib/components/main/SplashScreen.svelte';
 	import { splashScreen, splashScreenState } from '$lib/components/main/SplashScreen';
@@ -28,24 +28,6 @@
 			splashScreen.stopLoading();
 		};
 	});
-
-	function handleKeydown(e: KeyboardEvent) {
-		if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
-			e.preventDefault();
-			if (lockscreen.isEnabled && !lockscreen.isLocked) {
-				lockScreen();
-			}
-		}
-	}
-
-	$effect(() => {
-		if (typeof window !== 'undefined') {
-			window.addEventListener('keydown', handleKeydown);
-			return () => {
-				window.removeEventListener('keydown', handleKeydown);
-			};
-		}
-	});
 </script>
 
 {#if splashState.isLoading}
@@ -61,15 +43,6 @@
 		>
 			{#snippet iconSnippet()}
 				<Icon name="warning" size="h-4 w-4" />
-			{/snippet}
-		</WarningBanner>
-		<WarningBanner
-			size="xs"
-			message="Lockscreen Keybind: CTRL+L or CMD+L (if enabled)"
-			color="blue"
-		>
-			{#snippet iconSnippet()}
-				<Icon name="info" size="h-4 w-4" />
 			{/snippet}
 		</WarningBanner>
 		<Navigation />
