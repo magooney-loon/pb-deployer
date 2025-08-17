@@ -39,7 +39,7 @@ go run cmd/scripts/main.go --install
 4. **App Deployment**: Upload prod dist, systemd service creation
 5. **Version Management**: Rollback support with file storage
 
-See `**/*/README.md` for detailed component documentation.
+See `**/*/README.md` for detailed docs.
 
 ## Contribution
 PRs are encouraged, but consider opening a discussion first for minor/major changelogs.
