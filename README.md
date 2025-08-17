@@ -13,11 +13,11 @@
   <hr>
 </div>
 
-**Server Setup**: Automated SSH user creation, directory structure, security hardening
+**Server Setup**: Non-root user creation, directory structure
 <br>
-**Deployment**: SFTP transfer protocol && systemd service management
+**Deployment**: SFTP && systemd service management
 <br>
-**Security**: UFW firewall, fail2ban, SSH lockdown w/ specialized managers
+**Security**: UFW firewall, fail2ban, SSH lockdown
 
 ## 🚀 Quick Start
 
