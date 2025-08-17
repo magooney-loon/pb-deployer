@@ -1,3 +1,5 @@
+**NOT SUPER WELL TESTED; I USE IT FOR MY SIDE PROJECTS ON HERTZNER UBUNTU VPS WITH NO ISSUES SO FAR**
+
 <div align="center">
   <img src="frontend/static/favicon.svg" alt="Logo" width="200">
   <h1 align="center">pb-deployer</h1>
@@ -14,8 +16,11 @@
 **Server Setup**: Automated SSH user creation, directory structure, security hardening
 <br>
 **Deployment**: SFTP transfer protocol && systemd service management
+<br>
 **Security**: UFW firewall, fail2ban, SSH lockdown with specialized managers
+<br>
 **Observability**: Comprehensive tracing, connection pooling, health monitoring
+<br>
 **Configuration**: Type-safe config management with validation and retry logic
 
 ## 🚀 Quick Start
