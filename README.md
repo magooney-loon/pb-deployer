@@ -1,6 +1,7 @@
 <div align="center">
   <img src="frontend/static/favicon.svg" alt="Logo" width="200">
   <h1 align="center">pb-deployer</h1>
+  <h3 align="center">Automates the complete lifecycle of deploying PocketBase apps to production servers</h3>
 </div>
 
 <div align="center">
@@ -10,7 +11,6 @@
   <hr>
 </div>
 
-Automates the complete lifecycle of deploying PocketBase apps to production servers:
 **Server Setup**: Automated SSH user creation, directory structure, security hardening
 **Deployment**: SFTP transfer protocol && systemd service management
 **Security**: UFW firewall, fail2ban, SSH lockdown with specialized managers
