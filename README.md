@@ -39,17 +39,6 @@ go run cmd/scripts/main.go --install
 4. **App Deployment**: Upload prod dist, systemd service creation
 5. **Version Management**: Rollback support with file storage
 
-## Key Features
-
-- Dependency injection, no singletons, clean interfaces
-- Persistent connections with automatic health monitoring
-- Domain-specific operations (setup, security, services, deployment)
-- Full observability with structured logging and metrics
-- Automatic transition from root to app user after lockdown
-- Staging directory with atomic swaps
-- WebSocket updates with detailed operation tracking
-- Generic config management with validation
-
 See `**/*/README.md` for detailed component documentation.
 
 ## Contribution
