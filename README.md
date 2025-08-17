@@ -37,4 +37,4 @@ go run cmd/scripts/main.go --install
 - Generic config management with validation
 - Safe production deployments with version tracking
 
-See `internal/*/README.md` for detailed component documentation.
+See `./*/README.md` for detailed component documentation.

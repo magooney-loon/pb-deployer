@@ -312,7 +312,6 @@ func copyFrontendToDist(rootDir, outputDir string) error {
 func runTestSuiteAndGenerateReport(rootDir, outputDir string) error {
 	printStep("🧪", "Running test suite...")
 
-	// Create test reports directory
 	reportsDir := filepath.Join(outputDir, "test-reports")
 	if err := os.MkdirAll(reportsDir, 0755); err != nil {
 		return fmt.Errorf("failed to create test reports directory: %w", err)
@@ -320,12 +319,10 @@ func runTestSuiteAndGenerateReport(rootDir, outputDir string) error {
 
 	start := time.Now()
 
-	// Run the test suite with JSON output for detailed report
 	reportFile := filepath.Join(reportsDir, "test-report.json")
 	cmd := exec.Command("go", "test", "-json", "./...")
 	cmd.Dir = rootDir
 
-	// Capture output for both display and file
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// Save the failed test output anyway
@@ -335,12 +332,10 @@ func runTestSuiteAndGenerateReport(rootDir, outputDir string) error {
 		return fmt.Errorf("test suite failed: %w", err)
 	}
 
-	// Write JSON report
 	if err := os.WriteFile(reportFile, output, 0644); err != nil {
 		return fmt.Errorf("failed to write test report: %w", err)
 	}
 
-	// Run our custom test suite for summary
 	summaryFile := filepath.Join(reportsDir, "test-summary.txt")
 	cmd = exec.Command("go", "run", "./cmd/tests")
 	cmd.Dir = rootDir
@@ -354,12 +349,10 @@ func runTestSuiteAndGenerateReport(rootDir, outputDir string) error {
 		return fmt.Errorf("test suite summary failed: %w", err)
 	}
 
-	// Write summary report
 	if err := os.WriteFile(summaryFile, summaryOutput, 0644); err != nil {
 		return fmt.Errorf("failed to write test summary: %w", err)
 	}
 
-	// Generate coverage report
 	coverageFile := filepath.Join(reportsDir, "coverage.out")
 	htmlCoverageFile := filepath.Join(reportsDir, "coverage.html")
 
@@ -368,7 +361,6 @@ func runTestSuiteAndGenerateReport(rootDir, outputDir string) error {
 	if err := cmd.Run(); err != nil {
 		printWarning("Failed to generate coverage report: %v", err)
 	} else {
-		// Generate HTML coverage report
 		cmd = exec.Command("go", "tool", "cover", "-html="+coverageFile, "-o", htmlCoverageFile)
 		cmd.Dir = rootDir
 		if err := cmd.Run(); err != nil {
@@ -386,13 +378,11 @@ func runTestSuiteAndGenerateReport(rootDir, outputDir string) error {
 func testOnlyMode(rootDir, distDir string) error {
 	printHeader("🧪 TEST SUITE EXECUTION")
 
-	// Create output directory for test reports
 	outputDir := filepath.Join(rootDir, distDir)
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
-	// Run test suite and generate report
 	if err := runTestSuiteAndGenerateReport(rootDir, outputDir); err != nil {
 		return fmt.Errorf("test suite failed: %w", err)
 	}
@@ -404,7 +394,6 @@ func testOnlyMode(rootDir, distDir string) error {
 func generatePackageMetadata(rootDir, outputDir string) error {
 	printStep("📋", "Generating package metadata...")
 
-	// Get version information
 	goVersion := getCommandOutput("go", "version")
 	nodeVersion := getCommandOutput("node", "--version")
 	npmVersion := getCommandOutput("npm", "--version")
@@ -412,13 +401,10 @@ func generatePackageMetadata(rootDir, outputDir string) error {
 	gitBranch := getCommandOutput("git", "rev-parse", "--abbrev-ref", "HEAD")
 	gitTag := getCommandOutput("git", "describe", "--tags", "--exact-match")
 
-	// Build timestamp
 	buildTime := time.Now().UTC().Format(time.RFC3339)
 
-	// System information
 	osInfo := fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)
 
-	// Package metadata content
 	packageYAML := fmt.Sprintf(`# pb-deployer Package Metadata
 # Generated automatically during production build
 
@@ -478,7 +464,6 @@ notes:
 		}(),
 	)
 
-	// Write package.yaml file
 	packageFile := filepath.Join(outputDir, "package.yaml")
 	if err := os.WriteFile(packageFile, []byte(packageYAML), 0644); err != nil {
 		return fmt.Errorf("failed to write package.yaml: %w", err)
@@ -516,7 +501,6 @@ func buildServerBinary(rootDir, outputDir string) error {
 		return fmt.Errorf("go build failed: %w", err)
 	}
 
-	// Get binary size
 	if stat, err := os.Stat(outputPath); err == nil {
 		sizeMB := float64(stat.Size()) / 1024 / 1024
 		printSuccess("Server binary built in %s (%.2f MB)", time.Since(start).Round(time.Millisecond), sizeMB)
@@ -587,7 +571,6 @@ func checkCommand(command string, args ...string) bool {
 	return cmd.Run() == nil
 }
 
-// Visual output functions
 func printBanner(operation string) {
 	fmt.Printf("\n%s▲ pb-deployer%s %sv1.0.0%s\n", Bold, Reset, Gray, Reset)
 	fmt.Printf("%s%s%s\n\n", Gray, strings.ToLower(operation), Reset)
