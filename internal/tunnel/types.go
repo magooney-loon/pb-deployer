@@ -1,6 +1,7 @@
 package tunnel
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -23,9 +24,7 @@ type Config struct {
 	Host       string
 	Port       int
 	User       string
-	Password   string        // Optional: password auth
-	PrivateKey string        // Optional: key auth
-	Passphrase string        // Optional: passphrase for encrypted key
+	Auth       AuthConfig    // Authentication and host key verification configuration
 	Timeout    time.Duration // Connection timeout
 	RetryCount int           // Number of connection retries
 	RetryDelay time.Duration // Delay between retries
@@ -317,64 +316,71 @@ type SimpleLogger struct {
 
 func (s *SimpleLogger) OnConnect(host string, user string) {
 	if s.Verbose {
-		println("SSH: Connecting to", host, "as", user)
+		fmt.Printf("SSH: Connecting to %s as %s\n", host, user)
 	}
 }
 
 func (s *SimpleLogger) OnDisconnect(host string) {
 	if s.Verbose {
-		println("SSH: Disconnected from", host)
+		fmt.Printf("SSH: Disconnected from %s\n", host)
 	}
 }
 
 func (s *SimpleLogger) OnExecute(cmd string) {
 	if s.Verbose {
-		println("SSH: Executing:", cmd)
+		fmt.Printf("SSH: Executing: %s\n", cmd)
 	}
 }
 
 func (s *SimpleLogger) OnExecuteResult(cmd string, result *Result, err error) {
 	if s.Verbose {
 		if err != nil {
-			println("SSH: Command failed:", err.Error())
+			fmt.Printf("SSH: Command failed: %s\n", err.Error())
 		} else {
-			println("SSH: Command completed with exit code:", result.ExitCode)
+			fmt.Printf("SSH: Command completed with exit code: %d\n", result.ExitCode)
 		}
 	}
 }
 
 func (s *SimpleLogger) OnUpload(local, remote string) {
 	if s.Verbose {
-		println("SSH: Uploading", local, "to", remote)
+		fmt.Printf("SSH: Uploading %s to %s\n", local, remote)
 	}
 }
 
 func (s *SimpleLogger) OnUploadComplete(local, remote string, err error) {
 	if s.Verbose {
 		if err != nil {
-			println("SSH: Upload failed:", err.Error())
+			fmt.Printf("SSH: Upload failed: %s\n", err.Error())
 		} else {
-			println("SSH: Upload completed")
+			fmt.Println("SSH: Upload completed")
 		}
 	}
 }
 
 func (s *SimpleLogger) OnDownload(remote, local string) {
 	if s.Verbose {
-		println("SSH: Downloading", remote, "to", local)
+		fmt.Printf("SSH: Downloading %s to %s\n", remote, local)
 	}
 }
 
 func (s *SimpleLogger) OnDownloadComplete(remote, local string, err error) {
 	if s.Verbose {
 		if err != nil {
-			println("SSH: Download failed:", err.Error())
+			fmt.Printf("SSH: Download failed: %s\n", err.Error())
 		} else {
-			println("SSH: Download completed")
+			fmt.Println("SSH: Download completed")
 		}
 	}
 }
 
 func (s *SimpleLogger) OnError(operation string, err error) {
-	println("SSH Error in", operation+":", err.Error())
+	fmt.Printf("SSH Error in %s: %s\n", operation, err.Error())
 }
+
+// HostKeyMode represents different host key verification modes
+// These are defined in auth.go but documented here for reference:
+//   - HostKeyModeStrict: Uses known_hosts file with strict checking
+//   - HostKeyModeAcceptNew: Accepts new keys and adds them to known_hosts
+//   - HostKeyModeInsecure: Disables host key verification (NOT RECOMMENDED)
+//   - HostKeyModeCustom: Uses a custom callback function

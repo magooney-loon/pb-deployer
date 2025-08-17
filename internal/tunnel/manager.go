@@ -305,19 +305,17 @@ func (m *Manager) SystemInfo() (*SystemInfo, error) {
 	// Get OS information
 	result, err := m.client.Execute("lsb_release -a 2>/dev/null || cat /etc/os-release")
 	if err == nil {
-		lines := strings.Split(result.Stdout, "\n")
-		for _, line := range lines {
-			if strings.Contains(line, "Description:") || strings.Contains(line, "PRETTY_NAME=") {
-				parts := strings.SplitN(line, ":", 2)
-				if len(parts) == 2 {
-					info.OS = strings.TrimSpace(parts[1])
-				} else if strings.Contains(line, "=") {
-					parts = strings.SplitN(line, "=", 2)
-					if len(parts) == 2 {
-						info.OS = strings.Trim(parts[1], "\"")
-					}
+		for _, line := range strings.Split(result.Stdout, "\n") {
+			if strings.Contains(line, "Description:") {
+				if _, after, found := strings.Cut(line, ":"); found {
+					info.OS = strings.TrimSpace(after)
+					break
 				}
-				break
+			} else if strings.Contains(line, "PRETTY_NAME=") {
+				if _, after, found := strings.Cut(line, "="); found {
+					info.OS = strings.Trim(after, "\"")
+					break
+				}
 			}
 		}
 	}

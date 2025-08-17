@@ -51,10 +51,12 @@ func NewClient(config Config) (*Client, error) {
 			Message: "user is required",
 		}
 	}
-	if config.Password == "" && config.PrivateKey == "" {
+	// Validate auth configuration
+	if _, err := GetAuthMethods(config.Auth); err != nil {
 		return nil, &Error{
 			Type:    ErrorAuth,
-			Message: "either password or private key is required",
+			Message: "no valid authentication methods available",
+			Cause:   err,
 		}
 	}
 
@@ -78,31 +80,33 @@ func (c *Client) Connect() error {
 	c.tracer.OnConnect(c.config.Host, c.config.User)
 
 	// Build SSH client config
+	hostKeyCallback, err := GetHostKeyCallback(c.config.Auth.HostKeyVerification)
+	if err != nil {
+		c.tracer.OnError("get_host_key_callback", err)
+		return &Error{
+			Type:    ErrorAuth,
+			Message: "failed to create host key callback",
+			Cause:   err,
+		}
+	}
+
 	sshConfig := &ssh.ClientConfig{
 		User:            c.config.User,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // TODO: Add proper host key verification
+		HostKeyCallback: hostKeyCallback,
 		Timeout:         c.config.Timeout,
 	}
 
 	// Setup authentication
-	if c.config.PrivateKey != "" {
-		signer, err := c.parsePrivateKey()
-		if err != nil {
-			c.tracer.OnError("parse_private_key", err)
-			return &Error{
-				Type:    ErrorAuth,
-				Message: "failed to parse private key",
-				Cause:   err,
-			}
-		}
-		sshConfig.Auth = []ssh.AuthMethod{
-			ssh.PublicKeys(signer),
-		}
-	} else if c.config.Password != "" {
-		sshConfig.Auth = []ssh.AuthMethod{
-			ssh.Password(c.config.Password),
+	authMethods, err := GetAuthMethods(c.config.Auth)
+	if err != nil {
+		c.tracer.OnError("get_auth_methods", err)
+		return &Error{
+			Type:    ErrorAuth,
+			Message: "failed to get authentication methods",
+			Cause:   err,
 		}
 	}
+	sshConfig.Auth = authMethods
 
 	// Connect with retries
 	var lastErr error
@@ -533,25 +537,6 @@ func (c *Client) Download(remotePath, localPath string, opts ...FileOption) erro
 }
 
 // Helper methods
-
-func (c *Client) parsePrivateKey() (ssh.Signer, error) {
-	key := []byte(c.config.PrivateKey)
-
-	// Check if it's a file path
-	if !strings.Contains(c.config.PrivateKey, "BEGIN") {
-		// Try to read as file
-		keyData, err := os.ReadFile(c.config.PrivateKey)
-		if err == nil {
-			key = keyData
-		}
-	}
-
-	// Parse the key
-	if c.config.Passphrase != "" {
-		return ssh.ParsePrivateKeyWithPassphrase(key, []byte(c.config.Passphrase))
-	}
-	return ssh.ParsePrivateKey(key)
-}
 
 func (c *Client) buildCommand(cmd string, cfg *execConfig) string {
 	var parts []string

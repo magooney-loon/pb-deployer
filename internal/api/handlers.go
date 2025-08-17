@@ -10,8 +10,6 @@ import (
 
 func RegisterHandlers(app core.App) {
 	app.OnServe().BindFunc(func(e *core.ServeEvent) error {
-		// Create API group
-		// apiGroup := e.Router.Group("/api/v1")
 		e.Router.GET("/api/time", func(c *core.RequestEvent) error {
 			now := time.Now()
 			return c.JSON(http.StatusOK, map[string]any{
@@ -23,6 +21,10 @@ func RegisterHandlers(app core.App) {
 				},
 			})
 		})
+
+		// Register setup handlers
+		RegisterSetupHandlers(app)
+
 		return e.Next()
 	})
 }

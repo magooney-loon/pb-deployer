@@ -180,8 +180,7 @@ func (s *SetupManager) VerifySetup(username string) error {
 	}
 
 	for _, dir := range directories {
-		result, err = s.manager.client.Execute(fmt.Sprintf("test -d %s", dir))
-		if err != nil || result.ExitCode != 0 {
+		if result, err := s.manager.client.Execute(fmt.Sprintf("test -d %s", dir)); err != nil || result.ExitCode != 0 {
 			return &Error{
 				Type:    ErrorVerification,
 				Message: fmt.Sprintf("directory %s does not exist", dir),
@@ -192,8 +191,7 @@ func (s *SetupManager) VerifySetup(username string) error {
 	// Check if essential packages are installed
 	essentials := []string{"curl", "wget", "unzip"}
 	for _, pkg := range essentials {
-		result, err = s.manager.client.Execute(fmt.Sprintf("which %s", pkg))
-		if err != nil || result.ExitCode != 0 {
+		if result, err := s.manager.client.Execute(fmt.Sprintf("which %s", pkg)); err != nil || result.ExitCode != 0 {
 			return &Error{
 				Type:    ErrorVerification,
 				Message: fmt.Sprintf("package %s is not installed", pkg),
@@ -222,10 +220,8 @@ func (s *SetupManager) GetSetupInfo() (*SetupInfo, error) {
 
 	// List existing apps
 	if info.PocketBaseSetup {
-		result, err = s.manager.client.Execute("ls -1 /opt/pocketbase/apps")
-		if err == nil && result.ExitCode == 0 {
-			apps := strings.Split(strings.TrimSpace(result.Stdout), "\n")
-			for _, app := range apps {
+		if result, err := s.manager.client.Execute("ls -1 /opt/pocketbase/apps"); err == nil && result.ExitCode == 0 {
+			for _, app := range strings.Split(strings.TrimSpace(result.Stdout), "\n") {
 				if app != "" {
 					info.InstalledApps = append(info.InstalledApps, app)
 				}

@@ -4,31 +4,29 @@ This document ensures all migration guides properly align with the actual tunnel
 
 ## Available Tunnel Interfaces
 
-### Core Interfaces (from tunnel/README.md)
+### Core Interfaces (from tunnel package)
 
 ```go
-// SSH Client
+// SSH Client (actual interface from tunnel package)
 type SSHClient interface {
-    Connect(ctx context.Context) error
-    Execute(ctx context.Context, cmd string) (string, error)
-    ExecuteStream(ctx context.Context, cmd string, handler OutputHandler) error
+    Connect() error
     Close() error
-    IsHealthy() bool
+    IsConnected() bool
+    Execute(cmd string, opts ...ExecOption) (*Result, error)
+    ExecuteSudo(cmd string, opts ...ExecOption) (*Result, error)
+    Upload(localPath, remotePath string, opts ...FileOption) error
+    Download(remotePath, localPath string, opts ...FileOption) error
+    Ping() error
+    HostInfo() (string, error)
+    SetTracer(tracer Tracer)
 }
 
-// Connection Pool
-type Pool interface {
-    Get(ctx context.Context, key string) (SSHClient, error)
-    Release(key string, client SSHClient)
-    HealthCheck(ctx context.Context) HealthReport
-    Close() error
-}
-
-// Command Executor
-type Executor interface {
-    RunCommand(ctx context.Context, cmd Command) (*Result, error)
-    RunScript(ctx context.Context, script Script) (*Result, error)
-    TransferFile(ctx context.Context, transfer FileTransfer) error
+// Authentication Configuration
+type AuthConfig struct {
+    UseAgent      bool
+    KeyPath       string
+    KeyPassphrase string
+    PreferAgent   bool
 }
 ```
 
@@ -70,25 +68,36 @@ type DeploymentManager interface {
 ### Correct Service Container Integration
 
 ```go
-// ✅ CORRECT - Following tunnel package patterns
+// ✅ CORRECT - Following actual tunnel package patterns
 func NewServerHandlers(
-    executor tunnel.Executor,
-    setupMgr tunnel.SetupManager,
-    securityMgr tunnel.SecurityManager,
-    serviceMgr tunnel.ServiceManager,
-    pool tunnel.Pool,
-    tracerFactory tracer.TracerFactory,
+    app core.App,
 ) *ServerHandlers {
     return &ServerHandlers{
-        executor:       executor,
-        setupMgr:       setupMgr,
-        securityMgr:    securityMgr,
-        serviceMgr:     serviceMgr,
-        pool:           pool,
-        sshTracer:      tracerFactory.CreateSSHTracer(),
-        poolTracer:     tracerFactory.CreatePoolTracer(),
-        securityTracer: tracerFactory.CreateSecurityTracer(),
+        app: app,
     }
+}
+
+// ✅ CORRECT - Creating SSH client with new auth system
+func createSSHClient(server *models.Server) (*tunnel.Client, error) {
+    var authConfig tunnel.AuthConfig
+    
+    if server.UseSSHAgent {
+        authConfig = tunnel.AuthConfigWithAgent()
+    } else if server.ManualKeyPath != "" {
+        authConfig = tunnel.AuthConfigFromKeyPath(server.ManualKeyPath)
+    } else {
+        return nil, fmt.Errorf("no authentication method configured")
+    }
+
+    config := tunnel.Config{
+        Host: server.Host,
+        Port: server.Port,
+        User: server.RootUsername,
+        Auth: authConfig,
+        Timeout: 30 * time.Second,
+    }
+
+    return tunnel.NewClient(config)
 }
 ```
 
@@ -97,27 +106,39 @@ func NewServerHandlers(
 Since tunnel interfaces don't include progress tracking, implement it at handler level:
 
 ```go
-// ✅ CORRECT - Handler-level progress tracking
-func (h *ServerHandlers) performServerSetup(ctx context.Context, config SetupConfig) error {
-    // Create progress channel for UI updates
-    progressChan := make(chan SetupProgress, 10)
-    go h.monitorSetupProgress(ctx, server.ID, progressChan)
-
-    // Use individual setup manager calls
-    if err := h.setupMgr.CreateUser(ctx, config.UserConfig); err != nil {
-        progressChan <- SetupProgress{Step: "user_creation", Status: "failed", Error: err}
-        return err
+// ✅ CORRECT - Handler-level progress tracking with actual tunnel methods
+func handleServerSetup(c *core.RequestEvent, app core.App) error {
+    // Create SSH client
+    client, err := createSSHClient(server)
+    if err != nil {
+        return c.JSON(http.StatusInternalServerError, map[string]any{
+            "error": fmt.Sprintf("Failed to create SSH client: %v", err),
+        })
     }
-    progressChan <- SetupProgress{Step: "user_creation", Status: "completed"}
+    defer client.Close()
 
-    if err := h.setupMgr.SetupSSHKeys(ctx, config.Username, config.SSHKeys); err != nil {
-        progressChan <- SetupProgress{Step: "ssh_keys", Status: "failed", Error: err}
-        return err
+    // Connect to server
+    if err := client.Connect(); err != nil {
+        return c.JSON(http.StatusInternalServerError, map[string]any{
+            "error": fmt.Sprintf("Failed to connect: %v", err),
+        })
     }
-    progressChan <- SetupProgress{Step: "ssh_keys", Status: "completed"}
 
-    close(progressChan)
-    return nil
+    // Create managers using actual tunnel constructors
+    mgr := tunnel.NewManager(client)
+    setupMgr := tunnel.NewSetupManager(mgr)
+
+    // Run setup with actual method signatures
+    err = setupMgr.SetupPocketBaseServer(server.AppUsername, publicKeys)
+    if err != nil {
+        return c.JSON(http.StatusInternalServerError, map[string]any{
+            "error": fmt.Sprintf("Setup failed: %v", err),
+        })
+    }
+
+    return c.JSON(http.StatusOK, map[string]any{
+        "message": "Setup completed successfully",
+    })
 }
 ```
 
@@ -126,64 +147,75 @@ func (h *ServerHandlers) performServerSetup(ctx context.Context, config SetupCon
 ### Correct Error Handling (from tunnel package)
 
 ```go
-// ✅ CORRECT - Using tunnel error utilities
-result, err := h.executor.RunCommand(ctx, cmd)
+// ✅ CORRECT - Using actual tunnel error handling
+result, err := client.Execute(cmd)
 if err != nil {
-    if tunnel.IsRetryable(err) {
-        // Implement retry logic
-        return h.retryOperation(ctx, cmd)
+    if sshErr, ok := err.(*tunnel.Error); ok {
+        switch sshErr.Type {
+        case tunnel.ErrorConnection:
+            return handleConnectionError(c, err)
+        case tunnel.ErrorAuth:
+            return handleAuthError(c, err)
+        case tunnel.ErrorTimeout:
+            return handleTimeoutError(c, err)
+        case tunnel.ErrorExecution:
+            return handleExecutionError(c, err, result)
+        }
     }
-    if tunnel.IsAuthError(err) {
-        // Handle authentication failure
-        return handleAuthError(e, err)
-    }
-    if tunnel.IsConnectionError(err) {
-        // Handle connection failure
-        return handleConnectionError(e, err)
-    }
-    return handleGenericError(e, err)
+    return handleGenericError(c, err)
 }
 ```
 
 ## Key Types Alignment
 
-### Available Types (from tunnel package)
+### Available Types (from actual tunnel package)
 
 ```go
-type ConnectionConfig struct {
+// Connection Configuration
+type Config struct {
     Host       string
     Port       int
-    Username   string
-    AuthMethod AuthMethod
+    User       string
+    Auth       AuthConfig
     Timeout    time.Duration
+    RetryCount int
+    RetryDelay time.Duration
 }
 
-type Command struct {
-    Cmd         string
-    Sudo        bool
-    Timeout     time.Duration
-    Environment map[string]string
+// Authentication Configuration
+type AuthConfig struct {
+    UseAgent      bool
+    KeyPath       string
+    KeyPassphrase string
+    PreferAgent   bool
 }
 
-type UserConfig struct {
-    Username   string
-    HomeDir    string
-    Shell      string
-    Groups     []string
-    CreateHome bool
-}
-
+// Security Configuration
 type SecurityConfig struct {
-    DisableRootLogin    bool
-    DisablePasswordAuth bool
-    AllowedPorts        []int
-    Fail2banConfig      Fail2banConfig
+    FirewallRules  []FirewallRule
+    HardenSSH      bool
+    SSHConfig      SSHConfig
+    EnableFail2ban bool
 }
 
-type FileTransfer struct {
-    LocalPath  string
-    RemotePath string
-    Direction  TransferDirection
-    Progress   bool
+// SSH Configuration
+type SSHConfig struct {
+    PasswordAuth        bool
+    RootLogin           bool
+    PubkeyAuth          bool
+    MaxAuthTries        int
+    ClientAliveInterval int
+    ClientAliveCountMax int
+    AllowUsers          []string
+    AllowGroups         []string
+}
+
+// Firewall Rule
+type FirewallRule struct {
+    Port        int
+    Protocol    string
+    Source      string
+    Action      string
+    Description string
 }
 ```
