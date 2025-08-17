@@ -64,6 +64,13 @@
 	setTimeout(() => {
 		isVisible = true;
 	}, delay);
+
+	// Auto-dismiss after 5 seconds
+	if (dismissible && onDismiss) {
+		setTimeout(() => {
+			onDismiss();
+		}, 5000);
+	}
 </script>
 
 {#if isVisible}
