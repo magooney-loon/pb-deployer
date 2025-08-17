@@ -227,6 +227,8 @@ export class ServerListLogic {
 				successMessage: null
 			});
 
+			await this.api.setup.setupServerFromRecord(serverId);
+
 			// Update server in local state
 			const servers = this.state.servers.map((server) =>
 				server.id === serverId ? { ...server, setup_complete: true } : server
@@ -235,7 +237,7 @@ export class ServerListLogic {
 			this.updateState({
 				servers,
 				setupInProgress: null,
-				successMessage: `Server setup completed successfully!`
+				successMessage: 'Server setup completed successfully!'
 			});
 		} catch (err) {
 			const error = err instanceof Error ? err.message : 'Failed to setup server';
@@ -257,6 +259,8 @@ export class ServerListLogic {
 				successMessage: null
 			});
 
+			await this.api.setup.secureServerFromRecord(serverId);
+
 			// Update server in local state
 			const servers = this.state.servers.map((server) =>
 				server.id === serverId ? { ...server, security_locked: true } : server
@@ -265,7 +269,7 @@ export class ServerListLogic {
 			this.updateState({
 				servers,
 				securityInProgress: null,
-				successMessage: `Server security hardening completed!`
+				successMessage: 'Server security hardening completed!'
 			});
 		} catch (err) {
 			const error = err instanceof Error ? err.message : 'Failed to secure server';

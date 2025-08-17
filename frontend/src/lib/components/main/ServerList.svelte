@@ -154,7 +154,7 @@
 							</td>
 							<td class="space-x-2 px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
 								<!-- Setup Button (only if not setup) -->
-								{#if logic.canSetupServer(server)}
+								{#if logic.canSetupServer(server) || logic.isServerSetupInProgress(server.id)}
 									<Button
 										variant="outline"
 										color="green"
@@ -165,12 +165,12 @@
 										{#snippet iconSnippet()}
 											<Icon name={logic.isServerSetupInProgress(server.id) ? 'loading' : 'setup'} />
 										{/snippet}
-										{logic.isServerSetupInProgress(server.id) ? 'Setting up...' : 'Setup'}
+										{logic.isServerSetupInProgress(server.id) ? 'Working' : 'Setup'}
 									</Button>
 								{/if}
 
 								<!-- Security Button (only if setup but not secured) -->
-								{#if logic.canSecureServer(server)}
+								{#if logic.canSecureServer(server) || logic.isServerSecurityInProgress(server.id)}
 									<Button
 										variant="outline"
 										color="yellow"
@@ -183,7 +183,7 @@
 												name={logic.isServerSecurityInProgress(server.id) ? 'loading' : 'shield'}
 											/>
 										{/snippet}
-										{logic.isServerSecurityInProgress(server.id) ? 'Securing...' : 'Secure'}
+										{logic.isServerSecurityInProgress(server.id) ? 'Working' : 'Secure'}
 									</Button>
 								{/if}
 
