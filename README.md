@@ -42,4 +42,4 @@ go run cmd/scripts/main.go --install
 See `**/*/README.md` for detailed component documentation.
 
 ## Contribution
-PRs are encouraged, but consider opening a discussion first for minor/major features.
+PRs are encouraged, but consider opening a discussion first for minor/major changelogs.
