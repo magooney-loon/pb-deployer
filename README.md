@@ -1,6 +1,15 @@
-![pb-deployer banner](frontend/static/deployer.png)
+<div align="center">
+  <img src="frontend/static/favicon.svg" alt="Logo" width="200">
+  <h1 align="center">pb-deployer</h1>
+</div>
 
-# <img src="frontend/static/favicon.svg" width="32" height="32" style="vertical-align: middle;"> pb-deployer
+<div align="center">
+  <a href="https://github.com/magooney-loon/pb-deployer/graphs/contributors"><img src="https://img.shields.io/github/contributors/All-Hands-AI/OpenHands?style=for-the-badge&color=blue" alt="Contributors"></a>
+  <a href="https://github.com/magooney-loon/pb-deployer/stargazers"><img src="https://img.shields.io/github/stars/All-Hands-AI/OpenHands?style=for-the-badge&color=blue" alt="Stargazers"></a>
+  <a href="https://github.com/magooney-loon/pb-deployer/blob/main/LICENSE"><img src="https://img.shields.io/github/license/All-Hands-AI/OpenHands?style=for-the-badge&color=blue" alt="AGPL-3.0"></a>
+  <br/>
+  <hr>
+</div>
 
 Automates the complete lifecycle of deploying PocketBase apps to production servers:
 - **Server Setup**: Automated SSH user creation, directory structure, security hardening
@@ -38,3 +47,6 @@ go run cmd/scripts/main.go --install
 - Safe production deployments with version tracking
 
 See `./*/README.md` for detailed component documentation.
+
+## Contribution
+PRs are encouraged, but consider opening a discussion first for minor/major features.
