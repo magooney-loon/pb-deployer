@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Modal from '$lib/components/main/Modal.svelte';
+	import { StatusBadge } from '$lib/components/partials';
 
 	interface Props {
 		open?: boolean;
@@ -119,23 +120,11 @@
 							<span class="text-gray-600 dark:text-gray-400">Setup Status:</span>
 							<span class="text-gray-900 dark:text-gray-100">
 								{#if item.setup_complete && item.security_locked}
-									<span
-										class="rounded bg-emerald-50 px-2 py-1 text-xs text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:ring-emerald-800"
-									>
-										Ready
-									</span>
+									<StatusBadge status="Secured" variant="info" />
 								{:else if item.setup_complete}
-									<span
-										class="rounded bg-amber-50 px-2 py-1 text-xs text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:ring-amber-800"
-									>
-										Setup Complete
-									</span>
+									<StatusBadge status="Ready" variant="success" />
 								{:else}
-									<span
-										class="rounded bg-red-50 px-2 py-1 text-xs text-red-700 ring-1 ring-red-200 dark:bg-red-950 dark:text-red-300 dark:ring-red-800"
-									>
-										Not Setup
-									</span>
+									<StatusBadge status="Not Setup" variant="warning" />
 								{/if}
 							</span>
 						</div>
@@ -151,23 +140,11 @@
 								<span class="text-gray-600 dark:text-gray-400">Status:</span>
 								<span class="text-gray-900 dark:text-gray-100">
 									{#if item.status === 'online'}
-										<span
-											class="rounded bg-green-50 px-2 py-1 text-xs text-green-700 ring-1 ring-green-200 dark:bg-green-950 dark:text-green-300 dark:ring-green-800"
-										>
-											Online
-										</span>
+										<StatusBadge status="Online" variant="success" />
 									{:else if item.status === 'offline'}
-										<span
-											class="rounded bg-red-50 px-2 py-1 text-xs text-red-700 ring-1 ring-red-200 dark:bg-red-950 dark:text-red-300 dark:ring-red-800"
-										>
-											Offline
-										</span>
+										<StatusBadge status="Offline" variant="error" />
 									{:else}
-										<span
-											class="rounded bg-gray-50 px-2 py-1 text-xs text-gray-700 ring-1 ring-gray-200 dark:bg-gray-950 dark:text-gray-300 dark:ring-gray-800"
-										>
-											{item.status}
-										</span>
+										<StatusBadge status="Unknown" variant="gray" />
 									{/if}
 								</span>
 							</div>
