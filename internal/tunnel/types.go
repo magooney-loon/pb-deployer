@@ -21,13 +21,13 @@ type SSHClient interface {
 
 // Config holds SSH connection configuration
 type Config struct {
-	Host       string
-	Port       int
-	User       string
-	Auth       AuthConfig    // Authentication and host key verification configuration
-	Timeout    time.Duration // Connection timeout
-	RetryCount int           // Number of connection retries
-	RetryDelay time.Duration // Delay between retries
+	Host           string
+	Port           int
+	User           string
+	KnownHostsFile string        // Optional custom known_hosts file path
+	Timeout        time.Duration // Connection timeout
+	RetryCount     int           // Number of connection retries
+	RetryDelay     time.Duration // Delay between retries
 }
 
 // Result represents command execution result
@@ -378,9 +378,4 @@ func (s *SimpleLogger) OnError(operation string, err error) {
 	fmt.Printf("SSH Error in %s: %s\n", operation, err.Error())
 }
 
-// HostKeyMode represents different host key verification modes
-// These are defined in auth.go but documented here for reference:
-//   - HostKeyModeStrict: Uses known_hosts file with strict checking
-//   - HostKeyModeAcceptNew: Accepts new keys and adds them to known_hosts
-//   - HostKeyModeInsecure: Disables host key verification (NOT RECOMMENDED)
-//   - HostKeyModeCustom: Uses a custom callback function
+// Production deployment uses SSH agent authentication with strict host key verification

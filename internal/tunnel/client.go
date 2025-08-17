@@ -51,12 +51,11 @@ func NewClient(config Config) (*Client, error) {
 			Message: "user is required",
 		}
 	}
-	// Validate auth configuration
-	if _, err := GetAuthMethods(config.Auth); err != nil {
+	// Validate SSH agent is available
+	if !IsAgentAvailable() {
 		return nil, &Error{
 			Type:    ErrorAuth,
-			Message: "no valid authentication methods available",
-			Cause:   err,
+			Message: "SSH agent is required but not available",
 		}
 	}
 
@@ -80,7 +79,10 @@ func (c *Client) Connect() error {
 	c.tracer.OnConnect(c.config.Host, c.config.User)
 
 	// Build SSH client config
-	hostKeyCallback, err := GetHostKeyCallback(c.config.Auth.HostKeyVerification)
+	authConfig := AuthConfig{
+		KnownHostsFile: c.config.KnownHostsFile,
+	}
+	hostKeyCallback, err := GetHostKeyCallback(authConfig)
 	if err != nil {
 		c.tracer.OnError("get_host_key_callback", err)
 		return &Error{
@@ -97,7 +99,7 @@ func (c *Client) Connect() error {
 	}
 
 	// Setup authentication
-	authMethods, err := GetAuthMethods(c.config.Auth)
+	authMethods, err := GetAuthMethods(authConfig)
 	if err != nil {
 		c.tracer.OnError("get_auth_methods", err)
 		return &Error{

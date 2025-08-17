@@ -8,8 +8,6 @@ export interface ServerFormData {
 	port: number;
 	root_username: string;
 	app_username: string;
-	use_ssh_agent: boolean;
-	manual_key_path: string;
 }
 
 export interface ServerListState {
@@ -24,6 +22,13 @@ export interface ServerListState {
 	showDeleteModal: boolean;
 	serverToDelete: Server | null;
 	apps: { id: string; name: string; domain?: string }[]; // For delete modal to show related apps
+	// Setup and security operations
+	setupInProgress: string | null; // Server ID being setup
+	securityInProgress: string | null; // Server ID being secured
+	validationInProgress: string | null; // Server ID being validated
+	setupError: string | null;
+	securityError: string | null;
+	validationError: string | null;
 }
 
 export class ServerListLogic {
@@ -48,15 +53,20 @@ export class ServerListLogic {
 				host: '',
 				port: 22,
 				root_username: 'root',
-				app_username: 'pocketbase',
-				use_ssh_agent: true,
-				manual_key_path: ''
+				app_username: 'pocketbase'
 			},
 			creating: false,
 			deleting: false,
 			showDeleteModal: false,
 			serverToDelete: null,
-			apps: []
+			apps: [],
+			// Setup and security operations
+			setupInProgress: null,
+			securityInProgress: null,
+			validationInProgress: null,
+			setupError: null,
+			securityError: null,
+			validationError: null
 		};
 	}
 
@@ -97,8 +107,8 @@ export class ServerListLogic {
 				port: this.state.newServer.port,
 				root_username: this.state.newServer.root_username,
 				app_username: this.state.newServer.app_username,
-				use_ssh_agent: this.state.newServer.use_ssh_agent,
-				manual_key_path: this.state.newServer.manual_key_path
+				use_ssh_agent: true,
+				manual_key_path: ''
 			};
 
 			const server = await this.api.servers.createServer(serverData);
@@ -165,9 +175,7 @@ export class ServerListLogic {
 				host: '',
 				port: 22,
 				root_username: 'root',
-				app_username: 'pocketbase',
-				use_ssh_agent: true,
-				manual_key_path: ''
+				app_username: 'pocketbase'
 			}
 		});
 	}
@@ -207,6 +215,102 @@ export class ServerListLogic {
 
 	public getServerStatusBadge(server: Server) {
 		return getServerStatusBadge(server);
+	}
+
+	public async setupServer(serverId: string): Promise<void> {
+		try {
+			this.updateState({
+				setupInProgress: serverId,
+				setupError: null,
+				validationError: null,
+				error: null,
+				successMessage: null
+			});
+
+			const response = await this.api.setup.setupServerFromRecord(serverId);
+
+			// Update server in local state
+			const servers = this.state.servers.map((server) =>
+				server.id === serverId ? { ...server, setup_complete: true } : server
+			);
+
+			this.updateState({
+				servers,
+				setupInProgress: null,
+				successMessage: `Server setup completed successfully! ${response.setup_info.os} (${response.setup_info.architecture})`
+			});
+		} catch (err) {
+			const error = err instanceof Error ? err.message : 'Failed to setup server';
+
+			this.updateState({
+				setupInProgress: null,
+				setupError: error,
+				error
+			});
+		}
+	}
+
+	public async secureServer(serverId: string): Promise<void> {
+		try {
+			this.updateState({
+				securityInProgress: serverId,
+				securityError: null,
+				error: null,
+				successMessage: null
+			});
+
+			const response = await this.api.setup.secureServerFromRecord(serverId);
+
+			// Update server in local state
+			const servers = this.state.servers.map((server) =>
+				server.id === serverId ? { ...server, security_locked: true } : server
+			);
+
+			this.updateState({
+				servers,
+				securityInProgress: null,
+				successMessage: `Server security hardening completed! ${response.applied_config.firewall_rules.length} firewall rules applied.`
+			});
+		} catch (err) {
+			const error = err instanceof Error ? err.message : 'Failed to secure server';
+			this.updateState({
+				securityInProgress: null,
+				securityError: error,
+				error
+			});
+		}
+	}
+
+	public isServerSetupInProgress(serverId: string): boolean {
+		return this.state.setupInProgress === serverId;
+	}
+
+	public isServerSecurityInProgress(serverId: string): boolean {
+		return this.state.securityInProgress === serverId;
+	}
+
+	public canSetupServer(server: Server): boolean {
+		return !server.setup_complete && !this.isServerSetupInProgress(server.id);
+	}
+
+	public canSecureServer(server: Server): boolean {
+		return (
+			server.setup_complete &&
+			!server.security_locked &&
+			!this.isServerSecurityInProgress(server.id)
+		);
+	}
+
+	public dismissSetupError(): void {
+		this.updateState({ setupError: null });
+	}
+
+	public dismissSecurityError(): void {
+		this.updateState({ securityError: null });
+	}
+
+	public dismissValidationError(): void {
+		this.updateState({ validationError: null });
 	}
 
 	public async cleanup(): Promise<void> {

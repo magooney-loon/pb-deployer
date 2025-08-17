@@ -8,8 +8,6 @@
 		port: number;
 		root_username: string;
 		app_username: string;
-		use_ssh_agent: boolean;
-		manual_key_path: string;
 	}
 
 	interface Props {
@@ -26,9 +24,7 @@
 		host: '',
 		port: 22,
 		root_username: 'root',
-		app_username: 'pocketbase',
-		use_ssh_agent: true,
-		manual_key_path: ''
+		app_username: 'pocketbase'
 	});
 
 	function handleClose() {
@@ -44,9 +40,7 @@
 			host: '',
 			port: 22,
 			root_username: 'root',
-			app_username: 'pocketbase',
-			use_ssh_agent: true,
-			manual_key_path: ''
+			app_username: 'pocketbase'
 		};
 	}
 
@@ -87,7 +81,7 @@
 				<div class="border-b border-gray-200 pb-2 dark:border-gray-700">
 					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Server Connection</h3>
 					<p class="text-sm text-gray-500 dark:text-gray-400">
-						Configure how to connect to your server
+						Configure your production server connection details
 					</p>
 				</div>
 
@@ -97,7 +91,7 @@
 							id="server-name"
 							label="Server Name"
 							value={formData.name}
-							placeholder="e.g., Production Server, Dev Environment"
+							placeholder="e.g., Production Server, Main VPS"
 							required
 							disabled={creating}
 							oninput={(e) => (formData.name = (e.target as HTMLInputElement).value)}
@@ -125,7 +119,7 @@
 						max={65535}
 						disabled={true}
 						oninput={(e) => (formData.port = parseInt((e.target as HTMLInputElement).value) || 22)}
-						helperText="Default SSH port is 22"
+						helperText="Standard SSH port (locked to 22)"
 					/>
 				</div>
 			</div>
@@ -154,7 +148,7 @@
 						id="server-app-username"
 						label="Application Username"
 						value={formData.app_username}
-						placeholder="app"
+						placeholder="pocketbase"
 						disabled={true}
 						oninput={(e) => (formData.app_username = (e.target as HTMLInputElement).value)}
 						helperText="Non-privileged user for running applications (locked)"
@@ -162,78 +156,7 @@
 				</div>
 			</div>
 
-			<!-- SSH Authentication -->
-			<div class="space-y-4">
-				<div class="border-b border-gray-200 pb-2 dark:border-gray-700">
-					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">SSH Authentication</h3>
-					<p class="text-sm text-gray-500 dark:text-gray-400">
-						Choose how to authenticate with the server
-					</p>
-				</div>
-
-				<div class="space-y-4">
-					<!-- SSH Agent Option -->
-					<div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-						<label class="flex cursor-pointer items-start space-x-3">
-							<input
-								type="checkbox"
-								bind:checked={formData.use_ssh_agent}
-								disabled={creating}
-								class="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
-								autocomplete="off"
-								data-form-type="other"
-							/>
-							<div class="flex-1">
-								<div class="font-medium text-gray-900 dark:text-gray-100">Use SSH Agent</div>
-								<div class="text-sm text-gray-500 dark:text-gray-400">
-									Use keys loaded in your SSH agent (recommended)
-								</div>
-							</div>
-						</label>
-					</div>
-
-					<!-- Manual Key Path (shown when SSH Agent is disabled) -->
-					{#if !formData.use_ssh_agent}
-						<div
-							class="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-900/20"
-						>
-							<div class="mb-3">
-								<div class="flex items-center space-x-2">
-									<svg
-										class="h-4 w-4 text-amber-600 dark:text-amber-400"
-										fill="currentColor"
-										viewBox="0 0 20 20"
-									>
-										<path
-											fill-rule="evenodd"
-											d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-											clip-rule="evenodd"
-										/>
-									</svg>
-									<span class="font-medium text-amber-800 dark:text-amber-200">
-										Manual SSH Key
-									</span>
-								</div>
-								<p class="mt-1 text-sm text-amber-700 dark:text-amber-300">
-									Specify the path to your private SSH key file
-								</p>
-							</div>
-
-							<FormField
-								id="server-manual-key-path"
-								label="Private Key Path"
-								value={formData.manual_key_path}
-								placeholder="/home/user/.ssh/id_rsa"
-								disabled={creating}
-								oninput={(e) => (formData.manual_key_path = (e.target as HTMLInputElement).value)}
-								helperText="Full path to your private SSH key file"
-							/>
-						</div>
-					{/if}
-				</div>
-			</div>
-
-			<!-- Info Box -->
+			<!-- SSH Agent Info -->
 			<div
 				class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-700 dark:bg-blue-900/20"
 			>
@@ -250,8 +173,15 @@
 						/>
 					</svg>
 					<div class="flex-1">
-						<h4 class="font-medium text-blue-900 dark:text-blue-100">Tested On</h4>
-						<p class="mt-1 text-sm text-blue-800 dark:text-blue-200">Hertzner Ubuntu VPS</p>
+						<h4 class="font-medium text-blue-900 dark:text-blue-100">SSH Authentication</h4>
+						<p class="mt-1 text-sm text-blue-800 dark:text-blue-200">
+							This production deployment tool uses SSH agent authentication exclusively. Ensure your
+							SSH agent is running and has your keys loaded before setup.
+						</p>
+						<div class="mt-2 text-xs text-blue-700 dark:text-blue-300">
+							<code class="rounded bg-blue-100 px-1 py-0.5 dark:bg-blue-800">ssh-add -l</code> to verify
+							loaded keys
+						</div>
 					</div>
 				</div>
 			</div>
@@ -292,7 +222,7 @@
 					</svg>
 					Creating...
 				{:else}
-					Create Server
+					Add Server
 				{/if}
 			</Button>
 		</div>

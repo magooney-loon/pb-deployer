@@ -1,14 +1,16 @@
-# Tunnel Package - PocketBase Deployment Automation
+# Tunnel Package - PocketBase Production Deployment
 
-A streamlined SSH client library specifically designed for automating PocketBase server setup and deployment.
+A streamlined SSH client library specifically designed for automating PocketBase production server setup and deployment.
 
 ## Core Purpose
 
 Automates the lifecycle of deploying PocketBase apps to production servers through:
 
 1. **Server Setup**: Automated user creation and directory structure (`/opt/pocketbase/apps/`)
-2. **Security Lockdown**: Firewall, fail2ban, disable root SSH
+2. **Security Hardening**: Firewall, fail2ban, SSH hardening
 3. **Deployment**: SFTP transfer protocol & systemd service management (coming soon)
+
+**Production Focus**: This tool is designed exclusively for production deployment with SSH agent authentication and strict security practices.
 
 ## Architecture
 
@@ -82,16 +84,21 @@ package main
 
 import (
     "fmt"
+    "time"
     "github.com/magooney-loon/pb-deployer/internal/tunnel"
 )
 
 func main() {
-    // 1. Connect to server
+    // 1. Ensure SSH agent is available
+    if !tunnel.IsAgentAvailable() {
+        panic("SSH agent is required but not available")
+    }
+
+    // 2. Connect to server (SSH agent auth only)
     client, err := tunnel.NewClient(tunnel.Config{
         Host:    "your-server.com",
         Port:    22,
         User:    "root",
-        Auth:    tunnel.AuthConfigFromKeyPath("~/.ssh/id_rsa"),
         Timeout: 30 * time.Second,
     })
     if err != nil {
@@ -103,18 +110,19 @@ func main() {
         panic(err)
     }
 
-    // 2. Create managers
+    // 3. Create managers
     mgr := tunnel.NewManager(client)
     setupMgr := tunnel.NewSetupManager(mgr)
     securityMgr := tunnel.NewSecurityManager(mgr)
 
-    // 3. Setup PocketBase server
-    err = setupMgr.SetupPocketBaseServer("pocketbase", []string{publicKey})
+    // 4. Setup PocketBase server
+    publicKeys := []string{"ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB..."}
+    err = setupMgr.SetupPocketBaseServer("pocketbase", publicKeys)
     if err != nil {
         panic(err)
     }
 
-    // 4. Secure the server
+    // 5. Secure the server
     securityConfig := tunnel.SecurityConfig{
         FirewallRules:  securityMgr.GetDefaultPocketBaseRules(),
         HardenSSH:      true,
@@ -127,7 +135,7 @@ func main() {
         panic(err)
     }
 
-    fmt.Println("PocketBase server setup completed!")
+    fmt.Println("PocketBase production server setup completed!")
 }
 ```
 
@@ -228,189 +236,80 @@ if err != nil {
 ### Connection Config
 ```go
 type Config struct {
-    Host       string        // Server hostname/IP
-    Port       int           // SSH port (default: 22)
-    User       string        // SSH username
-    Auth       AuthConfig    // Authentication configuration
-    Timeout    time.Duration // Connection timeout
-    RetryCount int           // Connection retries
-    RetryDelay time.Duration // Retry delay
+    Host           string        // Server hostname/IP
+    Port           int           // SSH port (default: 22)
+    User           string        // SSH username
+    KnownHostsFile string        // Optional custom known_hosts file path
+    Timeout        time.Duration // Connection timeout
+    RetryCount     int           // Connection retries
+    RetryDelay     time.Duration // Retry delay
 }
 ```
 
 ### Authentication and Security
 
-The tunnel package supports two authentication methods with comprehensive security features:
+The tunnel package uses SSH agent authentication exclusively with strict host key verification for production security.
 
-#### SSH Agent (Recommended)
+#### SSH Agent Authentication (Required)
+
 ```go
-// Use SSH agent if available (auto-detected)
-config := tunnel.Config{
-    Host: "server.com",
-    User: "user",
-    Auth: tunnel.AuthConfigWithAgent(),
+// Check if SSH agent is available
+if !tunnel.IsAgentAvailable() {
+    log.Fatal("SSH agent is required but not available")
 }
 
-// Or with fallback to auto-detected keys
+// Create client - automatically uses SSH agent
 config := tunnel.Config{
     Host: "server.com",
-    User: "user",
-    Auth: tunnel.DefaultAuthConfig(), // Uses agent if available, falls back to ~/.ssh keys
-}
-```
-
-#### Private Key File
-```go
-// Specific key file
-config := tunnel.Config{
-    Host: "server.com",
-    User: "user",
-    Auth: tunnel.AuthConfigFromKeyPath("~/.ssh/id_rsa"),
+    Port: 22,
+    User: "root",
+    Timeout: 30 * time.Second,
 }
 
-// Key file with passphrase
-config := tunnel.Config{
-    Host: "server.com",
-    User: "user",
-    Auth: tunnel.AuthConfigFromKeyPath("~/.ssh/id_rsa", "passphrase"),
-}
-
-// Custom auth configuration
-config := tunnel.Config{
-    Host: "server.com",
-    User: "user",
-    Auth: tunnel.AuthConfig{
-        UseAgent:      IsAgentAvailable(),
-        KeyPath:       "~/.ssh/custom_key",
-        KeyPassphrase: "secret",
-        PreferAgent:   true, // Try agent first, fallback to key file
-        HostKeyVerification: tunnel.HostKeyConfig{
-            Mode:                  tunnel.HostKeyModeAcceptNew,
-            StrictHostKeyChecking: false,
-            AcceptNewKeys:         true,
-            KnownHostsFile:        "~/.ssh/known_hosts",
-        },
-    },
+client, err := tunnel.NewClient(config)
+if err != nil {
+    log.Fatal(err)
 }
 ```
 
 #### Host Key Verification
 
-The tunnel package provides secure host key verification to prevent man-in-the-middle attacks:
+Production deployment uses strict host key verification with known_hosts:
 
 ```go
-// Strict host key checking (production recommended)
+// Default configuration uses ~/.ssh/known_hosts
 config := tunnel.Config{
     Host: "server.com",
-    User: "user",
-    Auth: tunnel.AuthConfig{
-        UseAgent: true,
-        HostKeyVerification: tunnel.StrictHostKeyConfig(),
-    },
-}
-
-// Accept new keys and add to known_hosts (development friendly)
-config := tunnel.Config{
-    Host: "server.com",
-    User: "user",
-    Auth: tunnel.AuthConfig{
-        KeyPath: "~/.ssh/id_rsa",
-        HostKeyVerification: tunnel.DefaultHostKeyConfig(), // Accepts new keys
-    },
+    User: "root",
+    // KnownHostsFile: "", // Uses ~/.ssh/known_hosts by default
 }
 
 // Custom known_hosts file location
 config := tunnel.Config{
     Host: "server.com",
-    User: "user",
-    Auth: tunnel.AuthConfig{
-        UseAgent: true,
-        HostKeyVerification: tunnel.HostKeyConfig{
-            Mode: tunnel.HostKeyModeStrict,
-            KnownHostsFile: "/custom/path/known_hosts",
-        },
-    },
-}
-
-// Insecure mode (NOT RECOMMENDED for production)
-config := tunnel.Config{
-    Host: "server.com",
-    User: "user",
-    Auth: tunnel.AuthConfig{
-        KeyPath: "~/.ssh/id_rsa",
-        HostKeyVerification: tunnel.InsecureHostKeyConfig(),
-    },
+    User: "root",
+    KnownHostsFile: "/custom/path/known_hosts",
 }
 ```
 
-#### Host Key Validation
+#### Prerequisites
 
-```go
-// Validate a host key against known_hosts
-err := tunnel.ValidateHostKey("server.com", publicKey)
-if err != nil {
-    fmt.Printf("Host key validation failed: %v\n", err)
-}
+Before using the tunnel package:
 
-// Validate against custom known_hosts file
-err = tunnel.ValidateHostKey("server.com", publicKey, "/custom/known_hosts")
-```
+1. **SSH Agent**: Ensure SSH agent is running with your keys loaded
+2. **Known Hosts**: Add server host keys to your known_hosts file
+3. **Server Access**: Ensure you have root or sudo access on target server
 
-#### Authentication Validation
-```go
-// Check if SSH agent is available
-if tunnel.IsAgentAvailable() {
-    fmt.Println("SSH agent detected")
-}
+```bash
+# Start SSH agent and add keys
+eval $(ssh-agent)
+ssh-add ~/.ssh/id_rsa
 
-// Validate a key file before use
-if err := tunnel.ValidateKeyFile("~/.ssh/id_rsa"); err != nil {
-    fmt.Printf("Key validation failed: %v\n", err)
-}
+# Add server to known_hosts (first connection)
+ssh-keyscan your-server.com >> ~/.ssh/known_hosts
 
-// Get key fingerprint
-fingerprint, err := tunnel.GetKeyFingerprint("~/.ssh/id_rsa")
-if err == nil {
-    fmt.Printf("Key fingerprint: %s\n", fingerprint)
-}
-
-// Validate host key verification setup
-hostKeyConfig := tunnel.DefaultHostKeyConfig()
-callback, err := tunnel.GetHostKeyCallback(hostKeyConfig)
-if err == nil {
-    fmt.Println("✓ Host key verification configured")
-}
-```
-
-### Host Key Verification Modes
-
-```go
-// Strict mode - requires keys to exist in known_hosts
-type HostKeyConfig struct {
-    Mode                  HostKeyMode // HostKeyModeStrict
-    StrictHostKeyChecking bool        // true
-    AcceptNewKeys         bool        // false
-    KnownHostsFile        string      // "~/.ssh/known_hosts"
-}
-
-// Accept new mode - adds unknown keys to known_hosts
-type HostKeyConfig struct {
-    Mode                  HostKeyMode // HostKeyModeAcceptNew
-    StrictHostKeyChecking bool        // false
-    AcceptNewKeys         bool        // true
-    KnownHostsFile        string      // "~/.ssh/known_hosts"
-}
-
-// Insecure mode - no host key verification (NOT RECOMMENDED)
-type HostKeyConfig struct {
-    Mode HostKeyMode // HostKeyModeInsecure
-}
-
-// Custom mode - use your own callback function
-type HostKeyConfig struct {
-    Mode            HostKeyMode         // HostKeyModeCustom
-    HostKeyCallback ssh.HostKeyCallback // Your custom function
-}
+# Verify SSH agent has keys
+ssh-add -l
 ```
 
 ### Execution Options
@@ -432,13 +331,13 @@ func WithSystemUser() UserOption
 
 ## Design Principles
 
-1. **PocketBase Focus**: Built specifically for PocketBase deployment workflows
-2. **Single Connection**: One server at a time, no connection pooling complexity
-3. **Simple Operations**: Direct API without excessive abstraction
-4. **Practical Defaults**: Sensible security defaults for production servers
-5. **Clear Errors**: Simple error types that are easy to understand
-6. **Minimal Dependencies**: Keep it simple and maintainable
-7. **Security First**: Proper host key verification and authentication by default
+1. **Production Focus**: Built exclusively for production PocketBase deployment
+2. **SSH Agent Only**: Simplified authentication using SSH agent exclusively
+3. **Security First**: Strict host key verification and security hardening by default
+4. **Single Connection**: One server at a time, no connection pooling complexity
+5. **Simple Operations**: Direct API without excessive abstraction
+6. **Clear Errors**: Simple error types that are easy to understand
+7. **Minimal Dependencies**: Keep it simple and maintainable
 
 ## Dependencies
 
@@ -452,4 +351,4 @@ func WithSystemUser() UserOption
 - **SSL/TLS Setup**: Automatic certificate management
 - **Monitoring**: Basic health checks and log management
 
-This package is specifically designed for the PocketBase deployment workflow described in the main project README.
+This package is specifically designed for production PocketBase deployment with enterprise-grade security practices.

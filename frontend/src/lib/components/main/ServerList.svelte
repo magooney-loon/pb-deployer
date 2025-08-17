@@ -13,8 +13,6 @@
 		port: number;
 		root_username: string;
 		app_username: string;
-		use_ssh_agent: boolean;
-		manual_key_path: string;
 	}
 
 	const logic = new ServerListLogic();
@@ -38,8 +36,6 @@
 		logic.updateNewServer('port', serverData.port);
 		logic.updateNewServer('root_username', serverData.root_username);
 		logic.updateNewServer('app_username', serverData.app_username);
-		logic.updateNewServer('use_ssh_agent', serverData.use_ssh_agent);
-		logic.updateNewServer('manual_key_path', serverData.manual_key_path);
 
 		await logic.createServer();
 	}
@@ -62,6 +58,26 @@
 
 {#if state.error}
 	<Toast message={state.error} type="error" onDismiss={() => logic.dismissError()} />
+{/if}
+
+{#if state.setupError}
+	<Toast message={state.setupError} type="error" onDismiss={() => logic.dismissSetupError()} />
+{/if}
+
+{#if state.securityError}
+	<Toast
+		message={state.securityError}
+		type="error"
+		onDismiss={() => logic.dismissSecurityError()}
+	/>
+{/if}
+
+{#if state.validationError}
+	<Toast
+		message={state.validationError}
+		type="error"
+		onDismiss={() => logic.dismissValidationError()}
+	/>
 {/if}
 
 {#if state.successMessage}
@@ -131,16 +147,47 @@
 							<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
 								<div>Root: {server.root_username}</div>
 								<div>App: {server.app_username}</div>
-								{#if server.use_ssh_agent}
-									<div class="text-xs text-blue-600 dark:text-blue-400">SSH Agent</div>
-								{:else}
-									<div class="text-xs text-gray-400 dark:text-gray-500">Manual Key</div>
-								{/if}
+								<div class="text-xs text-blue-600 dark:text-blue-400">SSH Agent</div>
 							</td>
 							<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
 								{formatTimestamp(server.created)}
 							</td>
 							<td class="space-x-2 px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
+								<!-- Setup Button (only if not setup) -->
+								{#if logic.canSetupServer(server)}
+									<Button
+										variant="outline"
+										color="green"
+										size="sm"
+										disabled={logic.isServerSetupInProgress(server.id)}
+										onclick={() => logic.setupServer(server.id)}
+									>
+										{#snippet iconSnippet()}
+											<Icon name={logic.isServerSetupInProgress(server.id) ? 'loading' : 'setup'} />
+										{/snippet}
+										{logic.isServerSetupInProgress(server.id) ? 'Setting up...' : 'Setup'}
+									</Button>
+								{/if}
+
+								<!-- Security Button (only if setup but not secured) -->
+								{#if logic.canSecureServer(server)}
+									<Button
+										variant="outline"
+										color="yellow"
+										size="sm"
+										disabled={logic.isServerSecurityInProgress(server.id)}
+										onclick={() => logic.secureServer(server.id)}
+									>
+										{#snippet iconSnippet()}
+											<Icon
+												name={logic.isServerSecurityInProgress(server.id) ? 'loading' : 'shield'}
+											/>
+										{/snippet}
+										{logic.isServerSecurityInProgress(server.id) ? 'Securing...' : 'Secure'}
+									</Button>
+								{/if}
+
+								<!-- Delete Button -->
 								<Button
 									variant="ghost"
 									color="red"
