@@ -1,23 +1,3 @@
-### Basic Development Build
-```bash
-go run cmd/scripts/main.go
-```
-
-### Production Build
-```bash
-go run cmd/scripts/main.go --production
-```
-
-### Install Dependencies + Build
-```bash
-go run cmd/scripts/main.go --install
-```
-
-### Test Suite Only
-```bash
-go run cmd/scripts/main.go --test-only
-```
-
 ## 📋 Command Reference
 
 | Command | Description | Example Output |
