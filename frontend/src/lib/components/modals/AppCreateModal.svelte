@@ -36,9 +36,6 @@
 	let availableServers = $derived(servers.filter((s) => s.setup_complete));
 	let selectedServer = $derived(availableServers.find((s) => s.id === formData.server_id));
 
-	let suggestedRemotePath = $derived(formData.name ? `/opt/pocketbase/apps/${formData.name}` : '');
-	let suggestedServiceName = $derived(formData.name ? `pocketbase-${formData.name}` : '');
-
 	function handleClose() {
 		if (!creating) {
 			resetForm();
@@ -199,33 +196,6 @@
 						oninput={(e) => (formData.version_notes = (e.target as HTMLInputElement).value)}
 					/>
 				</div>
-			</div>
-
-			<!-- Deployment Configuration -->
-			<div class="space-y-4">
-				{#if formData.name}
-					<div
-						class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-800/50"
-					>
-						<h4 class="mb-2 font-medium text-gray-900 dark:text-gray-100">
-							Generated Paths Preview
-						</h4>
-						<div class="space-y-1 text-sm">
-							<div class="flex justify-between">
-								<span class="text-gray-600 dark:text-gray-400">Remote Path:</span>
-								<code class="text-gray-900 dark:text-gray-100"
-									>{formData.remote_path || suggestedRemotePath}</code
-								>
-							</div>
-							<div class="flex justify-between">
-								<span class="text-gray-600 dark:text-gray-400">Service Name:</span>
-								<code class="text-gray-900 dark:text-gray-100"
-									>{formData.service_name || suggestedServiceName}</code
-								>
-							</div>
-						</div>
-					</div>
-				{/if}
 			</div>
 		</form>
 	</div>
