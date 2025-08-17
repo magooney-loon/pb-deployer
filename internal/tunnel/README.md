@@ -1,16 +1,16 @@
-# Tunnel Package - Simplified Architecture
+# Tunnel Package - PocketBase Deployment Automation
 
-A streamlined SSH client library for server management.
+A streamlined SSH client library specifically designed for automating PocketBase server setup and deployment.
 
-## Core Principles
+## Core Purpose
 
-- **Single Connection**: One server at a time, no connection pooling needed
-- **Direct Access**: Simple, direct API without excessive abstraction
-- **Practical Defaults**: Sensible defaults with optional configuration
-- **Clear Errors**: Simple error types that are easy to understand
-- **Minimal Dependencies**: Keep it simple and maintainable
+Automates the lifecycle of deploying PocketBase apps to production servers through:
 
-## Core Components
+1. **Server Setup**: Automated user creation and directory structure (`/opt/pocketbase/apps/`)
+2. **Security Lockdown**: Firewall, fail2ban, disable root SSH
+3. **Deployment**: SFTP transfer protocol & systemd service management (coming soon)
+
+## Architecture
 
 ### 1. SSH Client (Single Connection)
 
@@ -23,165 +23,189 @@ type Client struct {
     tracer   Tracer
 }
 
-// Config holds connection configuration
-type Config struct {
-    Host        string
-    Port        int
-    User        string
-    Password    string        // Optional: password auth
-    PrivateKey  string        // Optional: key auth
-    Timeout     time.Duration
-    RetryCount  int
-}
-
 // Basic operations
 func NewClient(config Config) (*Client, error)
 func (c *Client) Connect() error
 func (c *Client) Close() error
-func (c *Client) IsConnected() bool
 func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error)
 func (c *Client) ExecuteSudo(cmd string, opts ...ExecOption) (*Result, error)
 func (c *Client) Upload(localPath, remotePath string) error
 func (c *Client) Download(remotePath, localPath string) error
 ```
 
-### 2. Manager (All-in-One)
+### 2. Setup Manager (PocketBase Server Setup)
 
 ```go
-// Manager handles all server operations through a single interface
-type Manager struct {
-    client *Client
-    tracer Tracer
+// SetupManager handles server setup operations for PocketBase deployment
+type SetupManager struct {
+    manager *Manager
 }
 
-func NewManager(client *Client) *Manager
+func NewSetupManager(manager *Manager) *SetupManager
 
-// User Management
-func (m *Manager) CreateUser(username string, opts ...UserOption) error
-func (m *Manager) DeleteUser(username string) error
-func (m *Manager) SetupSSHKeys(username string, keys []string) error
+// Main setup function
+func (s *SetupManager) SetupPocketBaseServer(username string, publicKeys []string) error
 
-// Service Management
-func (m *Manager) ServiceStart(name string) error
-func (m *Manager) ServiceStop(name string) error
-func (m *Manager) ServiceRestart(name string) error
-func (m *Manager) ServiceStatus(name string) (*ServiceStatus, error)
-func (m *Manager) ServiceLogs(name string, lines int) (string, error)
-
-// Security
-func (m *Manager) SetupFirewall(rules []FirewallRule) error
-func (m *Manager) HardenSSH(config SSHConfig) error
-func (m *Manager) SetupFail2ban() error
-
-// Deployment
-func (m *Manager) Deploy(app AppConfig) error
-func (m *Manager) Rollback(app string, version string) error
-
-// Package Management
-func (m *Manager) InstallPackages(packages ...string) error
-func (m *Manager) UpdateSystem() error
+// Core setup operations
+func (s *SetupManager) CreatePocketBaseDirectories(username string) error
+func (s *SetupManager) UpdateSystem() error
+func (s *SetupManager) InstallEssentials() error
+func (s *SetupManager) VerifySetup(username string) error
+func (s *SetupManager) GetSetupInfo() (*SetupInfo, error)
 ```
 
-## Simple Usage
+### 3. Security Manager (Server Hardening)
 
 ```go
-// Connect to server
-client, err := tunnel.NewClient(tunnel.Config{
-    Host:       "example.com",
-    Port:       22,
-    User:       "root",
-    PrivateKey: privateKeyContent,
-    Timeout:    30 * time.Second,
+// SecurityManager handles server security and hardening operations
+type SecurityManager struct {
+    manager *Manager
+}
+
+func NewSecurityManager(manager *Manager) *SecurityManager
+
+// Main security function
+func (s *SecurityManager) SecureServer(config SecurityConfig) error
+
+// Security operations
+func (s *SecurityManager) SetupFirewall(rules []FirewallRule) error
+func (s *SecurityManager) HardenSSH(config SSHConfig) error
+func (s *SecurityManager) SetupFail2ban() error
+func (s *SecurityManager) GetDefaultPocketBaseRules() []FirewallRule
+func (s *SecurityManager) GetDefaultSSHConfig() SSHConfig
+```
+
+## Quick Start
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/magooney-loon/pb-deployer/internal/tunnel"
+)
+
+func main() {
+    // 1. Connect to server
+    client, err := tunnel.NewClient(tunnel.Config{
+        Host:       "your-server.com",
+        Port:       22,
+        User:       "root",
+        PrivateKey: privateKeyContent,
+        Timeout:    30 * time.Second,
+    })
+    if err != nil {
+        panic(err)
+    }
+    defer client.Close()
+
+    if err := client.Connect(); err != nil {
+        panic(err)
+    }
+
+    // 2. Create managers
+    mgr := tunnel.NewManager(client)
+    setupMgr := tunnel.NewSetupManager(mgr)
+    securityMgr := tunnel.NewSecurityManager(mgr)
+
+    // 3. Setup PocketBase server
+    err = setupMgr.SetupPocketBaseServer("pocketbase", []string{publicKey})
+    if err != nil {
+        panic(err)
+    }
+
+    // 4. Secure the server
+    securityConfig := tunnel.SecurityConfig{
+        FirewallRules:  securityMgr.GetDefaultPocketBaseRules(),
+        HardenSSH:      true,
+        SSHConfig:      securityMgr.GetDefaultSSHConfig(),
+        EnableFail2ban: true,
+    }
+    
+    err = securityMgr.SecureServer(securityConfig)
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Println("PocketBase server setup completed!")
+}
+```
+
+## Core Workflow
+
+### Server Setup
+
+```go
+// Setup PocketBase server with user and directory structure
+err := setupMgr.SetupPocketBaseServer("pocketbase", []string{
+    "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB...", // your public key
 })
-if err != nil {
-    return err
-}
-defer client.Close()
 
-if err := client.Connect(); err != nil {
-    return err
-}
+// Verify setup was successful
+err = setupMgr.VerifySetup("pocketbase")
 
-// Create manager
-mgr := tunnel.NewManager(client)
-
-// Execute operations
-err = mgr.CreateUser("appuser",
-    tunnel.WithHome("/home/appuser"),
-    tunnel.WithGroups("sudo", "docker"),
-)
-
-err = mgr.SetupSSHKeys("appuser", []string{publicKey})
-
-err = mgr.InstallPackages("nginx", "docker", "git")
-
-err = mgr.ServiceRestart("nginx")
-
-// Deploy application
-err = mgr.Deploy(tunnel.AppConfig{
-    Name:       "myapp",
-    Version:    "v1.2.3",
-    Source:     "/local/app.tar.gz",
-    Target:     "/opt/myapp",
-    Service:    "myapp",
-    PreDeploy:  []string{"systemctl stop myapp"},
-    PostDeploy: []string{"systemctl start myapp"},
-})
+// Get setup information
+info, err := setupMgr.GetSetupInfo()
+fmt.Printf("OS: %s, Apps: %v\n", info.OS, info.InstalledApps)
 ```
 
-## Command Execution
+Creates:
+- User `pocketbase` with sudo access
+- Directory structure: `/opt/pocketbase/{apps,backups,logs,scripts}/`
+- Installs essentials: `curl`, `wget`, `unzip`, `systemd`, `logrotate`
+
+### Security Hardening
 
 ```go
-// Simple command
-result, err := client.Execute("ls -la /var/log")
-fmt.Println(result.Stdout)
+// Get default PocketBase firewall rules
+rules := securityMgr.GetDefaultPocketBaseRules()
+// Returns: SSH(22), HTTP(80), HTTPS(443), PocketBase Admin(8080), API(8090)
 
-// With sudo
-result, err = client.ExecuteSudo("apt update")
+// Apply security configuration
+config := tunnel.SecurityConfig{
+    FirewallRules:  rules,
+    HardenSSH:      true,
+    SSHConfig: tunnel.SSHConfig{
+        PasswordAuth: false,  // Disable password auth
+        RootLogin:    false,  // Disable root login
+        PubkeyAuth:   true,   // Enable key auth only
+        MaxAuthTries: 3,
+    },
+    EnableFail2ban: true,
+}
 
-// With options
-result, err = client.Execute("./long-running-script.sh",
-    tunnel.WithTimeout(5*time.Minute),
-    tunnel.WithEnv("NODE_ENV", "production"),
-    tunnel.WithWorkDir("/opt/app"),
-)
-
-// Stream output
-err = client.Execute("tail -f /var/log/syslog",
-    tunnel.WithStream(func(line string) {
-        fmt.Println("LOG:", line)
-    }),
-)
+err := securityMgr.SecureServer(config)
 ```
 
-## File Operations
+## Directory Structure Created
 
-```go
-// Upload file
-err := client.Upload("/local/config.yml", "/etc/app/config.yml")
-
-// Download file
-err := client.Download("/var/log/app.log", "/local/logs/app.log")
-
-// Upload with progress
-err := client.Upload("/local/large-file.tar.gz", "/tmp/large-file.tar.gz",
-    tunnel.WithProgress(func(percent int) {
-        fmt.Printf("Upload progress: %d%%\n", percent)
-    }),
-)
 ```
+/opt/pocketbase/
+├── apps/          # PocketBase application instances
+├── backups/       # Backup storage for rollbacks
+├── logs/          # Application logs
+└── scripts/       # Utility scripts
+```
+
+## Firewall Rules (Default)
+
+- **SSH (22/tcp)**: Remote access
+- **HTTP (80/tcp)**: Web traffic
+- **HTTPS (443/tcp)**: Secure web traffic  
+- **PocketBase Admin (8080/tcp)**: Admin dashboard
+- **PocketBase API (8090/tcp)**: API endpoints
+
+## SSH Hardening (Default)
+
+- Disable password authentication
+- Disable root login
+- Enable public key authentication only
+- Limit max auth tries to 3
+- Configure connection timeouts
 
 ## Error Handling
 
 ```go
-// Simple error types
-type Error struct {
-    Type    ErrorType // Connection, Auth, Execution, Timeout
-    Message string
-    Cause   error
-}
-
-// Usage
 result, err := client.Execute("some-command")
 if err != nil {
     if sshErr, ok := err.(*tunnel.Error); ok {
@@ -192,6 +216,8 @@ if err != nil {
             // Handle timeout
         case tunnel.ErrorExecution:
             // Command failed, check result.ExitCode
+        case tunnel.ErrorVerification:
+            // Setup verification failed
         }
     }
 }
@@ -199,131 +225,57 @@ if err != nil {
 
 ## Configuration Options
 
+### Connection Config
 ```go
-// User options
-type UserOption func(*userConfig)
+type Config struct {
+    Host       string        // Server hostname/IP
+    Port       int           // SSH port (default: 22)
+    User       string        // SSH username
+    Password   string        // Password auth (optional)
+    PrivateKey string        // Private key content or path
+    Passphrase string        // Key passphrase (optional)
+    Timeout    time.Duration // Connection timeout
+    RetryCount int           // Connection retries
+    RetryDelay time.Duration // Retry delay
+}
+```
 
+### Execution Options
+```go
+func WithTimeout(d time.Duration) ExecOption
+func WithEnv(key, value string) ExecOption
+func WithWorkDir(dir string) ExecOption
+func WithSudo() ExecOption
+```
+
+### User Creation Options
+```go
 func WithHome(path string) UserOption
 func WithShell(shell string) UserOption
 func WithGroups(groups ...string) UserOption
 func WithSudoAccess() UserOption
-
-// Execution options
-type ExecOption func(*execConfig)
-
-func WithTimeout(d time.Duration) ExecOption
-func WithEnv(key, value string) ExecOption
-func WithWorkDir(dir string) ExecOption
-func WithStream(handler func(string)) ExecOption
-
-// App deployment options
-type AppConfig struct {
-    Name        string
-    Version     string
-    Source      string   // Local path or URL
-    Target      string   // Remote path
-    Service     string   // Service name to restart
-    Backup      bool     // Backup before deploy
-    PreDeploy   []string // Commands to run before
-    PostDeploy  []string // Commands to run after
-    HealthCheck string   // URL or command to verify
-}
+func WithSystemUser() UserOption
 ```
 
-## Advanced Features (Optional)
+## Design Principles
 
-### Batch Operations
+1. **PocketBase Focus**: Built specifically for PocketBase deployment workflows
+2. **Single Connection**: One server at a time, no connection pooling complexity
+3. **Simple Operations**: Direct API without excessive abstraction
+4. **Practical Defaults**: Sensible security defaults for production servers
+5. **Clear Errors**: Simple error types that are easy to understand
+6. **Minimal Dependencies**: Keep it simple and maintainable
 
-```go
-// Execute multiple commands in sequence
-results, err := mgr.Batch(
-    tunnel.Cmd("apt update"),
-    tunnel.Cmd("apt upgrade -y"),
-    tunnel.Cmd("apt autoremove -y"),
-)
+## Dependencies
 
-// Transaction-like operations with rollback
-err := mgr.Transaction(func(tx *Transaction) error {
-    if err := tx.Execute("stop-service.sh"); err != nil {
-        return err // Will trigger rollback
-    }
-    if err := tx.Upload("new-config.yml", "/etc/app/"); err != nil {
-        return err // Will trigger rollback
-    }
-    if err := tx.Execute("start-service.sh"); err != nil {
-        return err // Will trigger rollback
-    }
-    return nil // Success, no rollback
-})
-```
+- `golang.org/x/crypto/ssh`: SSH client implementation
+- `github.com/pkg/sftp`: SFTP file transfer support
 
-### Templates
+## Future Features
 
-```go
-// Common server setups as templates
-err := mgr.ApplyTemplate(tunnel.TemplateWebServer{
-    Domain:     "example.com",
-    SSL:        true,
-    PHP:        true,
-    Database:   "mysql",
-})
+- **Deployment Manager**: PocketBase app deployment and version management
+- **Service Templates**: Systemd service file generation
+- **SSL/TLS Setup**: Automatic certificate management
+- **Monitoring**: Basic health checks and log management
 
-err := mgr.ApplyTemplate(tunnel.TemplateDocker{
-    ComposeVersion: true,
-    Swarm:          false,
-})
-```
-
-## Testing
-
-```go
-// Mock client for testing
-func TestDeployment(t *testing.T) {
-    client := tunnel.NewMockClient()
-    client.OnExecute("systemctl status myapp").Return(&tunnel.Result{
-        Stdout:   "active (running)",
-        ExitCode: 0,
-    })
-
-    mgr := tunnel.NewManager(client)
-    err := mgr.ServiceStatus("myapp")
-    assert.NoError(t, err)
-}
-```
-
-## Benefits of Simplification
-
-1. **No Connection Pool**: Single connection per operation, no pool management overhead
-2. **Unified Manager**: One manager instead of multiple specialized ones
-3. **Simple Options**: Use functional options pattern for flexibility
-4. **Direct API**: Methods do what they say without layers of abstraction
-5. **Clear Errors**: Simple error types that are easy to handle
-6. **Less Code**: Easier to maintain and understand
-7. **Practical Focus**: Built for real-world server management tasks
-
-## Migration from Complex Version
-
-```go
-// Old (complex)
-factory := tunnel.NewConnectionFactory(tracer)
-pool := tunnel.NewPool(factory, poolConfig, tracer)
-executor := tunnel.NewExecutor(pool, tracer)
-setupMgr := tunnel.NewSetupManager(executor, tracer)
-err := setupMgr.CreateUser(ctx, userConfig)
-
-// New (simple)
-client, _ := tunnel.NewClient(config)
-client.Connect()
-mgr := tunnel.NewManager(client)
-err := mgr.CreateUser("username", tunnel.WithGroups("sudo"))
-```
-
-## Design Decisions
-
-- **No context.Context everywhere**: Use timeouts in options instead
-- **No spans/tracing by default**: Add simple hooks if needed
-- **No complex error wrapping**: Simple error types with clear messages
-- **No progress reporters**: Use simple callback functions
-- **No dependency injection**: Direct instantiation with New functions
-- **Single manager**: All operations through one interface
-- **Functional options**: Clean API with sensible defaults
+This package is specifically designed for the PocketBase deployment workflow described in the main project README.

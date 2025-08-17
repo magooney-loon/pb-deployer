@@ -98,6 +98,7 @@ const (
 	ErrorFileTransfer
 	ErrorNotFound
 	ErrorPermission
+	ErrorVerification
 )
 
 // Error represents an SSH operation error
@@ -267,65 +268,11 @@ func WithPreserve() FileOption {
 	}
 }
 
-// Template represents a server setup template
-type Template interface {
-	Apply(mgr *Manager) error
-}
-
-// TemplateWebServer configures a web server
-type TemplateWebServer struct {
-	Domain   string
-	SSL      bool
-	PHP      bool
-	Database string // mysql, postgres, none
-	Firewall bool
-}
-
-// TemplateDocker configures Docker environment
-type TemplateDocker struct {
-	ComposeVersion bool
-	Swarm          bool
-	Registry       string
-}
-
-// Transaction represents a transactional operation
-type Transaction struct {
-	client   SSHClient
-	rollback []func() error
-}
-
-// BatchResult holds results from batch operations
-type BatchResult struct {
-	Results []Result
-	Errors  []error
-}
-
-// Package represents a system package
-type Package struct {
-	Name    string
-	Version string
-	Status  string
-}
-
-// SystemInfo holds system information
+// SystemInfo holds basic system information
 type SystemInfo struct {
 	OS           string
-	OSVersion    string
-	Kernel       string
 	Architecture string
 	Hostname     string
-	CPUCount     int
-	MemoryMB     int
-	DiskGB       int
-	Uptime       time.Duration
-}
-
-// Directory represents a directory to create
-type Directory struct {
-	Path        string
-	Permissions string
-	Owner       string
-	Group       string
 }
 
 // Tracer provides optional tracing/logging hooks

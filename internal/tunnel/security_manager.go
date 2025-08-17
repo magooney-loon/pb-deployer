@@ -1,0 +1,357 @@
+package tunnel
+
+import (
+	"fmt"
+	"strings"
+	"time"
+)
+
+// SecurityManager handles server security and hardening operations
+type SecurityManager struct {
+	manager *Manager
+}
+
+// NewSecurityManager creates a new security manager
+func NewSecurityManager(manager *Manager) *SecurityManager {
+	return &SecurityManager{
+		manager: manager,
+	}
+}
+
+// SecureServer applies basic security hardening for PocketBase servers
+func (s *SecurityManager) SecureServer(config SecurityConfig) error {
+	// Setup firewall rules
+	if len(config.FirewallRules) > 0 {
+		err := s.SetupFirewall(config.FirewallRules)
+		if err != nil {
+			return fmt.Errorf("failed to setup firewall: %w", err)
+		}
+	}
+
+	// Harden SSH configuration
+	if config.HardenSSH {
+		err := s.HardenSSH(config.SSHConfig)
+		if err != nil {
+			return fmt.Errorf("failed to harden SSH: %w", err)
+		}
+	}
+
+	// Setup fail2ban
+	if config.EnableFail2ban {
+		err := s.SetupFail2ban()
+		if err != nil {
+			return fmt.Errorf("failed to setup fail2ban: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// SetupFirewall configures firewall rules
+func (s *SecurityManager) SetupFirewall(rules []FirewallRule) error {
+	// Detect firewall system
+	var firewallCmd string
+
+	// Check for ufw
+	result, err := s.manager.client.Execute("which ufw", WithTimeout(5*time.Second))
+	if err == nil && result.ExitCode == 0 {
+		firewallCmd = "ufw"
+	} else {
+		// Check for firewalld
+		result, err = s.manager.client.Execute("which firewall-cmd", WithTimeout(5*time.Second))
+		if err == nil && result.ExitCode == 0 {
+			firewallCmd = "firewalld"
+		} else {
+			// Default to iptables
+			firewallCmd = "iptables"
+		}
+	}
+
+	switch firewallCmd {
+	case "ufw":
+		return s.setupUFW(rules)
+	case "firewalld":
+		return s.setupFirewalld(rules)
+	default:
+		return s.setupIPTables(rules)
+	}
+}
+
+// setupUFW configures UFW firewall
+func (s *SecurityManager) setupUFW(rules []FirewallRule) error {
+	// Install UFW if not present
+	s.manager.InstallPackages("ufw")
+
+	// Reset and configure UFW
+	cmds := []string{
+		"ufw --force reset",
+		"ufw default deny incoming",
+		"ufw default allow outgoing",
+	}
+
+	for _, cmd := range cmds {
+		result, err := s.manager.client.ExecuteSudo(cmd)
+		if err != nil {
+			return err
+		}
+		if result.ExitCode != 0 {
+			return &Error{
+				Type:    ErrorExecution,
+				Message: fmt.Sprintf("UFW setup failed: %s", result.Stderr),
+			}
+		}
+	}
+
+	// Add rules
+	for _, rule := range rules {
+		var cmd string
+		if rule.Source != "" {
+			cmd = fmt.Sprintf("ufw %s from %s to any port %d proto %s",
+				rule.Action, rule.Source, rule.Port, rule.Protocol)
+		} else {
+			cmd = fmt.Sprintf("ufw %s %d/%s", rule.Action, rule.Port, rule.Protocol)
+		}
+
+		result, err := s.manager.client.ExecuteSudo(cmd)
+		if err != nil {
+			return err
+		}
+		if result.ExitCode != 0 {
+			return &Error{
+				Type:    ErrorExecution,
+				Message: fmt.Sprintf("failed to add UFW rule: %s", result.Stderr),
+			}
+		}
+	}
+
+	// Enable UFW
+	result, err := s.manager.client.ExecuteSudo("ufw --force enable")
+	if err != nil {
+		return err
+	}
+	if result.ExitCode != 0 {
+		return &Error{
+			Type:    ErrorExecution,
+			Message: fmt.Sprintf("failed to enable UFW: %s", result.Stderr),
+		}
+	}
+
+	return nil
+}
+
+// setupFirewalld configures firewalld
+func (s *SecurityManager) setupFirewalld(rules []FirewallRule) error {
+	// Start firewalld
+	s.manager.ServiceStart("firewalld")
+
+	// Add rules
+	for _, rule := range rules {
+		var cmd string
+		if rule.Action == "allow" {
+			if rule.Source != "" {
+				cmd = fmt.Sprintf("firewall-cmd --permanent --add-rich-rule='rule family=\"ipv4\" source address=\"%s\" port protocol=\"%s\" port=\"%d\" accept'",
+					rule.Source, rule.Protocol, rule.Port)
+			} else {
+				cmd = fmt.Sprintf("firewall-cmd --permanent --add-port=%d/%s", rule.Port, rule.Protocol)
+			}
+
+			result, err := s.manager.client.ExecuteSudo(cmd)
+			if err != nil {
+				return err
+			}
+			if result.ExitCode != 0 {
+				return &Error{
+					Type:    ErrorExecution,
+					Message: fmt.Sprintf("failed to add firewalld rule: %s", result.Stderr),
+				}
+			}
+		}
+	}
+
+	// Reload firewalld
+	result, err := s.manager.client.ExecuteSudo("firewall-cmd --reload")
+	if err != nil {
+		return err
+	}
+	if result.ExitCode != 0 {
+		return &Error{
+			Type:    ErrorExecution,
+			Message: fmt.Sprintf("failed to reload firewalld: %s", result.Stderr),
+		}
+	}
+
+	return nil
+}
+
+// setupIPTables configures iptables
+func (s *SecurityManager) setupIPTables(rules []FirewallRule) error {
+	// Install iptables-persistent to save rules
+	s.manager.InstallPackages("iptables-persistent")
+
+	// Basic iptables setup
+	cmds := []string{
+		"iptables -F",
+		"iptables -P INPUT DROP",
+		"iptables -P FORWARD DROP",
+		"iptables -P OUTPUT ACCEPT",
+		"iptables -A INPUT -i lo -j ACCEPT",
+		"iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT",
+	}
+
+	for _, cmd := range cmds {
+		s.manager.client.ExecuteSudo(cmd)
+	}
+
+	// Add rules
+	for _, rule := range rules {
+		action := "ACCEPT"
+		if rule.Action == "deny" {
+			action = "DROP"
+		}
+
+		var cmd string
+		if rule.Source != "" {
+			cmd = fmt.Sprintf("iptables -A INPUT -p %s --dport %d -s %s -j %s",
+				rule.Protocol, rule.Port, rule.Source, action)
+		} else {
+			cmd = fmt.Sprintf("iptables -A INPUT -p %s --dport %d -j %s",
+				rule.Protocol, rule.Port, action)
+		}
+
+		s.manager.client.ExecuteSudo(cmd)
+	}
+
+	// Save iptables rules
+	s.manager.client.ExecuteSudo("iptables-save > /etc/iptables/rules.v4")
+
+	return nil
+}
+
+// HardenSSH applies SSH hardening configuration
+func (s *SecurityManager) HardenSSH(config SSHConfig) error {
+	// Backup current SSH config
+	s.manager.client.ExecuteSudo("cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak")
+
+	// Build SSH configuration
+	var configLines []string
+	configLines = append(configLines, "# SSH Hardening Configuration")
+	configLines = append(configLines, fmt.Sprintf("PasswordAuthentication %s", boolToYesNo(config.PasswordAuth)))
+	configLines = append(configLines, fmt.Sprintf("PermitRootLogin %s", boolToYesNo(config.RootLogin)))
+	configLines = append(configLines, fmt.Sprintf("PubkeyAuthentication %s", boolToYesNo(config.PubkeyAuth)))
+	configLines = append(configLines, fmt.Sprintf("MaxAuthTries %d", config.MaxAuthTries))
+	configLines = append(configLines, fmt.Sprintf("ClientAliveInterval %d", config.ClientAliveInterval))
+	configLines = append(configLines, fmt.Sprintf("ClientAliveCountMax %d", config.ClientAliveCountMax))
+
+	if len(config.AllowUsers) > 0 {
+		configLines = append(configLines, fmt.Sprintf("AllowUsers %s", strings.Join(config.AllowUsers, " ")))
+	}
+	if len(config.AllowGroups) > 0 {
+		configLines = append(configLines, fmt.Sprintf("AllowGroups %s", strings.Join(config.AllowGroups, " ")))
+	}
+
+	// Write new SSH config
+	configContent := strings.Join(configLines, "\n")
+	cmd := fmt.Sprintf("echo '%s' > /etc/ssh/sshd_config.d/99-hardening.conf", configContent)
+	result, err := s.manager.client.ExecuteSudo(cmd)
+	if err != nil {
+		return err
+	}
+	if result.ExitCode != 0 {
+		return &Error{
+			Type:    ErrorExecution,
+			Message: fmt.Sprintf("failed to write SSH config: %s", result.Stderr),
+		}
+	}
+
+	// Test SSH config
+	result, err = s.manager.client.ExecuteSudo("sshd -t")
+	if err != nil || result.ExitCode != 0 {
+		// Restore backup
+		s.manager.client.ExecuteSudo("rm /etc/ssh/sshd_config.d/99-hardening.conf")
+		return &Error{
+			Type:    ErrorExecution,
+			Message: "SSH configuration test failed",
+		}
+	}
+
+	// Restart SSH service
+	s.manager.ServiceRestart("sshd")
+
+	return nil
+}
+
+// SetupFail2ban installs and configures fail2ban
+func (s *SecurityManager) SetupFail2ban() error {
+	// Install fail2ban
+	err := s.manager.InstallPackages("fail2ban")
+	if err != nil {
+		return err
+	}
+
+	// Basic fail2ban configuration
+	jailConfig := `[DEFAULT]
+bantime = 3600
+findtime = 600
+maxretry = 5
+
+[sshd]
+enabled = true
+port = ssh
+logpath = /var/log/auth.log
+backend = systemd`
+
+	cmd := fmt.Sprintf("echo '%s' > /etc/fail2ban/jail.local", jailConfig)
+	result, err := s.manager.client.ExecuteSudo(cmd)
+	if err != nil {
+		return err
+	}
+	if result.ExitCode != 0 {
+		return &Error{
+			Type:    ErrorExecution,
+			Message: fmt.Sprintf("failed to configure fail2ban: %s", result.Stderr),
+		}
+	}
+
+	// Enable and start fail2ban
+	s.manager.ServiceEnable("fail2ban")
+	s.manager.ServiceRestart("fail2ban")
+
+	return nil
+}
+
+// GetDefaultPocketBaseRules returns default firewall rules for PocketBase
+func (s *SecurityManager) GetDefaultPocketBaseRules() []FirewallRule {
+	return []FirewallRule{
+		{Port: 22, Protocol: "tcp", Action: "allow", Description: "SSH"},
+		{Port: 80, Protocol: "tcp", Action: "allow", Description: "HTTP"},
+		{Port: 443, Protocol: "tcp", Action: "allow", Description: "HTTPS"},
+	}
+}
+
+// GetDefaultSSHConfig returns default SSH hardening configuration
+func (s *SecurityManager) GetDefaultSSHConfig() SSHConfig {
+	return SSHConfig{
+		PasswordAuth:        false,
+		RootLogin:           false,
+		PubkeyAuth:          true,
+		MaxAuthTries:        3,
+		ClientAliveInterval: 300,
+		ClientAliveCountMax: 2,
+	}
+}
+
+// SecurityConfig holds security configuration options
+type SecurityConfig struct {
+	FirewallRules  []FirewallRule
+	HardenSSH      bool
+	SSHConfig      SSHConfig
+	EnableFail2ban bool
+}
+
+// Helper function
+func boolToYesNo(b bool) string {
+	if b {
+		return "yes"
+	}
+	return "no"
+}

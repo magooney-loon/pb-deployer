@@ -18,10 +18,6 @@
 **Deployment**: SFTP transfer protocol && systemd service management
 <br>
 **Security**: UFW firewall, fail2ban, SSH lockdown w/ specialized managers
-<br>
-**Observability**: Comprehensive tracing, connection pooling, health monitoring
-<br>
-**Configuration**: Type-safe config management w/ validation && retry logic
 
 ## 🚀 Quick Start
 
