@@ -22,7 +22,6 @@ func RegisterHandlers(app core.App) {
 			})
 		})
 
-		// Register setup handlers on the same router
 		RegisterSetupHandlers(e, app)
 
 		return e.Next()
