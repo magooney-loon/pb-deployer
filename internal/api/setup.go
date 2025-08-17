@@ -81,7 +81,21 @@ func handleServerSetup(c *core.RequestEvent, app core.App) error {
 			"error": fmt.Sprintf("Failed to create SSH client: %v", err),
 		})
 	}
-	defer client.Close()
+
+	// Setup cleanup manager for proper resource management
+	cleanup := tunnel.NewCleanupManager()
+	defer cleanup.Close()
+	cleanup.AddCloser(client)
+
+	// Add panic recovery for safer cleanup
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("Panic during server setup: %v", r)
+			c.JSON(http.StatusInternalServerError, map[string]any{
+				"error": "Internal server error during setup",
+			})
+		}
+	}()
 
 	sendStep(2, "Connecting to server")
 	if err := client.Connect(); err != nil {
@@ -116,7 +130,10 @@ func handleServerSetup(c *core.RequestEvent, app core.App) error {
 
 	sendStep(4, "Setting up PocketBase server environment")
 	manager := tunnel.NewManager(client)
+	cleanup.AddCloser(manager)
+
 	setupManager := tunnel.NewSetupManager(manager)
+	cleanup.AddCloser(setupManager)
 	err = setupManager.SetupPocketBaseServer(req.Username, req.PublicKeys)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]any{
@@ -212,7 +229,21 @@ func handleServerSecurity(c *core.RequestEvent, app core.App) error {
 			"error": "Failed to create SSH client",
 		})
 	}
-	defer client.Close()
+
+	// Setup cleanup manager for proper resource management
+	cleanup := tunnel.NewCleanupManager()
+	defer cleanup.Close()
+	cleanup.AddCloser(client)
+
+	// Add panic recovery for safer cleanup
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("Panic during server security: %v", r)
+			c.JSON(http.StatusInternalServerError, map[string]any{
+				"error": "Internal server error during security setup",
+			})
+		}
+	}()
 
 	if err := client.Connect(); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]any{
@@ -222,7 +253,10 @@ func handleServerSecurity(c *core.RequestEvent, app core.App) error {
 
 	sendStep(2, "Configuring security settings")
 	manager := tunnel.NewManager(client)
+	cleanup.AddCloser(manager)
+
 	securityManager := tunnel.NewSecurityManager(manager)
+	cleanup.AddCloser(securityManager)
 
 	if len(req.FirewallRules) == 0 {
 		req.FirewallRules = securityManager.GetDefaultPocketBaseRules()
@@ -327,7 +361,22 @@ func handleServerValidation(c *core.RequestEvent) error {
 			"error": fmt.Sprintf("Failed to create SSH client: %v", err),
 		})
 	}
-	defer client.Close()
+
+	// Setup cleanup manager for proper resource management
+	cleanup := tunnel.NewCleanupManager()
+	defer cleanup.Close()
+	cleanup.AddCloser(client)
+
+	// Add panic recovery for safer cleanup
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("Panic during server validation: %v", r)
+			c.JSON(http.StatusInternalServerError, map[string]any{
+				"error": "Internal server error during validation",
+			})
+		}
+	}()
+
 	log.Debug("SSH client created successfully")
 
 	log.Debug("Attempting to connect to server...")
@@ -350,7 +399,10 @@ func handleServerValidation(c *core.RequestEvent) error {
 
 	log.Debug("Creating tunnel manager and setup manager")
 	manager := tunnel.NewManager(client)
+	cleanup.AddCloser(manager)
+
 	setupManager := tunnel.NewSetupManager(manager)
+	cleanup.AddCloser(setupManager)
 
 	log.Debug("Verifying setup for user: %s", req.Username)
 	if err := setupManager.VerifySetup(req.Username); err != nil {
@@ -454,6 +506,7 @@ func updateServerSetupStatus(app core.App, host string, setupComplete, securityL
 func createSSHClient(host string, port int, user string) (*tunnel.Client, error) {
 	log := logger.GetAPILogger()
 	log.Debug("Creating SSH client config: host=%s, port=%d, user=%s", host, port, user)
+
 	config := tunnel.Config{
 		Host:       host,
 		Port:       port,
@@ -463,29 +516,55 @@ func createSSHClient(host string, port int, user string) (*tunnel.Client, error)
 		RetryDelay: 5 * time.Second,
 	}
 
-	client, err := tunnel.NewClient(config)
-	if err != nil {
-		// Handle known_hosts corruption
-		if strings.Contains(err.Error(), "illegal base64 data") || strings.Contains(err.Error(), "knownhosts:") {
-			log.Warning("Detected known_hosts corruption, attempting to clean: %v", err)
+	// Function to attempt client creation with proper error handling
+	createClient := func() (*tunnel.Client, error) {
+		client, err := tunnel.NewClient(config)
+		if err != nil {
+			// Handle known_hosts corruption with automatic cleanup
+			if strings.Contains(err.Error(), "illegal base64 data") ||
+				strings.Contains(err.Error(), "knownhosts:") ||
+				strings.Contains(err.Error(), "no matching host key") {
 
-			if cleanErr := tunnel.CleanKnownHostsFile(""); cleanErr != nil {
-				log.Error("Failed to clean known_hosts file: %v", cleanErr)
-				return nil, fmt.Errorf("known_hosts file corrupted and cleanup failed: %w", err)
+				log.Warning("Detected known_hosts issue, attempting to clean: %v", err)
+
+				tunnel.WithCleanup(func() {
+					// This cleanup runs regardless of success/failure
+					log.Debug("Cleanup function called for known_hosts handling")
+				}, func() error {
+					if cleanErr := tunnel.CleanKnownHostsFile(""); cleanErr != nil {
+						log.Error("Failed to clean known_hosts file: %v", cleanErr)
+						return fmt.Errorf("known_hosts file corrupted and cleanup failed: %w", err)
+					}
+
+					log.Success("Successfully cleaned known_hosts file, retrying client creation")
+
+					// Retry after cleanup
+					retryClient, retryErr := tunnel.NewClient(config)
+					if retryErr != nil {
+						log.Error("Failed to create tunnel client after cleanup: %v", retryErr)
+						return fmt.Errorf("client creation failed after known_hosts cleanup: %w", retryErr)
+					}
+
+					client = retryClient
+					return nil
+				})
 			}
 
-			log.Success("Successfully cleaned known_hosts file, retrying client creation")
-
-			// Retry after cleanup
-			client, err = tunnel.NewClient(config)
-			if err != nil {
-				log.Error("Failed to create tunnel client after cleanup: %v", err)
-				return nil, err
-			}
-		} else {
 			log.Error("Failed to create tunnel client: %v", err)
-			return nil, err
+			return nil, fmt.Errorf("SSH client creation failed: %w", err)
 		}
+
+		return client, nil
+	}
+
+	// Attempt to create client with error recovery
+	client, err := createClient()
+	if err != nil {
+		return nil, err
+	}
+
+	if client == nil {
+		return nil, fmt.Errorf("client creation returned nil without error")
 	}
 
 	log.Debug("SSH client created with config successfully")
@@ -494,6 +573,11 @@ func createSSHClient(host string, port int, user string) (*tunnel.Client, error)
 
 func validateSSHConnection(client *tunnel.Client) error {
 	log := logger.GetAPILogger()
+
+	if client == nil {
+		return fmt.Errorf("client is nil")
+	}
+
 	log.Debug("Testing SSH connection with ping...")
 	if err := client.Ping(); err != nil {
 		log.Error("SSH ping failed: %v", err)

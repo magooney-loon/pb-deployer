@@ -3,15 +3,19 @@ package tunnel
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"pb-deployer/internal/logger"
 )
 
 type Manager struct {
-	client SSHClient
-	tracer Tracer
-	logger *logger.Logger
+	client  SSHClient
+	tracer  Tracer
+	logger  *logger.Logger
+	cleanup []func()
+	mu      sync.Mutex
+	closed  bool
 }
 
 func NewManager(client SSHClient) *Manager {
@@ -324,4 +328,48 @@ func (m *Manager) SystemInfo() (*SystemInfo, error) {
 	}
 
 	return info, nil
+}
+
+// Close performs cleanup and closes the manager
+func (m *Manager) Close() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.closed {
+		return nil
+	}
+	m.closed = true
+
+	m.logger.SystemOperation("Shutting down manager")
+
+	// Run all cleanup functions in reverse order
+	for i := len(m.cleanup) - 1; i >= 0; i-- {
+		if m.cleanup[i] != nil {
+			m.cleanup[i]()
+		}
+	}
+	m.cleanup = nil
+
+	// Close the SSH client if it supports it
+	if closer, ok := m.client.(interface{ Close() error }); ok {
+		return closer.Close()
+	}
+
+	return nil
+}
+
+// AddCleanup adds a cleanup function to be called when the manager is closed
+func (m *Manager) AddCleanup(cleanup func()) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if !m.closed {
+		m.cleanup = append(m.cleanup, cleanup)
+	}
+}
+
+// IsClosed returns true if the manager has been closed
+func (m *Manager) IsClosed() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.closed
 }

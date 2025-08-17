@@ -24,9 +24,9 @@ type AuthConfig struct {
 	AutoAddHostKeys bool
 }
 
-func GetAuthMethods(config AuthConfig) ([]ssh.AuthMethod, error) {
+func GetAuthMethods(config AuthConfig) ([]ssh.AuthMethod, func(), error) {
 	if !IsAgentAvailable() {
-		return nil, &Error{
+		return nil, nil, &Error{
 			Type:    ErrorAuth,
 			Message: "SSH agent is required but not available",
 		}
@@ -35,7 +35,7 @@ func GetAuthMethods(config AuthConfig) ([]ssh.AuthMethod, error) {
 	// Connect to SSH agent
 	sock, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK"))
 	if err != nil {
-		return nil, &Error{
+		return nil, nil, &Error{
 			Type:    ErrorAuth,
 			Message: "failed to connect to SSH agent",
 			Cause:   err,
@@ -47,7 +47,7 @@ func GetAuthMethods(config AuthConfig) ([]ssh.AuthMethod, error) {
 	keys, err := agentClient.List()
 	if err != nil {
 		sock.Close()
-		return nil, &Error{
+		return nil, nil, &Error{
 			Type:    ErrorAuth,
 			Message: "failed to list SSH agent keys",
 			Cause:   err,
@@ -56,13 +56,19 @@ func GetAuthMethods(config AuthConfig) ([]ssh.AuthMethod, error) {
 
 	if len(keys) == 0 {
 		sock.Close()
-		return nil, &Error{
+		return nil, nil, &Error{
 			Type:    ErrorAuth,
 			Message: "no keys available in SSH agent",
 		}
 	}
 
-	return []ssh.AuthMethod{ssh.PublicKeysCallback(agentClient.Signers)}, nil
+	cleanup := func() {
+		if sock != nil {
+			sock.Close()
+		}
+	}
+
+	return []ssh.AuthMethod{ssh.PublicKeysCallback(agentClient.Signers)}, cleanup, nil
 }
 
 // GetHostKeyCallback returns host key verification callback
@@ -91,6 +97,13 @@ func GetHostKeyCallback(config AuthConfig) (ssh.HostKeyCallback, error) {
 		// Fallback to original file if cleaning fails
 		fmt.Printf("Warning: Failed to clean known_hosts file: %v\n", err)
 		cleanedPath = knownHostsPath
+	} else {
+		// Ensure cleanup of temp file
+		defer func() {
+			if cleanedPath != knownHostsPath {
+				os.Remove(cleanedPath)
+			}
+		}()
 	}
 
 	callback, err := knownhosts.New(cleanedPath)
@@ -119,7 +132,14 @@ func cleanKnownHostsFile(originalPath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
-	defer tempFile.Close()
+	tempFileName := tempFile.Name()
+	defer func() {
+		tempFile.Close()
+		// Clean up temp file on error
+		if err != nil {
+			os.Remove(tempFileName)
+		}
+	}()
 
 	scanner := bufio.NewScanner(file)
 	lineNum := 0
@@ -152,7 +172,7 @@ func cleanKnownHostsFile(originalPath string) (string, error) {
 		fmt.Printf("Cleaned known_hosts: %d valid lines, %d corrupted lines skipped\n", validLines, skippedLines)
 	}
 
-	return tempFile.Name(), nil
+	return tempFileName, nil
 }
 
 func isValidKnownHostsLine(line string) bool {
@@ -406,7 +426,10 @@ func CleanKnownHostsFile(path string) error {
 		return fmt.Errorf("failed to replace original file: %w", err)
 	}
 
-	os.Remove(cleanedPath)
+	// Always clean up the temporary file
+	if err := os.Remove(cleanedPath); err != nil {
+		fmt.Printf("Warning: Failed to remove temporary file %s: %v\n", cleanedPath, err)
+	}
 
 	fmt.Printf("Successfully cleaned known_hosts file. Backup saved as: %s\n", backupPath)
 	return nil

@@ -3,6 +3,7 @@ package tunnel
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"pb-deployer/internal/logger"
@@ -11,6 +12,9 @@ import (
 type SecurityManager struct {
 	manager *Manager
 	logger  *logger.Logger
+	cleanup []func()
+	mu      sync.Mutex
+	closed  bool
 }
 
 func NewSecurityManager(manager *Manager) *SecurityManager {
@@ -327,4 +331,43 @@ func boolToYesNo(b bool) string {
 		return "yes"
 	}
 	return "no"
+}
+
+// Close performs cleanup and closes the security manager
+func (s *SecurityManager) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+	s.closed = true
+
+	s.logger.SystemOperation("Shutting down security manager")
+
+	// Run all cleanup functions in reverse order
+	for i := len(s.cleanup) - 1; i >= 0; i-- {
+		if s.cleanup[i] != nil {
+			s.cleanup[i]()
+		}
+	}
+	s.cleanup = nil
+
+	return nil
+}
+
+// AddCleanup adds a cleanup function to be called when the security manager is closed
+func (s *SecurityManager) AddCleanup(cleanup func()) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.closed {
+		s.cleanup = append(s.cleanup, cleanup)
+	}
+}
+
+// IsClosed returns true if the security manager has been closed
+func (s *SecurityManager) IsClosed() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.closed
 }

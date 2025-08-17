@@ -42,12 +42,71 @@ type SecurityManager struct {
 
 ```go
 client, _ := tunnel.NewClient(tunnel.Config{Host: "server.com", User: "root"})
+defer client.Close() // Always cleanup
+
 client.Connect()
 
 mgr := tunnel.NewManager(client)
+defer mgr.Close() // Cleanup manager
+
 setup := tunnel.NewSetupManager(mgr)
+defer setup.Close() // Cleanup setup manager
+
 setup.SetupPocketBaseServer("pocketbase", publicKeys)
 
 security := tunnel.NewSecurityManager(mgr)
+defer security.Close() // Cleanup security manager
+
 security.SecureServer(tunnel.SecurityConfig{...})
+```
+
+## Resource Management & Cleanup
+
+All components support proper cleanup to prevent resource leaks:
+
+```go
+// Basic cleanup pattern
+client, err := tunnel.NewClient(config)
+if err != nil {
+    return err
+}
+defer client.Close() // SSH connection + agent socket cleanup
+
+// Using cleanup manager for complex scenarios
+cleanup := tunnel.NewCleanupManager()
+defer cleanup.Close()
+
+client, _ := tunnel.NewClient(config)
+cleanup.AddCloser(client)
+
+mgr := tunnel.NewManager(client)
+cleanup.AddCloser(mgr)
+
+// Add custom cleanup functions
+cleanup.Add(func() {
+    fmt.Println("Custom cleanup executed")
+})
+
+// Signal handling (automatic in Client)
+// Client handles SIGINT/SIGTERM gracefully
+```
+
+## Error Handling with Cleanup
+
+```go
+func deployWithCleanup() error {
+    client, err := tunnel.NewClient(config)
+    if err != nil {
+        return err
+    }
+    
+    return tunnel.WithCleanup(client.Close, func() error {
+        if err := client.Connect(); err != nil {
+            return err
+        }
+        
+        // Your deployment logic here
+        return performDeployment(client)
+    })
+}
 ```

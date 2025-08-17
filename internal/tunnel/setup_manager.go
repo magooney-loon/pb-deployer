@@ -3,6 +3,7 @@ package tunnel
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"pb-deployer/internal/logger"
@@ -11,6 +12,9 @@ import (
 type SetupManager struct {
 	manager *Manager
 	logger  *logger.Logger
+	cleanup []func()
+	mu      sync.Mutex
+	closed  bool
 }
 
 func NewSetupManager(manager *Manager) *SetupManager {
@@ -230,4 +234,43 @@ type SetupInfo struct {
 	Hostname        string
 	PocketBaseSetup bool
 	InstalledApps   []string
+}
+
+// Close performs cleanup and closes the setup manager
+func (s *SetupManager) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+	s.closed = true
+
+	s.logger.SystemOperation("Shutting down setup manager")
+
+	// Run all cleanup functions in reverse order
+	for i := len(s.cleanup) - 1; i >= 0; i-- {
+		if s.cleanup[i] != nil {
+			s.cleanup[i]()
+		}
+	}
+	s.cleanup = nil
+
+	return nil
+}
+
+// AddCleanup adds a cleanup function to be called when the setup manager is closed
+func (s *SetupManager) AddCleanup(cleanup func()) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.closed {
+		s.cleanup = append(s.cleanup, cleanup)
+	}
+}
+
+// IsClosed returns true if the setup manager has been closed
+func (s *SetupManager) IsClosed() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.closed
 }

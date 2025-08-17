@@ -326,44 +326,23 @@ func runTestSuiteAndGenerateReport(rootDir, outputDir string) error {
 
 	start := time.Now()
 
-	reportFile := filepath.Join(reportsDir, "test-report.json")
-	cmd := exec.Command("go", "test", "-v", "-json", "./...")
+	// Run our beautiful test runner
+	cmd := exec.Command("go", "run", "./cmd/tests")
 	cmd.Dir = rootDir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		// Save the failed test output anyway
-		if writeErr := os.WriteFile(reportFile, output, 0644); writeErr != nil {
-			printWarning("Failed to write test report: %v", writeErr)
-		}
+	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("test suite failed: %w", err)
 	}
 
-	if err := os.WriteFile(reportFile, output, 0644); err != nil {
-		return fmt.Errorf("failed to write test report: %w", err)
-	}
-
-	summaryFile := filepath.Join(reportsDir, "test-summary.txt")
-	cmd = exec.Command("go", "run", "./cmd/tests", "-v")
-	cmd.Dir = rootDir
-
-	summaryOutput, err := cmd.CombinedOutput()
-	if err != nil {
-		// Save the failed summary anyway
-		if writeErr := os.WriteFile(summaryFile, summaryOutput, 0644); writeErr != nil {
-			printWarning("Failed to write test summary: %v", writeErr)
-		}
-		return fmt.Errorf("test suite summary failed: %w", err)
-	}
-
-	if err := os.WriteFile(summaryFile, summaryOutput, 0644); err != nil {
-		return fmt.Errorf("failed to write test summary: %w", err)
-	}
-
+	// Generate coverage reports
 	coverageFile := filepath.Join(reportsDir, "coverage.out")
 	htmlCoverageFile := filepath.Join(reportsDir, "coverage.html")
 
-	cmd = exec.Command("go", "test", "-v", "-coverprofile="+coverageFile, "./...")
+	printStep("📊", "Generating coverage reports...")
+
+	cmd = exec.Command("go", "test", "-coverprofile="+coverageFile, "./internal/...")
 	cmd.Dir = rootDir
 	if err := cmd.Run(); err != nil {
 		printWarning("Failed to generate coverage report: %v", err)
@@ -372,18 +351,20 @@ func runTestSuiteAndGenerateReport(rootDir, outputDir string) error {
 		cmd.Dir = rootDir
 		if err := cmd.Run(); err != nil {
 			printWarning("Failed to generate HTML coverage report: %v", err)
+		} else {
+			printSuccess("Coverage report: %s", htmlCoverageFile)
 		}
 	}
 
 	duration := time.Since(start)
 	printSuccess("Test suite completed in %s", duration.Round(time.Millisecond))
-	printSuccess("Test reports generated in '%s'", filepath.Join(outputDir, "test-reports"))
 
 	return nil
 }
 
 func testOnlyMode(rootDir, distDir string) error {
-	printHeader("🧪 TEST SUITE EXECUTION")
+	fmt.Printf("\n🧪 %sRunning Tests%s\n", Bold+Cyan, Reset)
+	fmt.Println()
 
 	outputDir := filepath.Join(rootDir, distDir)
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
@@ -394,7 +375,6 @@ func testOnlyMode(rootDir, distDir string) error {
 		return fmt.Errorf("test suite failed: %w", err)
 	}
 
-	printSuccess("✅ Test suite completed! Reports are in '%s/test-reports'", distDir)
 	return nil
 }
 

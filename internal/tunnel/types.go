@@ -2,6 +2,7 @@ package tunnel
 
 import (
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -330,4 +331,83 @@ func (s *SimpleLogger) OnDownloadComplete(remote, local string, err error) {
 
 func (s *SimpleLogger) OnError(operation string, err error) {
 	fmt.Printf("SSH Error in %s: %s\n", operation, err.Error())
+}
+
+// Closer interface for components that need cleanup
+type Closer interface {
+	Close() error
+}
+
+// CleanupManager manages cleanup functions and ensures they're called
+type CleanupManager struct {
+	cleanups []func()
+	closed   bool
+	mu       sync.Mutex
+}
+
+// NewCleanupManager creates a new cleanup manager
+func NewCleanupManager() *CleanupManager {
+	return &CleanupManager{}
+}
+
+// Add adds a cleanup function to be called on Close
+func (cm *CleanupManager) Add(cleanup func()) {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+	if !cm.closed {
+		cm.cleanups = append(cm.cleanups, cleanup)
+	}
+}
+
+// AddCloser adds a Closer to be closed on cleanup
+func (cm *CleanupManager) AddCloser(closer Closer) {
+	if closer != nil {
+		cm.Add(func() {
+			if err := closer.Close(); err != nil {
+				fmt.Printf("Error during cleanup: %v\n", err)
+			}
+		})
+	}
+}
+
+// Close runs all cleanup functions in reverse order
+func (cm *CleanupManager) Close() error {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	if cm.closed {
+		return nil
+	}
+	cm.closed = true
+
+	var lastErr error
+	// Run cleanup functions in reverse order (LIFO)
+	for i := len(cm.cleanups) - 1; i >= 0; i-- {
+		if cm.cleanups[i] != nil {
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						fmt.Printf("Panic during cleanup: %v\n", r)
+					}
+				}()
+				cm.cleanups[i]()
+			}()
+		}
+	}
+
+	cm.cleanups = nil
+	return lastErr
+}
+
+// IsClosed returns true if the cleanup manager has been closed
+func (cm *CleanupManager) IsClosed() bool {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+	return cm.closed
+}
+
+// WithCleanup is a helper that ensures cleanup is called even if the function panics
+func WithCleanup(cleanup func(), fn func() error) error {
+	defer cleanup()
+	return fn()
 }

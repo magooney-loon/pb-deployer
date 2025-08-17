@@ -3,11 +3,15 @@ package tunnel
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 
 	"pb-deployer/internal/logger"
@@ -17,11 +21,16 @@ import (
 )
 
 type Client struct {
-	config Config
-	conn   *ssh.Client
-	sftp   *sftp.Client
-	tracer Tracer
-	logger *logger.Logger
+	config  Config
+	conn    *ssh.Client
+	sftp    *sftp.Client
+	tracer  Tracer
+	logger  *logger.Logger
+	cleanup []func()
+	mu      sync.Mutex
+	ctx     context.Context
+	cancel  context.CancelFunc
+	closed  bool
 }
 
 func NewClient(config Config) (*Client, error) {
@@ -58,11 +67,20 @@ func NewClient(config Config) (*Client, error) {
 		}
 	}
 
-	return &Client{
+	ctx, cancel := context.WithCancel(context.Background())
+
+	client := &Client{
 		config: config,
 		tracer: &NoOpTracer{},
 		logger: logger.GetTunnelLogger(),
-	}, nil
+		ctx:    ctx,
+		cancel: cancel,
+	}
+
+	// Setup signal handling for graceful shutdown
+	go client.handleSignals()
+
+	return client, nil
 }
 
 func (c *Client) SetTracer(tracer Tracer) {
@@ -98,7 +116,7 @@ func (c *Client) Connect() error {
 		Timeout:         c.config.Timeout,
 	}
 
-	authMethods, err := GetAuthMethods(authConfig)
+	authMethods, cleanup, err := GetAuthMethods(authConfig)
 	if err != nil {
 		c.tracer.OnError("get_auth_methods", err)
 		return &Error{
@@ -106,6 +124,9 @@ func (c *Client) Connect() error {
 			Message: "failed to get authentication methods",
 			Cause:   err,
 		}
+	}
+	if cleanup != nil {
+		c.addCleanup(cleanup)
 	}
 	sshConfig.Auth = authMethods
 
@@ -150,25 +171,51 @@ func (c *Client) Connect() error {
 }
 
 func (c *Client) Close() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.closed {
+		return nil
+	}
+	c.closed = true
+
 	c.tracer.OnDisconnect(c.config.Host)
 	c.logger.SSHDisconnected(c.config.Host)
 
+	// Cancel context to stop all operations
+	if c.cancel != nil {
+		c.cancel()
+	}
+
+	// Run all cleanup functions in reverse order
+	for i := len(c.cleanup) - 1; i >= 0; i-- {
+		if c.cleanup[i] != nil {
+			c.cleanup[i]()
+		}
+	}
+	c.cleanup = nil
+
+	// Close SFTP client
 	if c.sftp != nil {
 		c.sftp.Close()
 		c.sftp = nil
 	}
 
+	// Close SSH connection
+	var err error
 	if c.conn != nil {
-		err := c.conn.Close()
+		err = c.conn.Close()
 		c.conn = nil
-		return err
 	}
 
-	return nil
+	return err
 }
 
 func (c *Client) IsConnected() bool {
-	if c.conn == nil {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.closed || c.conn == nil {
 		return false
 	}
 
@@ -560,6 +607,33 @@ func (c *Client) Download(remotePath, localPath string, opts ...FileOption) erro
 	c.logger.FileTransferComplete("Download", nil)
 	c.tracer.OnDownloadComplete(remotePath, localPath, nil)
 	return nil
+}
+
+// addCleanup adds a cleanup function to be called when the client is closed
+func (c *Client) addCleanup(cleanup func()) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.cleanup = append(c.cleanup, cleanup)
+}
+
+// handleSignals sets up graceful shutdown on SIGINT and SIGTERM
+func (c *Client) handleSignals() {
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	select {
+	case sig := <-sigChan:
+		c.logger.Warning("Received signal %v, shutting down gracefully", sig)
+		c.Close()
+	case <-c.ctx.Done():
+		// Context cancelled, cleanup already handled
+		return
+	}
+}
+
+// Context returns the client's context for cancellation
+func (c *Client) Context() context.Context {
+	return c.ctx
 }
 
 func (c *Client) buildCommand(cmd string, cfg *execConfig) string {
