@@ -41,7 +41,7 @@ go run cmd/scripts/main.go --install
 
 See `**/*/README.md` for detailed docs.
 <br>
-See `frontend/static/docs/` for tutorial.
+See `frontend/static/docs/` guide.
 
 ## Contribution
 PRs are encouraged, but consider opening a discussion first for minor/major changelogs.
