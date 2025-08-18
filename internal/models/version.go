@@ -13,7 +13,7 @@ type Version struct {
 	Updated       time.Time `json:"updated" db:"updated"`
 	AppID         string    `json:"app_id" db:"app_id"`
 	VersionNum    string    `json:"version_number" db:"version_number"`
-	DeploymentZip string    `json:"deployment_zip" db:"deployment_zip"` // Single zip containing binary and pb_public folder
+	DeploymentZip string    `json:"deployment_zip" db:"deployment_zip"` // Version zip containing binary and pb_public folder
 	Notes         string    `json:"notes" db:"notes"`
 }
 

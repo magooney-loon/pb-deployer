@@ -1,6 +1,14 @@
 import PocketBase from 'pocketbase';
 import type { Version } from './types.js';
 
+interface PocketBaseError {
+	status: number;
+	message?: string;
+	data?: {
+		data?: Record<string, unknown>;
+	};
+}
+
 export class VersionCrudClient {
 	private pb: PocketBase;
 
@@ -39,6 +47,29 @@ export class VersionCrudClient {
 		deployment_zip?: File;
 	}): Promise<Version> {
 		try {
+			console.log('Creating version with data:', {
+				app_id: data.app_id,
+				version_number: data.version_number,
+				notes: data.notes,
+				has_file: !!data.deployment_zip,
+				file_size: data.deployment_zip?.size,
+				file_type: data.deployment_zip?.type
+			});
+
+			// Validate file if provided
+			if (data.deployment_zip) {
+				const maxSize = 150 * 1024 * 1024; // 150MB
+				if (data.deployment_zip.size > maxSize) {
+					throw new Error(
+						`File size (${Math.round(data.deployment_zip.size / 1024 / 1024)}MB) exceeds maximum allowed size (150MB)`
+					);
+				}
+
+				if (!data.deployment_zip.type.includes('zip')) {
+					throw new Error('File must be a ZIP archive');
+				}
+			}
+
 			const formData = new FormData();
 			formData.append('app_id', data.app_id);
 			formData.append('version_number', data.version_number);
@@ -51,10 +82,50 @@ export class VersionCrudClient {
 				formData.append('deployment_zip', data.deployment_zip);
 			}
 
+			console.log('Sending FormData to PocketBase...');
 			const version = await this.pb.collection('versions').create<Version>(formData);
+			console.log('Version created successfully:', version.id);
 			return version;
 		} catch (error) {
 			console.error('Failed to create version:', error);
+
+			// Handle specific PocketBase errors
+			if (error && typeof error === 'object' && 'data' in error) {
+				const pbError = error as PocketBaseError;
+
+				// Check for duplicate version number constraint
+				if (pbError.status === 400 && pbError.data?.data) {
+					const errorData = pbError.data.data;
+					if (errorData.version_number || errorData.app_id) {
+						throw new Error(
+							`Version ${data.version_number} already exists for this application. Please use a different version number.`
+						);
+					}
+				}
+
+				// Check for file size or validation errors
+				if (pbError.status === 400) {
+					if (pbError.message?.includes('deployment_zip')) {
+						throw new Error(
+							'File upload failed. Please ensure the file is a valid ZIP archive under 150MB.'
+						);
+					}
+					throw new Error(pbError.message || 'Validation failed. Please check your input data.');
+				}
+
+				// Server errors
+				if (pbError.status === 500) {
+					throw new Error(
+						'Server error occurred. Please try again or contact support if the problem persists.'
+					);
+				}
+
+				throw new Error(pbError.message || 'Failed to create version');
+			}
+
+			if (error instanceof Error) {
+				throw new Error(`Version creation failed: ${error.message}`);
+			}
 			throw error;
 		}
 	}
@@ -95,6 +166,19 @@ export class VersionCrudClient {
 			};
 		} catch (error) {
 			console.error('Failed to get versions by app:', error);
+			throw error;
+		}
+	}
+
+	async checkVersionExists(appId: string, versionNumber: string): Promise<boolean> {
+		try {
+			const records = await this.pb.collection('versions').getFullList<Version>({
+				filter: `app_id = "${appId}" && version_number = "${versionNumber}"`
+			});
+
+			return records.length > 0;
+		} catch (error) {
+			console.error('Failed to check version existence:', error);
 			throw error;
 		}
 	}

@@ -3,7 +3,7 @@
 	import { Button, FormField, FileUpload } from '$lib/components/partials';
 	import type { App } from '$lib/api/index.js';
 
-	interface DeploymentData {
+	interface VersionData {
 		version_number: string;
 		notes: string;
 		deploymentZip: File;
@@ -12,23 +12,61 @@
 	interface Props {
 		open?: boolean;
 		app?: App | null;
-		deploying?: boolean;
+		uploading?: boolean;
 		onclose?: () => void;
-		ondeploy?: (deploymentData: DeploymentData) => Promise<boolean>;
+		onupload?: (versionData: VersionData) => Promise<boolean>;
 	}
 
-	let { open = false, app = null, deploying = false, onclose, ondeploy }: Props = $props();
+	let { open = false, app = null, uploading = false, onclose, onupload }: Props = $props();
 
 	let formData = $state({
 		version_number: '',
 		notes: ''
 	});
 
+	let versionType = $state<'patch' | 'minor' | 'major'>('patch');
+	let currentVersion = $state('0.0.0');
+	let nextVersion = $derived(calculateNextVersion(currentVersion, versionType));
+
+	function parseVersion(version: string): [number, number, number] {
+		const parts = version.split('.').map(Number);
+		return [parts[0] || 0, parts[1] || 0, parts[2] || 0];
+	}
+
+	function calculateNextVersion(current: string, type: 'patch' | 'minor' | 'major'): string {
+		const [major, minor, patch] = parseVersion(current);
+
+		switch (type) {
+			case 'patch':
+				return `${major}.${minor}.${patch + 1}`;
+			case 'minor':
+				return `${major}.${minor + 1}.0`;
+			case 'major':
+				return `${major + 1}.0.0`;
+			default:
+				return `${major}.${minor}.${patch + 1}`;
+		}
+	}
+
+	// Update formData when nextVersion changes
+	$effect(() => {
+		formData.version_number = nextVersion;
+	});
+
+	// Get current version when app changes
+	$effect(() => {
+		if (app?.current_version) {
+			currentVersion = app.current_version;
+		} else {
+			currentVersion = '0.0.0';
+		}
+	});
+
 	let deploymentFile = $state<File | null>(null);
 	let fileError = $state<string | undefined>(undefined);
 
 	function handleClose() {
-		if (!deploying) {
+		if (!uploading) {
 			resetForm();
 			onclose?.();
 		}
@@ -41,6 +79,7 @@
 		};
 		deploymentFile = null;
 		fileError = undefined;
+		versionType = 'patch';
 	}
 
 	function handleFileSelect(file: File | File[] | null) {
@@ -59,8 +98,8 @@
 
 	async function handleSubmit(e: Event) {
 		e.preventDefault();
-		if (ondeploy && !deploying && deploymentFile && app) {
-			const success = await ondeploy({
+		if (onupload && !uploading && deploymentFile && app) {
+			const success = await onupload({
 				version_number: formData.version_number,
 				notes: formData.notes,
 				deploymentZip: deploymentFile
@@ -81,7 +120,8 @@
 		formData.version_number.trim() !== '' &&
 			formData.notes.trim() !== '' &&
 			deploymentFile !== null &&
-			!fileError
+			!fileError &&
+			!uploading
 	);
 
 	$effect(() => {
@@ -99,7 +139,7 @@
 			variant="secondary"
 			color="gray"
 			onclick={handleClose}
-			disabled={deploying}
+			disabled={uploading}
 			class="px-6 py-2"
 		>
 			Cancel
@@ -107,10 +147,10 @@
 		<Button
 			variant="primary"
 			onclick={handleButtonClick}
-			disabled={deploying || !isFormValid}
+			disabled={uploading || !isFormValid}
 			class="min-w-[120px] px-6 py-2"
 		>
-			{#if deploying}
+			{#if uploading}
 				<svg
 					class="mr-2 -ml-1 h-4 w-4 animate-spin text-white"
 					xmlns="http://www.w3.org/2000/svg"
@@ -125,9 +165,9 @@
 						d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
 					></path>
 				</svg>
-				Deploying...
+				Uploading...
 			{:else}
-				Deploy Application
+				Upload Version
 			{/if}
 		</Button>
 	</div>
@@ -135,9 +175,9 @@
 
 <Modal
 	{open}
-	title="Deploy Application"
+	title="Upload New Version"
 	size="xl"
-	closeable={!deploying}
+	closeable={!uploading}
 	onclose={handleClose}
 	{footer}
 >
@@ -162,7 +202,7 @@
 						</div>
 						<div>
 							<h3 class="font-semibold text-blue-900 dark:text-blue-100">
-								Deploying to: {app.name}
+								Uploading version for: {app.name}
 							</h3>
 							<p class="text-sm text-blue-700 dark:text-blue-300">
 								Domain: {app.domain} • Service: {app.service_name}
@@ -178,30 +218,89 @@
 							Version Information
 						</h3>
 						<p class="text-sm text-gray-500 dark:text-gray-400">
-							Specify the version details for this deployment
+							Specify the version details for this upload
 						</p>
 					</div>
 
-					<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-						<FormField
-							id="version-number"
-							label="Version Number"
-							value={formData.version_number}
-							placeholder="1.0.1"
-							helperText="Semantic versioning recommended (major.minor.patch)"
-							required
-							disabled={deploying}
-							oninput={(e) => (formData.version_number = (e.target as HTMLInputElement).value)}
-						/>
+					<div class="space-y-6">
+						<!-- Version Type Selection -->
+						<div>
+							<div class="mb-3 block text-sm font-medium text-gray-700 dark:text-gray-300">
+								Version Type
+							</div>
+							<div class="grid grid-cols-3 gap-3">
+								<button
+									type="button"
+									class="flex flex-col items-center rounded-lg border p-4 transition-colors {versionType ===
+									'patch'
+										? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
+										: 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'}"
+									disabled={uploading}
+									onclick={() => (versionType = 'patch')}
+								>
+									<div class="font-semibold">Patch</div>
+									<div class="mt-1 text-xs text-gray-500 dark:text-gray-400">Bug fixes</div>
+									<div class="mt-2 font-mono text-sm">
+										{calculateNextVersion(currentVersion, 'patch')}
+									</div>
+								</button>
+								<button
+									type="button"
+									class="flex flex-col items-center rounded-lg border p-4 transition-colors {versionType ===
+									'minor'
+										? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
+										: 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'}"
+									disabled={uploading}
+									onclick={() => (versionType = 'minor')}
+								>
+									<div class="font-semibold">Minor</div>
+									<div class="mt-1 text-xs text-gray-500 dark:text-gray-400">New features</div>
+									<div class="mt-2 font-mono text-sm">
+										{calculateNextVersion(currentVersion, 'minor')}
+									</div>
+								</button>
+								<button
+									type="button"
+									class="flex flex-col items-center rounded-lg border p-4 transition-colors {versionType ===
+									'major'
+										? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
+										: 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'}"
+									disabled={uploading}
+									onclick={() => (versionType = 'major')}
+								>
+									<div class="font-semibold">Major</div>
+									<div class="mt-1 text-xs text-gray-500 dark:text-gray-400">Breaking changes</div>
+									<div class="mt-2 font-mono text-sm">
+										{calculateNextVersion(currentVersion, 'major')}
+									</div>
+								</button>
+							</div>
+							<div class="mt-3 rounded-lg bg-gray-50 p-3 dark:bg-gray-900">
+								<div class="text-sm text-gray-600 dark:text-gray-400">
+									Current version: <span class="font-mono font-semibold">{currentVersion}</span>
+									→ New version:
+									<span class="font-mono font-semibold text-blue-600 dark:text-blue-400"
+										>{nextVersion}</span
+									>
+								</div>
+							</div>
+						</div>
 
+						<!-- Release Notes -->
 						<FormField
 							id="version-notes"
 							label="Release Notes"
 							value={formData.notes}
-							placeholder="Bug fixes and improvements"
-							helperText="Brief description of changes in this version"
+							placeholder={versionType === 'patch'
+								? 'Bug fixes and improvements'
+								: versionType === 'minor'
+									? 'New features and enhancements'
+									: 'Major changes and breaking updates'}
+							helperText={formData.notes.trim()
+								? `${formData.notes.length}/1000 characters`
+								: 'Brief description of changes in this version'}
 							required
-							disabled={deploying}
+							disabled={uploading}
 							oninput={(e) => (formData.notes = (e.target as HTMLInputElement).value)}
 						/>
 					</div>
@@ -210,9 +309,7 @@
 				<!-- File Upload -->
 				<div class="space-y-4">
 					<div class="border-b border-gray-200 pb-2 dark:border-gray-700">
-						<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
-							Deployment Package
-						</h3>
+						<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Version Package</h3>
 						<p class="text-sm text-gray-500 dark:text-gray-400">
 							Upload your PocketBase distribution as a ZIP file
 						</p>
@@ -220,14 +317,16 @@
 
 					<FileUpload
 						id="deployment-zip"
-						label="Upload Deployment ZIP"
+						label="Upload Version ZIP"
 						accept=".zip,application/zip"
-						maxSize={180 * 1024 * 1024}
+						maxSize={150 * 1024 * 1024}
 						required
-						disabled={deploying}
+						disabled={uploading}
 						value={deploymentFile}
 						errorText={fileError}
-						helperText="Maximum file size: 180MB"
+						helperText={deploymentFile
+							? `File selected: ${deploymentFile.name} (${Math.round(deploymentFile.size / 1024 / 1024)}MB)`
+							: 'Maximum file size: 150MB'}
 						onFileSelect={handleFileSelect}
 						onError={handleFileError}
 					/>
@@ -273,7 +372,7 @@
 					</div>
 				</div>
 
-				<!-- Deployment Process Info -->
+				<!-- Version Upload Info -->
 				<div class="rounded-lg bg-amber-50 p-4 dark:bg-amber-900/20">
 					<div class="flex items-start space-x-3">
 						<svg
@@ -288,11 +387,11 @@
 							/>
 						</svg>
 						<div>
-							<h4 class="font-medium text-amber-900 dark:text-amber-100">Deployment Process</h4>
+							<h4 class="font-medium text-amber-900 dark:text-amber-100">Version Upload</h4>
 							<p class="mt-1 text-sm text-amber-800 dark:text-amber-200">
-								The ZIP will be uploaded to the server, extracted to the app directory, and the
-								service will be restarted automatically. Make sure your binary is compatible with
-								the target server architecture.
+								The ZIP file will be uploaded and stored as a new version. This creates a version
+								record that can be deployed later. Make sure your binary is compatible with the
+								target server architecture.
 							</p>
 						</div>
 					</div>
@@ -301,7 +400,7 @@
 		</div>
 	{:else}
 		<div class="py-8 text-center">
-			<div class="text-gray-600 dark:text-gray-400">No application selected for deployment</div>
+			<div class="text-gray-600 dark:text-gray-400">No application selected for version upload</div>
 		</div>
 	{/if}
 </Modal>

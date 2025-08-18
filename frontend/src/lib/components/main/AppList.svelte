@@ -3,7 +3,7 @@
 	import { AppListLogic, type AppListState } from './AppList.js';
 	import DeleteModal from '$lib/components/modals/DeleteModal.svelte';
 	import AppCreateModal from '$lib/components/modals/AppCreateModal.svelte';
-	import DeployAppModal from '$lib/components/modals/DeployAppModal.svelte';
+	import UploadVersionModal from '$lib/components/modals/UploadVersionModal.svelte';
 	import { Button, Toast, EmptyState, LoadingSpinner, StatusBadge } from '$lib/components/partials';
 	import Icon from '$lib/components/icons/Icon.svelte';
 
@@ -15,6 +15,7 @@
 		service_name: string;
 		version_number: string;
 		version_notes: string;
+		initialZip?: File;
 	}
 
 	const logic = new AppListLogic();
@@ -39,7 +40,7 @@
 		logic.updateNewApp('version_number', appData.version_number);
 		logic.updateNewApp('version_notes', appData.version_notes);
 
-		await logic.createApp();
+		await logic.createApp(appData.initialZip);
 	}
 </script>
 
@@ -165,12 +166,12 @@
 									variant="ghost"
 									color="blue"
 									size="sm"
-									onclick={() => logic.deployApp(app.id)}
+									onclick={() => logic.openUploadModal(app.id)}
 								>
 									{#snippet iconSnippet()}
 										<Icon name="upload" />
 									{/snippet}
-									Deploy
+									Upload
 								</Button>
 
 								<Button
@@ -224,12 +225,12 @@
 	onconfirm={(id) => logic.confirmDeleteApp(id)}
 />
 
-<!-- Deploy App Modal -->
-<DeployAppModal
-	open={state.showDeployModal}
-	app={state.appToDeploy}
-	deploying={state.deploying}
-	onclose={() => logic.closeDeployModal()}
-	ondeploy={(versionData: { version_number: string; notes: string; deploymentZip: File }) =>
-		logic.createDeployment(versionData)}
+<!-- Upload Version Modal -->
+<UploadVersionModal
+	open={state.showUploadModal}
+	app={state.appToUpload}
+	uploading={state.uploading}
+	onclose={() => logic.closeUploadModal()}
+	onupload={(versionData: { version_number: string; notes: string; deploymentZip: File }) =>
+		logic.uploadVersion(versionData)}
 />

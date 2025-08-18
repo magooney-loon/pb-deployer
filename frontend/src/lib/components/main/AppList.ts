@@ -15,6 +15,7 @@ export interface AppFormData {
 	// Version info for first-time creation
 	version_number: string;
 	version_notes: string;
+	initialZip?: File;
 }
 
 export interface AppListState {
@@ -28,9 +29,9 @@ export interface AppListState {
 	deleting: boolean;
 	showDeleteModal: boolean;
 	appToDelete: App | null;
-	deploying: boolean;
-	showDeployModal: boolean;
-	appToDeploy: App | null;
+	uploading: boolean;
+	showUploadModal: boolean;
+	appToUpload: App | null;
 }
 
 export class AppListLogic {
@@ -63,9 +64,9 @@ export class AppListLogic {
 			deleting: false,
 			showDeleteModal: false,
 			appToDelete: null,
-			deploying: false,
-			showDeployModal: false,
-			appToDeploy: null
+			uploading: false,
+			showUploadModal: false,
+			appToUpload: null
 		};
 	}
 
@@ -114,7 +115,7 @@ export class AppListLogic {
 		}
 	}
 
-	public async createApp(): Promise<boolean> {
+	public async createApp(initialZip?: File): Promise<boolean> {
 		try {
 			this.updateState({
 				creating: true,
@@ -138,7 +139,8 @@ export class AppListLogic {
 				await this.api.versions.createVersion({
 					app_id: app.id,
 					version_number: this.state.newApp.version_number,
-					notes: this.state.newApp.version_notes
+					notes: this.state.newApp.version_notes,
+					deployment_zip: initialZip
 				});
 			}
 
@@ -203,63 +205,69 @@ export class AppListLogic {
 		}, 200);
 	}
 
-	public deployApp(id: string): void {
+	public openUploadModal(id: string): void {
 		const app = this.state.apps.find((a) => a.id === id);
 		if (app) {
 			this.updateState({
-				showDeployModal: true,
-				appToDeploy: app
+				showUploadModal: true,
+				appToUpload: app
 			});
 		}
 	}
 
-	public closeDeployModal(): void {
+	public closeUploadModal(): void {
 		this.updateState({
-			showDeployModal: false
+			showUploadModal: false
 		});
 
 		setTimeout(() => {
 			this.updateState({
-				appToDeploy: null
+				appToUpload: null
 			});
 		}, 200);
 	}
 
-	public async createDeployment(versionData: {
+	public async uploadVersion(versionData: {
 		version_number: string;
 		notes: string;
 		deploymentZip: File;
 	}): Promise<boolean> {
-		if (!this.state.appToDeploy) return false;
+		if (!this.state.appToUpload) return false;
 
 		try {
-			this.updateState({ deploying: true, error: null });
+			this.updateState({ uploading: true, error: null });
+
+			// Check if version already exists
+			const versionExists = await this.api.versions.checkVersionExists(
+				this.state.appToUpload.id,
+				versionData.version_number
+			);
+
+			if (versionExists) {
+				throw new Error(
+					`Version ${versionData.version_number} already exists for this application. Please use a different version number.`
+				);
+			}
 
 			// Create version with uploaded file
-			const version = await this.api.versions.createVersion({
-				app_id: this.state.appToDeploy.id,
+			await this.api.versions.createVersion({
+				app_id: this.state.appToUpload.id,
 				version_number: versionData.version_number,
 				notes: versionData.notes,
 				deployment_zip: versionData.deploymentZip
 			});
 
-			// Create deployment
-			await this.api.deployments.createDeployment({
-				app_id: this.state.appToDeploy.id,
-				version_id: version.id
-			});
-
 			this.updateState({
-				showDeployModal: false,
-				deploying: false
+				showUploadModal: false,
+				uploading: false
 			});
 
 			// Refresh apps list to get updated status
 			await this.loadApps();
 			return true;
 		} catch (err) {
-			const error = err instanceof Error ? err.message : 'Failed to create deployment';
-			this.updateState({ error, deploying: false });
+			const error = err instanceof Error ? err.message : 'Failed to upload version';
+			this.updateState({ error, uploading: false });
 			return false;
 		}
 	}

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Modal from '$lib/components/main/Modal.svelte';
-	import { Button, FormField } from '$lib/components/partials';
+	import { Button, FormField, FileUpload } from '$lib/components/partials';
 	import type { Server } from '$lib/api/index.js';
 
 	interface AppFormData {
@@ -11,6 +11,7 @@
 		service_name: string;
 		version_number: string;
 		version_notes: string;
+		initialZip?: File;
 	}
 
 	interface Props {
@@ -33,6 +34,9 @@
 		version_notes: 'Initial version'
 	});
 
+	let initialZipFile = $state<File | null>(null);
+	let fileError = $state<string | undefined>(undefined);
+
 	let availableServers = $derived(servers.filter((s) => s.setup_complete));
 	let selectedServer = $derived(availableServers.find((s) => s.id === formData.server_id));
 
@@ -53,6 +57,25 @@
 			version_number: '1.0.0',
 			version_notes: 'Initial version'
 		};
+		initialZipFile = null;
+		fileError = undefined;
+	}
+
+	function handleFileSelect(file: File | File[] | null) {
+		fileError = undefined;
+		if (file && !Array.isArray(file)) {
+			initialZipFile = file;
+			formData.initialZip = file;
+		} else {
+			initialZipFile = null;
+			formData.initialZip = undefined;
+		}
+	}
+
+	function handleFileError(error: string) {
+		fileError = error;
+		initialZipFile = null;
+		formData.initialZip = undefined;
 	}
 
 	async function handleSubmit(e: Event) {
@@ -196,6 +219,46 @@
 						oninput={(e) => (formData.version_notes = (e.target as HTMLInputElement).value)}
 					/>
 				</div>
+
+				<!-- Initial ZIP Upload -->
+				<div class="space-y-4">
+					<FileUpload
+						id="initial-zip"
+						label="Upload Initial PocketBase Package (Optional)"
+						accept=".zip,application/zip"
+						maxSize={150 * 1024 * 1024}
+						disabled={creating}
+						value={initialZipFile}
+						errorText={fileError}
+						helperText="Upload your PocketBase distribution as a ZIP file (150MB max)"
+						onFileSelect={handleFileSelect}
+						onError={handleFileError}
+					/>
+
+					<!-- ZIP Info -->
+					<div class="rounded-lg bg-gray-50 p-4 dark:bg-gray-900">
+						<h4 class="mb-2 text-sm font-medium text-gray-900 dark:text-gray-100">
+							ZIP Package Contents:
+						</h4>
+						<div class="space-y-1 text-xs">
+							<div class="flex items-center space-x-2">
+								<span class="text-red-600 dark:text-red-400">✓</span>
+								<span class="text-gray-700 dark:text-gray-300">
+									<strong>PocketBase binary</strong> - The main executable
+								</span>
+							</div>
+							<div class="flex items-center space-x-2">
+								<span class="text-green-600 dark:text-green-400">○</span>
+								<span class="text-gray-600 dark:text-gray-400">
+									pb_public/, pb_migrations/, pb_hooks/, etc.
+								</span>
+							</div>
+						</div>
+						<p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+							✓ = Required • ○ = Optional | You can also upload the initial version later
+						</p>
+					</div>
+				</div>
 			</div>
 		</form>
 	</div>
@@ -218,7 +281,8 @@
 					!formData.name ||
 					!formData.server_id ||
 					!formData.domain ||
-					availableServers.length === 0}
+					availableServers.length === 0 ||
+					!!fileError}
 				class="min-w-[120px] px-6 py-2"
 			>
 				{#if creating}
