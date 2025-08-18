@@ -48,7 +48,15 @@
 			Manage your VPS servers and deployment infrastructure
 		</p>
 	</div>
-	<Button variant="outline" onclick={() => logic.toggleCreateForm()}>
+	<Button
+		variant="outline"
+		onclick={() => logic.toggleCreateForm()}
+		disabled={state.creating ||
+			state.deleting ||
+			state.servers.some(
+				(s) => logic.isServerSetupInProgress(s.id) || logic.isServerSecurityInProgress(s.id)
+			)}
+	>
 		{#snippet iconSnippet()}
 			<Icon name={state.showCreateForm ? 'close' : 'plus'} />
 		{/snippet}
@@ -192,6 +200,10 @@
 									variant="ghost"
 									color="red"
 									size="sm"
+									disabled={state.deleting ||
+										state.creating ||
+										logic.isServerSetupInProgress(server.id) ||
+										logic.isServerSecurityInProgress(server.id)}
 									onclick={() => logic.deleteServer(server.id)}
 								>
 									{#snippet iconSnippet()}
@@ -211,7 +223,16 @@
 		<p class="text-sm text-gray-600 dark:text-gray-400">
 			Showing {state.servers.length} server{state.servers.length !== 1 ? 's' : ''}
 		</p>
-		<Button variant="outline" size="sm" onclick={() => logic.loadServers()}>
+		<Button
+			variant="outline"
+			size="sm"
+			onclick={() => logic.loadServers()}
+			disabled={state.creating ||
+				state.deleting ||
+				state.servers.some(
+					(s) => logic.isServerSetupInProgress(s.id) || logic.isServerSecurityInProgress(s.id)
+				)}
+		>
 			{#snippet iconSnippet()}
 				<Icon name="refresh" />
 			{/snippet}

@@ -54,7 +54,7 @@
 	<Button
 		variant="outline"
 		onclick={() => logic.toggleCreateForm()}
-		disabled={availableServers.length === 0}
+		disabled={availableServers.length === 0 || state.creating || state.deleting || state.uploading}
 	>
 		{#snippet iconSnippet()}
 			<Icon name="plus" />
@@ -166,6 +166,7 @@
 									variant="ghost"
 									color="blue"
 									size="sm"
+									disabled={state.deleting || state.creating || state.uploading}
 									onclick={() => logic.openUploadModal(app.id)}
 								>
 									{#snippet iconSnippet()}
@@ -178,6 +179,7 @@
 									variant="ghost"
 									color="red"
 									size="sm"
+									disabled={state.deleting || state.creating || state.uploading}
 									onclick={() => logic.deleteApp(app.id)}
 								>
 									{#snippet iconSnippet()}
@@ -197,7 +199,12 @@
 		<p class="text-sm text-gray-600 dark:text-gray-400">
 			Showing {state.apps.length} application{state.apps.length !== 1 ? 's' : ''}
 		</p>
-		<Button variant="outline" size="sm" onclick={() => logic.loadApps()}>
+		<Button
+			variant="outline"
+			size="sm"
+			onclick={() => logic.loadApps()}
+			disabled={state.creating || state.deleting || state.uploading}
+		>
 			{#snippet iconSnippet()}
 				<Icon name="refresh" />
 			{/snippet}
