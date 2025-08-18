@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { App, Version } from '$lib/api/index.js';
+	import type { DeploymentsListLogic } from '$lib/components/main/DeploymentsList.js';
 	import { Button } from '$lib/components/partials';
 	import Icon from '$lib/components/icons/Icon.svelte';
 	import Modal from '$lib/components/main/Modal.svelte';
@@ -9,18 +10,29 @@
 		apps: App[];
 		versions: Version[];
 		creating: boolean;
+		logic: DeploymentsListLogic;
 		onclose: () => void;
 		oncreate: (data: { app_id: string; version_id: string }) => Promise<void>;
 	}
 
-	let { open, apps, versions, creating, onclose, oncreate }: Props = $props();
+	let { open, apps, versions, creating, logic, onclose, oncreate }: Props = $props();
 
 	let selectedAppId = $state('');
 	let selectedVersionId = $state('');
 
-	// Filter versions based on selected app
+	// Filter versions based on selected app (excluding those with pending deployments)
 	let availableVersions = $derived(
+		selectedAppId ? logic.getAvailableVersionsForApp(selectedAppId) : []
+	);
+
+	// Get all versions for the app (including pending ones) to show warning
+	let allVersionsForApp = $derived(
 		selectedAppId ? versions.filter((v) => v.app_id === selectedAppId) : []
+	);
+
+	// Check if any versions are filtered out due to pending deployments
+	let hasFilteredVersions = $derived(
+		selectedAppId && allVersionsForApp.length > availableVersions.length
 	);
 
 	// Get apps that have versions available
@@ -147,14 +159,31 @@
 					</p>
 				</div>
 			</div>
-		{:else if selectedAppId && availableVersions.length === 0}
+		{/if}
+		{#if selectedAppId && availableVersions.length === 0}
 			<div
 				class="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950"
 			>
 				<div class="flex items-center">
 					<Icon name="warning" class="mr-2 text-amber-600 dark:text-amber-400" />
 					<p class="text-sm text-amber-700 dark:text-amber-300">
-						No versions available for this application. Upload a version first.
+						{#if hasFilteredVersions}
+							All versions for this application have pending or running deployments. Please wait for
+							them to complete.
+						{:else}
+							No versions available for this application. Upload a version first.
+						{/if}
+					</p>
+				</div>
+			</div>
+		{:else if hasFilteredVersions}
+			<div
+				class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950"
+			>
+				<div class="flex items-center">
+					<Icon name="info" class="mr-2 text-blue-600 dark:text-blue-400" />
+					<p class="text-sm text-blue-700 dark:text-blue-300">
+						Some versions are hidden because they have pending or running deployments.
 					</p>
 				</div>
 			</div>
@@ -164,7 +193,15 @@
 	{#snippet footer()}
 		<div class="flex justify-end space-x-3">
 			<Button variant="outline" onclick={onclose} disabled={creating}>Cancel</Button>
-			<Button variant="primary" loading={creating} disabled={creating} onclick={handleSubmit}>
+			<Button
+				variant="primary"
+				loading={creating}
+				disabled={creating ||
+					!selectedAppId ||
+					!selectedVersionId ||
+					availableVersions.length === 0}
+				onclick={handleSubmit}
+			>
 				{#snippet iconSnippet()}
 					<Icon name="rocket" />
 				{/snippet}

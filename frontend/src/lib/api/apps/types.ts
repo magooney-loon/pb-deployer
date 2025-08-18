@@ -10,6 +10,8 @@ export interface App {
 	current_version: string;
 	status: string;
 	latest_version?: string | undefined;
+	deployed_version?: string | null;
+	has_pending_deployment?: boolean;
 }
 
 export interface AppRequest {
@@ -25,6 +27,8 @@ export interface AppResponse extends App {
 	versions?: Version[];
 	deployments?: Deployment[];
 	latest_version?: string | undefined;
+	deployed_version?: string | null;
+	has_pending_deployment?: boolean;
 }
 
 // Import related interfaces

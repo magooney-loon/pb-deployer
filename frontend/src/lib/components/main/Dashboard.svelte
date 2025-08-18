@@ -120,6 +120,10 @@
 			}}
 		>
 			{#snippet children(app: App)}
+				{@const enhancedApp = app as App & {
+					deployed_version?: string | null;
+					has_pending_deployment?: boolean;
+				}}
 				{@const appBadge = logic.getAppStatusBadge(app)}
 				<div class="flex-1">
 					<div class="flex items-center">
@@ -132,7 +136,7 @@
 							class="ml-2"
 							dot
 						/>
-						{#if app.latest_version && logic.hasUpdateAvailable(app.current_version, app.latest_version)}
+						{#if app.latest_version && enhancedApp.deployed_version && logic.hasUpdateAvailable(enhancedApp.deployed_version, app.latest_version)}
 							<StatusBadge status="Update" variant="update" size="xs" class="ml-1" dot />
 						{/if}
 					</div>
@@ -148,11 +152,24 @@
 					</div>
 				</div>
 				<div class="text-right">
-					{#if app.current_version}
+					{#if enhancedApp.deployed_version}
 						<div class="text-xs text-gray-500 dark:text-gray-400">
-							v{app.current_version}
-							{#if app.latest_version && app.current_version !== app.latest_version}
+							v{enhancedApp.deployed_version} deployed
+							{#if app.latest_version && enhancedApp.deployed_version !== app.latest_version}
 								<span class="text-purple-500">→ v{app.latest_version}</span>
+							{/if}
+							{#if enhancedApp.has_pending_deployment}
+								<span class="text-amber-500"> • pending</span>
+							{/if}
+						</div>
+						<div class="text-xs text-gray-400 dark:text-gray-500">
+							{new Date(app.created).toLocaleDateString()}
+						</div>
+					{:else if app.latest_version}
+						<div class="text-xs text-gray-500 dark:text-gray-400">
+							v{app.latest_version} ready
+							{#if enhancedApp.has_pending_deployment}
+								<span class="text-amber-500"> • deploying</span>
 							{/if}
 						</div>
 						<div class="text-xs text-gray-400 dark:text-gray-500">
@@ -160,10 +177,7 @@
 						</div>
 					{:else}
 						<div class="text-xs text-gray-400 dark:text-gray-500">
-							{#if app.latest_version}
-								v{app.latest_version} ready •
-							{/if}
-							{new Date(app.created).toLocaleDateString()}
+							No versions • {new Date(app.created).toLocaleDateString()}
 						</div>
 					{/if}
 				</div>

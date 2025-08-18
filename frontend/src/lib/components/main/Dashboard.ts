@@ -46,10 +46,15 @@ export interface DashboardMetrics {
 	};
 }
 
+// Extended App interface for deployment tracking
+interface AppWithDeploymentStatus extends App {
+	deployed_version: string | null;
+	has_pending_deployment: boolean;
+}
+
 export class DashboardLogic {
 	private state: DashboardState;
 	private stateUpdateCallback?: (state: DashboardState) => void;
-
 	private api: ApiClient;
 
 	constructor() {
@@ -94,9 +99,12 @@ export class DashboardLogic {
 			const apps = appsResponse.apps || [];
 			const deployments = deploymentsResponse.deployments || [];
 
+			// Enhance apps with actual deployment status
+			const enhancedApps = await this.enhanceAppsWithDeploymentStatus(apps, deployments);
+
 			this.updateState({
 				servers,
-				apps,
+				apps: enhancedApps,
 				deployments
 			});
 		} catch (err) {
@@ -112,15 +120,68 @@ export class DashboardLogic {
 		}
 	}
 
+	private async enhanceAppsWithDeploymentStatus(
+		apps: App[],
+		deployments: Deployment[]
+	): Promise<AppWithDeploymentStatus[]> {
+		const enhancedApps = await Promise.all(
+			apps.map(async (app) => {
+				try {
+					// Get versions for this app
+					const versionsResponse = await this.api.versions.getAppVersions(app.id);
+					const versions = versionsResponse.versions || [];
+
+					// Find the latest successful deployment for this app
+					const appDeployments = deployments.filter((d) => d.app_id === app.id);
+					const latestSuccessfulDeployment = appDeployments
+						.filter((d) => d.status === 'success')
+						.sort(
+							(a, b) =>
+								new Date(b.completed_at || b.created).getTime() -
+								new Date(a.completed_at || a.created).getTime()
+						)[0];
+
+					let deployedVersion = null;
+					if (latestSuccessfulDeployment) {
+						const deployedVersionObj = versions.find(
+							(v) => v.id === latestSuccessfulDeployment.version_id
+						);
+						deployedVersion = deployedVersionObj?.version_number || null;
+					}
+
+					// Check if there are pending deployments
+					const hasPendingDeployment = appDeployments.some((d) =>
+						['pending', 'running'].includes(d.status)
+					);
+
+					return {
+						...app,
+						deployed_version: deployedVersion,
+						has_pending_deployment: hasPendingDeployment
+					} as AppWithDeploymentStatus;
+				} catch (error) {
+					console.warn('Failed to enhance app deployment status:', error);
+					return {
+						...app,
+						deployed_version: app.current_version,
+						has_pending_deployment: false
+					} as AppWithDeploymentStatus;
+				}
+			})
+		);
+
+		return enhancedApps;
+	}
+
 	public dismissError(): void {
 		this.updateState({ error: null });
 	}
 
 	public getMetrics(): DashboardMetrics {
 		const { servers, apps, deployments } = this.state;
+		const enhancedApps = apps as AppWithDeploymentStatus[];
 
 		const readyServers = servers?.filter((s) => s.setup_complete) || [];
-
 		const onlineApps = apps?.filter((a) => a.status === 'online') || [];
 
 		const recentServers = servers?.slice(0, 3) || [];
@@ -139,18 +200,17 @@ export class DashboardLogic {
 			unknown: apps?.filter((a) => a.status !== 'online' && a.status !== 'offline').length || 0
 		};
 
-		const successfulDeployments = deployments?.filter((d) => d.status === 'success').length || 0;
-		const pendingDeployments =
-			deployments?.filter((d) => d.status === 'pending' || d.status === 'running').length || 0;
 		const failedDeployments = deployments?.filter((d) => d.status === 'failed').length || 0;
 
+		// Use deployed_version instead of current_version for update checking
 		const appsNeedingUpdates =
-			apps?.filter(
-				(app) =>
+			enhancedApps?.filter((app) => {
+				return (
 					app.latest_version &&
-					app.current_version &&
-					hasUpdateAvailable(app.current_version, app.latest_version)
-			) || [];
+					app.deployed_version &&
+					hasUpdateAvailable(app.deployed_version, app.latest_version)
+				);
+			}) || [];
 
 		return {
 			totalServers: servers?.length || 0,
@@ -163,8 +223,8 @@ export class DashboardLogic {
 			serverStatusCounts,
 			appStatusCounts,
 			deploymentInfo: {
-				appsDeployed: successfulDeployments,
-				pendingDeployment: pendingDeployments,
+				appsDeployed: enhancedApps?.filter((app) => app.deployed_version).length || 0,
+				pendingDeployment: enhancedApps?.filter((app) => app.has_pending_deployment).length || 0,
 				failedDeployments: failedDeployments
 			},
 			updateInfo: {

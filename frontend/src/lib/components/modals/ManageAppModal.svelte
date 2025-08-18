@@ -4,7 +4,7 @@
 	import Icon from '$lib/components/icons/Icon.svelte';
 	import DeleteModal from './DeleteModal.svelte';
 	import { ApiClient } from '$lib/api/index.js';
-	import type { App, Version } from '$lib/api/index.js';
+	import type { App, Version, Deployment } from '$lib/api/index.js';
 
 	interface Props {
 		open?: boolean;
@@ -21,6 +21,7 @@
 	let uploading = $state(false);
 	let deleting = $state(false);
 	let versions = $state<Version[]>([]);
+	let deployments = $state<Deployment[]>([]);
 	let error = $state<string | undefined>(undefined);
 
 	// Upload form state
@@ -75,20 +76,43 @@
 		try {
 			loading = true;
 			error = undefined;
-			const response = await api.versions.getAppVersions(app.id);
-			versions = response.versions || [];
 
-			// Update current version based on latest version
-			if (versions.length > 0) {
-				currentVersion = versions[0].version_number;
+			// Load both versions and deployments
+			const [versionsResponse, deploymentsResponse] = await Promise.all([
+				api.versions.getAppVersions(app.id),
+				api.deployments.getAppDeployments(app.id)
+			]);
+
+			versions = versionsResponse.versions || [];
+			deployments = deploymentsResponse.deployments || [];
+
+			// Update current version based on latest successful deployment
+			const latestSuccessfulDeployment = deployments
+				.filter((d) => d.status === 'success')
+				.sort(
+					(a, b) =>
+						new Date(b.completed_at || b.created).getTime() -
+						new Date(a.completed_at || a.created).getTime()
+				)[0];
+
+			if (latestSuccessfulDeployment) {
+				const deployedVersion = versions.find(
+					(v) => v.id === latestSuccessfulDeployment.version_id
+				);
+				if (deployedVersion) {
+					currentVersion = deployedVersion.version_number;
+				}
 			} else if (app.current_version && app.current_version !== '0.0.0') {
 				currentVersion = app.current_version;
+			} else if (versions.length > 0) {
+				currentVersion = versions[0].version_number;
 			} else {
 				currentVersion = '0.0.0';
 			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load versions';
 			versions = [];
+			deployments = [];
 		} finally {
 			loading = false;
 		}
@@ -173,12 +197,28 @@
 	}
 
 	function openDeleteModal(version: Version) {
-		// Don't allow deleting the current deployed version
-		if (app?.current_version === version.version_number) {
-			error = 'Cannot delete the currently deployed version';
-			console.warn('Attempted to delete current version:', version.version_number);
+		// Check if this version has any successful deployments
+		const hasSuccessfulDeployment = deployments.some(
+			(d) => d.version_id === version.id && d.status === 'success'
+		);
+
+		// Check if this version has any pending/running deployments
+		const hasPendingDeployment = deployments.some(
+			(d) => d.version_id === version.id && ['pending', 'running'].includes(d.status)
+		);
+
+		if (hasSuccessfulDeployment) {
+			error = 'Cannot delete a version that has been successfully deployed';
+			console.warn('Attempted to delete deployed version:', version.version_number);
 			return;
 		}
+
+		if (hasPendingDeployment) {
+			error = 'Cannot delete a version with pending deployments';
+			console.warn('Attempted to delete version with pending deployment:', version.version_number);
+			return;
+		}
+
 		console.log('Opening delete modal for version:', version.version_number);
 		versionToDelete = version;
 		showDeleteModal = true;
@@ -204,7 +244,49 @@
 	}
 
 	function canDeleteVersion(version: Version): boolean {
-		return app?.current_version !== version.version_number;
+		// Check if this version has any successful deployments
+		const hasSuccessfulDeployment = deployments.some(
+			(d) => d.version_id === version.id && d.status === 'success'
+		);
+
+		// Check if this version has any pending/running deployments
+		const hasPendingDeployment = deployments.some(
+			(d) => d.version_id === version.id && ['pending', 'running'].includes(d.status)
+		);
+
+		return !hasSuccessfulDeployment && !hasPendingDeployment;
+	}
+
+	function getVersionStatus(version: Version): {
+		text: string;
+		variant: 'success' | 'error' | 'gray' | 'warning' | 'info' | 'update' | 'custom';
+		isDeployed: boolean;
+		isPending: boolean;
+	} {
+		const successfulDeployment = deployments.find(
+			(d) => d.version_id === version.id && d.status === 'success'
+		);
+		const pendingDeployment = deployments.find(
+			(d) => d.version_id === version.id && ['pending', 'running'].includes(d.status)
+		);
+		const failedDeployment = deployments.find(
+			(d) => d.version_id === version.id && d.status === 'failed'
+		);
+
+		if (successfulDeployment) {
+			return { text: 'Deployed', variant: 'success', isDeployed: true, isPending: false };
+		} else if (pendingDeployment) {
+			return {
+				text: pendingDeployment.status === 'running' ? 'Deploying' : 'Pending',
+				variant: 'warning',
+				isDeployed: false,
+				isPending: true
+			};
+		} else if (failedDeployment) {
+			return { text: 'Deploy Failed', variant: 'error', isDeployed: false, isPending: false };
+		} else {
+			return { text: 'Ready', variant: 'gray', isDeployed: false, isPending: false };
+		}
 	}
 
 	// Update form data when nextVersion changes
@@ -226,6 +308,7 @@
 				resetUploadForm();
 				error = undefined;
 				versions = [];
+				deployments = [];
 			}, 300);
 		}
 	});
@@ -257,7 +340,7 @@
 							{app.name}
 						</h3>
 						<p class="text-sm text-blue-700 dark:text-blue-300">
-							Domain: {app.domain} • Current: v{app.current_version || 'None'}
+							Domain: {app.domain} • Current: v{currentVersion || 'None'}
 						</p>
 					</div>
 				</div>
@@ -431,6 +514,7 @@
 				{:else}
 					<div class="space-y-3">
 						{#each versions as version (version.id)}
+							{@const versionStatus = getVersionStatus(version)}
 							<div
 								class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-950"
 							>
@@ -441,9 +525,11 @@
 												<span class="font-mono font-semibold text-gray-900 dark:text-gray-100">
 													v{version.version_number}
 												</span>
-												{#if app.current_version === version.version_number}
-													<StatusBadge status="Current" variant="success" size="xs" />
-												{/if}
+												<StatusBadge
+													status={versionStatus.text}
+													variant={versionStatus.variant}
+													size="xs"
+												/>
 											</div>
 											{#if version.notes}
 												<p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{version.notes}</p>

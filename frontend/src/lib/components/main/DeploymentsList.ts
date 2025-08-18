@@ -185,6 +185,13 @@ export class DeploymentsListLogic {
 		this.updateState({ creating: true, error: null });
 
 		try {
+			// Check if there's already a pending deployment for this version
+			if (this.hasPendingDeployment(data.app_id, data.version_id)) {
+				throw new Error(
+					'A deployment for this version is already pending or running. Please wait for it to complete.'
+				);
+			}
+
 			await this.apiClient.deployments.createDeployment({
 				app_id: data.app_id,
 				version_id: data.version_id,
@@ -196,8 +203,10 @@ export class DeploymentsListLogic {
 			this.updateState({ creating: false, showCreateModal: false });
 		} catch (error) {
 			console.error('Failed to create deployment:', error);
+			const errorMessage =
+				error instanceof Error ? error.message : 'Failed to create deployment. Please try again.';
 			this.updateState({
-				error: 'Failed to create deployment. Please try again.',
+				error: errorMessage,
 				creating: false
 			});
 		}
@@ -209,6 +218,47 @@ export class DeploymentsListLogic {
 
 	getVersionsForApp(appId: string): Version[] {
 		return this.state.versions.filter((version) => version.app_id === appId);
+	}
+
+	hasPendingDeployment(appId: string, versionId: string): boolean {
+		return this.state.deployments.some(
+			(deployment) =>
+				deployment.app_id === appId &&
+				deployment.version_id === versionId &&
+				['pending', 'running'].includes(deployment.status)
+		);
+	}
+
+	getAvailableVersionsForApp(appId: string): Version[] {
+		return this.state.versions.filter((version) => {
+			return version.app_id === appId && !this.hasPendingDeployment(appId, version.id);
+		});
+	}
+
+	getPendingDeploymentInfo(appId: string, versionId: string): Deployment | null {
+		return (
+			this.state.deployments.find(
+				(deployment) =>
+					deployment.app_id === appId &&
+					deployment.version_id === versionId &&
+					['pending', 'running'].includes(deployment.status)
+			) || null
+		);
+	}
+
+	getVersionsWithPendingStatus(
+		appId: string
+	): Array<Version & { hasPending: boolean; pendingDeployment?: Deployment }> {
+		return this.state.versions
+			.filter((version) => version.app_id === appId)
+			.map((version) => {
+				const pendingDeployment = this.getPendingDeploymentInfo(appId, version.id);
+				return {
+					...version,
+					hasPending: !!pendingDeployment,
+					pendingDeployment: pendingDeployment || undefined
+				};
+			});
 	}
 
 	deleteDeployment(deployment: Deployment): void {

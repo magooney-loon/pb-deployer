@@ -38,6 +38,49 @@
 	</Button>
 </header>
 
+<!-- Pending Deployments Summary -->
+{#if !state.loading && state.deployments.some((d) => ['pending', 'running'].includes(d.status))}
+	{@const pendingDeployments = state.deployments.filter((d) =>
+		['pending', 'running'].includes(d.status)
+	)}
+	{@const runningDeployments = state.deployments.filter((d) => d.status === 'running')}
+	<div
+		class="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20"
+	>
+		<div class="flex items-center space-x-2">
+			<Icon name="warning" class="text-amber-600 dark:text-amber-400" />
+			<div class="flex-1">
+				<h3 class="text-sm font-semibold text-amber-900 dark:text-amber-100">Active Deployments</h3>
+				<p class="text-xs text-amber-800 dark:text-amber-200">
+					{pendingDeployments.length} pending
+					{#if runningDeployments.length > 0}
+						• {runningDeployments.length} running
+					{/if}
+				</p>
+			</div>
+		</div>
+		{#if pendingDeployments.length > 0}
+			<div class="mt-3 space-y-1">
+				{#each pendingDeployments.slice(0, 3) as deployment (deployment.id)}
+					<div class="flex items-center justify-between text-xs">
+						<span class="text-amber-800 dark:text-amber-200">
+							{logic.getAppName(deployment)} v{logic.getVersionNumber(deployment)}
+						</span>
+						<span class="text-amber-600 capitalize dark:text-amber-400">
+							{deployment.status}
+						</span>
+					</div>
+				{/each}
+				{#if pendingDeployments.length > 3}
+					<div class="text-xs text-amber-700 dark:text-amber-300">
+						+{pendingDeployments.length - 3} more...
+					</div>
+				{/if}
+			</div>
+		{/if}
+	</div>
+{/if}
+
 {#if state.error}
 	<Toast message={state.error} type="error" onDismiss={() => logic.dismissError()} />
 {/if}
@@ -238,6 +281,7 @@
 	apps={state.apps}
 	versions={state.versions}
 	creating={state.creating}
+	{logic}
 	onclose={() => logic.closeCreateModal()}
 	oncreate={(data) => logic.createDeployment(data)}
 />
