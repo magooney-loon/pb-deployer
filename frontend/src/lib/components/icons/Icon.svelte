@@ -15,6 +15,7 @@
 		| 'plus'
 		| 'server'
 		| 'link'
+		| 'upload'
 		| 'checkmark'
 		| 'green-circle'
 		| 'warning'
@@ -164,6 +165,15 @@
 			stroke-linejoin="round"
 			stroke-width="2"
 			d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+		></path>
+	</svg>
+{:else if name === 'upload'}
+	<svg class={iconClasses} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+		<path
+			stroke-linecap="round"
+			stroke-linejoin="round"
+			stroke-width="2"
+			d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
 		></path>
 	</svg>
 {:else if name === 'checkmark'}

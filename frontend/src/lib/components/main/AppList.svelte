@@ -3,6 +3,7 @@
 	import { AppListLogic, type AppListState } from './AppList.js';
 	import DeleteModal from '$lib/components/modals/DeleteModal.svelte';
 	import AppCreateModal from '$lib/components/modals/AppCreateModal.svelte';
+	import DeployAppModal from '$lib/components/modals/DeployAppModal.svelte';
 	import { Button, Toast, EmptyState, LoadingSpinner, StatusBadge } from '$lib/components/partials';
 	import Icon from '$lib/components/icons/Icon.svelte';
 
@@ -160,11 +161,16 @@
 								{logic.formatTimestamp(app.created)}
 							</td>
 							<td class="space-x-1 px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
-								<Button variant="ghost" size="sm" onclick={() => logic.openApp(app.domain)}>
+								<Button
+									variant="ghost"
+									color="blue"
+									size="sm"
+									onclick={() => logic.deployApp(app.id)}
+								>
 									{#snippet iconSnippet()}
-										<Icon name="link" />
+										<Icon name="upload" />
 									{/snippet}
-									Open
+									Deploy
 								</Button>
 
 								<Button
@@ -216,4 +222,14 @@
 	loading={state.deleting}
 	onclose={() => logic.closeDeleteModal()}
 	onconfirm={(id) => logic.confirmDeleteApp(id)}
+/>
+
+<!-- Deploy App Modal -->
+<DeployAppModal
+	open={state.showDeployModal}
+	app={state.appToDeploy}
+	deploying={state.deploying}
+	onclose={() => logic.closeDeployModal()}
+	ondeploy={(versionData: { version_number: string; notes: string; deploymentZip: File }) =>
+		logic.createDeployment(versionData)}
 />

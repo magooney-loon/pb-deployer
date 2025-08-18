@@ -28,6 +28,9 @@ export interface AppListState {
 	deleting: boolean;
 	showDeleteModal: boolean;
 	appToDelete: App | null;
+	deploying: boolean;
+	showDeployModal: boolean;
+	appToDeploy: App | null;
 }
 
 export class AppListLogic {
@@ -59,7 +62,10 @@ export class AppListLogic {
 			creating: false,
 			deleting: false,
 			showDeleteModal: false,
-			appToDelete: null
+			appToDelete: null,
+			deploying: false,
+			showDeployModal: false,
+			appToDeploy: null
 		};
 	}
 
@@ -195,6 +201,67 @@ export class AppListLogic {
 				appToDelete: null
 			});
 		}, 200);
+	}
+
+	public deployApp(id: string): void {
+		const app = this.state.apps.find((a) => a.id === id);
+		if (app) {
+			this.updateState({
+				showDeployModal: true,
+				appToDeploy: app
+			});
+		}
+	}
+
+	public closeDeployModal(): void {
+		this.updateState({
+			showDeployModal: false
+		});
+
+		setTimeout(() => {
+			this.updateState({
+				appToDeploy: null
+			});
+		}, 200);
+	}
+
+	public async createDeployment(versionData: {
+		version_number: string;
+		notes: string;
+		deploymentZip: File;
+	}): Promise<boolean> {
+		if (!this.state.appToDeploy) return false;
+
+		try {
+			this.updateState({ deploying: true, error: null });
+
+			// Create version with uploaded file
+			const version = await this.api.versions.createVersion({
+				app_id: this.state.appToDeploy.id,
+				version_number: versionData.version_number,
+				notes: versionData.notes,
+				deployment_zip: versionData.deploymentZip
+			});
+
+			// Create deployment
+			await this.api.deployments.createDeployment({
+				app_id: this.state.appToDeploy.id,
+				version_id: version.id
+			});
+
+			this.updateState({
+				showDeployModal: false,
+				deploying: false
+			});
+
+			// Refresh apps list to get updated status
+			await this.loadApps();
+			return true;
+		} catch (err) {
+			const error = err instanceof Error ? err.message : 'Failed to create deployment';
+			this.updateState({ error, deploying: false });
+			return false;
+		}
 	}
 
 	public resetForm(): void {

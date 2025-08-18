@@ -36,9 +36,22 @@ export class VersionCrudClient {
 		app_id: string;
 		version_number: string;
 		notes?: string;
+		deployment_zip?: File;
 	}): Promise<Version> {
 		try {
-			const version = await this.pb.collection('versions').create<Version>(data);
+			const formData = new FormData();
+			formData.append('app_id', data.app_id);
+			formData.append('version_number', data.version_number);
+
+			if (data.notes) {
+				formData.append('notes', data.notes);
+			}
+
+			if (data.deployment_zip) {
+				formData.append('deployment_zip', data.deployment_zip);
+			}
+
+			const version = await this.pb.collection('versions').create<Version>(formData);
 			return version;
 		} catch (error) {
 			console.error('Failed to create version:', error);
