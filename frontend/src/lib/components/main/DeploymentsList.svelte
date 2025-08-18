@@ -139,12 +139,16 @@
 								{:else if duration}
 									<span>{duration}</span>
 								{:else}
-									<span class="text-gray-400">-</span>
+									<span class="text-gray-400">Not Deployed</span>
 								{/if}
 							</td>
 							<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
 								<div class="flex flex-col">
-									<span>{logic.formatTimestamp(deployment.created)}</span>
+									<span
+										>{deployment.started_at
+											? logic.formatTimestamp(deployment.started_at)
+											: 'Not started'}</span
+									>
 									{#if deployment.completed_at}
 										<span class="text-xs text-gray-400 dark:text-gray-500">
 											Completed {logic.formatTimestamp(deployment.completed_at)}
