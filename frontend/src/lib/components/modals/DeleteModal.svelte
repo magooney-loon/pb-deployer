@@ -202,7 +202,7 @@
 			>
 				<p class="mb-2 text-sm text-gray-700 dark:text-gray-300">
 					To confirm deletion, type the {itemType} name:
-					<strong class="font-mono">{displayName}</strong>
+					<br /><strong class="font-mono">{displayName}</strong>
 				</p>
 				<input
 					type="text"
