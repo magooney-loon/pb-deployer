@@ -56,6 +56,14 @@ export class VersionCrudClient {
 				file_type: data.deployment_zip?.type
 			});
 
+			// Check for duplicate version first
+			const existingVersions = await this.checkVersionExists(data.app_id, data.version_number);
+			if (existingVersions) {
+				throw new Error(
+					`Version ${data.version_number} already exists for this application. Please use a different version number.`
+				);
+			}
+
 			// Validate file if provided
 			if (data.deployment_zip) {
 				const maxSize = 150 * 1024 * 1024; // 150MB
@@ -101,19 +109,14 @@ export class VersionCrudClient {
 		} catch (error) {
 			console.error('Failed to create version:', error);
 
+			// Handle our own validation errors first
+			if (error instanceof Error && error.message.includes('already exists')) {
+				throw error;
+			}
+
 			// Handle specific PocketBase errors
 			if (error && typeof error === 'object' && 'data' in error) {
 				const pbError = error as PocketBaseError;
-
-				// Check for duplicate version number constraint
-				if (pbError.status === 400 && pbError.data?.data) {
-					const errorData = pbError.data.data;
-					if (errorData.version_number || errorData.app_id) {
-						throw new Error(
-							`Version ${data.version_number} already exists for this application. Please use a different version number.`
-						);
-					}
-				}
 
 				// Check for file size or validation errors
 				if (pbError.status === 400) {
@@ -125,10 +128,10 @@ export class VersionCrudClient {
 					throw new Error(pbError.message || 'Validation failed. Please check your input data.');
 				}
 
-				// Server errors
+				// Server errors - provide more specific guidance
 				if (pbError.status === 500) {
 					throw new Error(
-						'Server error occurred. Please try again or contact support if the problem persists.'
+						'Server error during version creation. This might be due to a database issue or file processing error. Please try again with a different version number or file.'
 					);
 				}
 
@@ -136,9 +139,9 @@ export class VersionCrudClient {
 			}
 
 			if (error instanceof Error) {
-				throw new Error(`Version creation failed: ${error.message}`);
+				throw error;
 			}
-			throw error;
+			throw new Error('An unexpected error occurred during version creation');
 		}
 	}
 
@@ -185,13 +188,16 @@ export class VersionCrudClient {
 	async checkVersionExists(appId: string, versionNumber: string): Promise<boolean> {
 		try {
 			const records = await this.pb.collection('versions').getFullList<Version>({
-				filter: `app_id = "${appId}" && version_number = "${versionNumber}"`
+				filter: `app_id = "${appId}" && version_number = "${versionNumber}"`,
+				requestKey: null // Disable caching for this check
 			});
 
+			console.log(`Version check for ${versionNumber} in app ${appId}:`, records.length > 0);
 			return records.length > 0;
 		} catch (error) {
 			console.error('Failed to check version existence:', error);
-			throw error;
+			// If we can't check, assume it doesn't exist and let the server handle conflicts
+			return false;
 		}
 	}
 }

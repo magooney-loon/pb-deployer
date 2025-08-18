@@ -102,7 +102,6 @@ func (v *Version) CreateCollection(app core.App) error {
 
 	collection.AddIndex("idx_versions_app", false, "app_id", "")
 	collection.AddIndex("idx_versions_version", false, "version_number", "")
-	collection.AddIndex("idx_versions_app_version", true, "app_id", "version_number")
 
 	if err := app.Save(collection); err != nil {
 		app.Logger().Error("createVersionsCollection: Failed to save versions collection", "error", err)

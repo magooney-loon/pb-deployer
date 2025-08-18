@@ -3,7 +3,7 @@
 	import { AppListLogic, type AppListState } from './AppList.js';
 	import DeleteModal from '$lib/components/modals/DeleteModal.svelte';
 	import AppCreateModal from '$lib/components/modals/AppCreateModal.svelte';
-	import UploadVersionModal from '$lib/components/modals/UploadVersionModal.svelte';
+	import ManageAppModal from '$lib/components/modals/ManageAppModal.svelte';
 	import { Button, Toast, EmptyState, LoadingSpinner, StatusBadge } from '$lib/components/partials';
 	import Icon from '$lib/components/icons/Icon.svelte';
 
@@ -54,7 +54,7 @@
 	<Button
 		variant="outline"
 		onclick={() => logic.toggleCreateForm()}
-		disabled={availableServers.length === 0 || state.creating || state.deleting || state.uploading}
+		disabled={availableServers.length === 0 || state.creating || state.deleting}
 	>
 		{#snippet iconSnippet()}
 			<Icon name="plus" />
@@ -176,20 +176,20 @@
 									variant="ghost"
 									color="blue"
 									size="sm"
-									disabled={state.deleting || state.creating || state.uploading}
-									onclick={() => logic.openUploadModal(app.id)}
+									disabled={state.deleting || state.creating}
+									onclick={() => logic.openManageModal(app.id)}
 								>
 									{#snippet iconSnippet()}
-										<Icon name="upload" />
+										<Icon name="apps" />
 									{/snippet}
-									Upload
+									Manage
 								</Button>
 
 								<Button
 									variant="ghost"
 									color="red"
 									size="sm"
-									disabled={state.deleting || state.creating || state.uploading}
+									disabled={state.deleting || state.creating}
 									onclick={() => logic.deleteApp(app.id)}
 								>
 									{#snippet iconSnippet()}
@@ -213,7 +213,7 @@
 			variant="outline"
 			size="sm"
 			onclick={() => logic.loadApps()}
-			disabled={state.creating || state.deleting || state.uploading}
+			disabled={state.creating || state.deleting}
 		>
 			{#snippet iconSnippet()}
 				<Icon name="refresh" />
@@ -242,12 +242,10 @@
 	onconfirm={(id) => logic.confirmDeleteApp(id)}
 />
 
-<!-- Upload Version Modal -->
-<UploadVersionModal
-	open={state.showUploadModal}
-	app={state.appToUpload}
-	uploading={state.uploading}
-	onclose={() => logic.closeUploadModal()}
-	onupload={(versionData: { version_number: string; notes: string; deploymentZip: File }) =>
-		logic.uploadVersion(versionData)}
+<!-- Manage App Modal -->
+<ManageAppModal
+	open={state.showManageModal}
+	app={state.appToManage}
+	onclose={() => logic.closeManageModal()}
+	onrefresh={() => logic.loadApps()}
 />

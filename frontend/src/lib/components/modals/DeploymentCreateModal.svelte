@@ -43,12 +43,8 @@
 		}
 	});
 
-	function isFormValid(): boolean {
-		return selectedAppId !== '' && selectedVersionId !== '';
-	}
-
 	async function handleSubmit() {
-		if (!isFormValid() || creating) return;
+		if (creating) return;
 
 		try {
 			await oncreate({
@@ -168,12 +164,7 @@
 	{#snippet footer()}
 		<div class="flex justify-end space-x-3">
 			<Button variant="outline" onclick={onclose} disabled={creating}>Cancel</Button>
-			<Button
-				variant="primary"
-				loading={creating}
-				disabled={!isFormValid() || creating}
-				onclick={handleSubmit}
-			>
+			<Button variant="primary" loading={creating} disabled={creating} onclick={handleSubmit}>
 				{#snippet iconSnippet()}
 					<Icon name="rocket" />
 				{/snippet}

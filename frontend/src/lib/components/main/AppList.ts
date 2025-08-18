@@ -30,9 +30,8 @@ export interface AppListState {
 	deleting: boolean;
 	showDeleteModal: boolean;
 	appToDelete: App | null;
-	uploading: boolean;
-	showUploadModal: boolean;
-	appToUpload: App | null;
+	showManageModal: boolean;
+	appToManage: App | null;
 }
 
 export class AppListLogic {
@@ -65,9 +64,8 @@ export class AppListLogic {
 			deleting: false,
 			showDeleteModal: false,
 			appToDelete: null,
-			uploading: false,
-			showUploadModal: false,
-			appToUpload: null
+			showManageModal: false,
+			appToManage: null
 		};
 	}
 
@@ -206,71 +204,26 @@ export class AppListLogic {
 		}, 200);
 	}
 
-	public openUploadModal(id: string): void {
+	public openManageModal(id: string): void {
 		const app = this.state.apps.find((a) => a.id === id);
 		if (app) {
 			this.updateState({
-				showUploadModal: true,
-				appToUpload: app
+				showManageModal: true,
+				appToManage: app
 			});
 		}
 	}
 
-	public closeUploadModal(): void {
+	public closeManageModal(): void {
 		this.updateState({
-			showUploadModal: false
+			showManageModal: false
 		});
 
 		setTimeout(() => {
 			this.updateState({
-				appToUpload: null
+				appToManage: null
 			});
 		}, 200);
-	}
-
-	public async uploadVersion(versionData: {
-		version_number: string;
-		notes: string;
-		deploymentZip: File;
-	}): Promise<boolean> {
-		if (!this.state.appToUpload) return false;
-
-		try {
-			this.updateState({ uploading: true, error: null });
-
-			// Check if version already exists
-			const versionExists = await this.api.versions.checkVersionExists(
-				this.state.appToUpload.id,
-				versionData.version_number
-			);
-
-			if (versionExists) {
-				throw new Error(
-					`Version ${versionData.version_number} already exists for this application. Please use a different version number.`
-				);
-			}
-
-			// Create version with uploaded file
-			await this.api.versions.createVersion({
-				app_id: this.state.appToUpload.id,
-				version_number: versionData.version_number,
-				notes: versionData.notes,
-				deployment_zip: versionData.deploymentZip
-			});
-
-			this.updateState({
-				showUploadModal: false,
-				uploading: false
-			});
-
-			// Refresh apps list to get updated status
-			await this.loadApps();
-			return true;
-		} catch (err) {
-			const error = err instanceof Error ? err.message : 'Failed to upload version';
-			this.updateState({ error, uploading: false });
-			return false;
-		}
 	}
 
 	public resetForm(): void {
