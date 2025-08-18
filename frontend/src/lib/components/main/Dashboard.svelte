@@ -149,7 +149,7 @@
 				</div>
 				<div class="text-right">
 					{#if app.current_version}
-						<div class="text-xs text-gray-400 dark:text-gray-500">
+						<div class="text-xs text-gray-500 dark:text-gray-400">
 							v{app.current_version}
 							{#if app.latest_version && app.current_version !== app.latest_version}
 								<span class="text-purple-500">→ v{app.latest_version}</span>
@@ -216,9 +216,19 @@
 						</div>
 					{/if}
 					<div class="text-xs text-gray-400 dark:text-gray-500">
-						{new Date(deployment.created).toLocaleDateString()} at {new Date(
-							deployment.created
-						).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+						{#if deployment.started_at}
+							{new Date(deployment.started_at).toLocaleDateString()}
+							{new Date(deployment.started_at).toLocaleTimeString([], {
+								hour: '2-digit',
+								minute: '2-digit'
+							})}
+						{:else}
+							{new Date(deployment.created).toLocaleDateString()}
+							{new Date(deployment.created).toLocaleTimeString([], {
+								hour: '2-digit',
+								minute: '2-digit'
+							})}
+						{/if}
 					</div>
 				</div>
 			{/snippet}

@@ -161,10 +161,13 @@ export class DeploymentsListLogic {
 	}
 
 	closeLogsModal(): void {
-		this.updateState({
-			showLogsModal: false,
-			deploymentToShowLogs: null
-		});
+		// Start closing animation immediately
+		this.updateState({ showLogsModal: false });
+
+		// Clear deployment data after animation completes
+		setTimeout(() => {
+			this.updateState({ deploymentToShowLogs: null });
+		}, 300);
 	}
 
 	openCreateModal(): void {
@@ -172,7 +175,10 @@ export class DeploymentsListLogic {
 	}
 
 	closeCreateModal(): void {
+		// Start closing animation immediately
 		this.updateState({ showCreateModal: false });
+
+		// No additional data to clear for create modal after animation
 	}
 
 	async createDeployment(data: { app_id: string; version_id: string }): Promise<void> {
@@ -224,10 +230,13 @@ export class DeploymentsListLogic {
 	}
 
 	closeDeleteModal(): void {
-		this.updateState({
-			showDeleteModal: false,
-			deploymentToDelete: null
-		});
+		// Start closing animation immediately
+		this.updateState({ showDeleteModal: false });
+
+		// Clear deployment data after animation completes
+		setTimeout(() => {
+			this.updateState({ deploymentToDelete: null });
+		}, 300);
 	}
 
 	async confirmDeleteDeployment(deploymentId: string): Promise<void> {
