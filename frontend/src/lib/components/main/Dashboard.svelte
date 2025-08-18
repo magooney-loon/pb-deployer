@@ -154,7 +154,7 @@
 				<div class="text-right">
 					{#if enhancedApp.deployed_version}
 						<div class="text-xs text-gray-500 dark:text-gray-400">
-							v{enhancedApp.deployed_version} deployed
+							v{enhancedApp.deployed_version}
 							{#if app.latest_version && enhancedApp.deployed_version !== app.latest_version}
 								<span class="text-purple-500">→ v{app.latest_version}</span>
 							{/if}
