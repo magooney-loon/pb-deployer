@@ -15,7 +15,6 @@ import (
 	"golang.org/x/crypto/ssh/knownhosts"
 )
 
-// AuthConfig holds SSH authentication configuration
 type AuthConfig struct {
 	KnownHostsFile string
 	// SkipHostKeyVerification bypasses host key verification (DANGEROUS)
@@ -32,7 +31,6 @@ func GetAuthMethods(config AuthConfig) ([]ssh.AuthMethod, func(), error) {
 		}
 	}
 
-	// Connect to SSH agent
 	sock, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK"))
 	if err != nil {
 		return nil, nil, &Error{
@@ -71,7 +69,6 @@ func GetAuthMethods(config AuthConfig) ([]ssh.AuthMethod, func(), error) {
 	return []ssh.AuthMethod{ssh.PublicKeysCallback(agentClient.Signers)}, cleanup, nil
 }
 
-// GetHostKeyCallback returns host key verification callback
 func GetHostKeyCallback(config AuthConfig) (ssh.HostKeyCallback, error) {
 	// DANGEROUS: Skip host key verification if requested
 	if config.SkipHostKeyVerification {
