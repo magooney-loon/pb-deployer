@@ -177,7 +177,7 @@
 			emptyState={{
 				message: 'No deployments yet',
 				ctaText: metrics.totalApps > 0 ? 'Deploy an app →' : undefined,
-				ctaHref: metrics.totalApps > 0 ? '/apps' : undefined,
+				ctaHref: metrics.totalApps > 0 ? '/deployments' : undefined,
 				secondaryText: metrics.totalApps === 0 ? 'Create an app first' : undefined
 			}}
 		>
@@ -186,7 +186,7 @@
 				<div class="flex-1">
 					<div class="flex items-center">
 						<span class="text-sm font-medium text-gray-900 dark:text-gray-100">
-							Deployment #{deployment.id.slice(-8)}
+							{deployment.expand?.app_id?.name || 'Unknown App'}
 						</span>
 						<StatusBadge
 							status={deploymentBadge.text}
@@ -195,13 +195,24 @@
 						/>
 					</div>
 					<div class="text-xs text-gray-500 dark:text-gray-400">
-						App ID: {deployment.app_id.slice(-8)}
+						{#if deployment.expand?.app_id?.domain}
+							<a
+								href="https://{deployment.expand.app_id.domain}"
+								target="_blank"
+								class="inline-flex items-center space-x-1 text-gray-600 underline-offset-4 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-100"
+							>
+								<span>{deployment.expand.app_id.domain}</span>
+								<Icon name="link" size="h-3 w-3" />
+							</a>
+						{:else}
+							Unknown Domain
+						{/if}
 					</div>
 				</div>
 				<div class="text-right">
-					{#if deployment.version_id}
+					{#if deployment.expand?.version_id?.version_number}
 						<div class="text-xs text-gray-500 dark:text-gray-400">
-							Version: {deployment.version_id.slice(-8)}
+							v{deployment.expand.version_id.version_number}
 						</div>
 					{/if}
 					<div class="text-xs text-gray-400 dark:text-gray-500">
@@ -272,21 +283,21 @@
 					</h4>
 					<div class="space-y-2">
 						<div class="flex justify-between text-sm">
-							<span class="text-gray-600 dark:text-gray-400">Apps deployed:</span>
-							<span class="font-semibold text-gray-900 dark:text-gray-100">
+							<span class="text-gray-600 dark:text-gray-400">Successful deployments:</span>
+							<span class="font-semibold text-emerald-600 dark:text-emerald-400">
 								{metrics.deploymentInfo.appsDeployed}
 							</span>
 						</div>
 						<div class="flex justify-between text-sm">
-							<span class="text-gray-600 dark:text-gray-400">Pending deployment:</span>
-							<span class="font-semibold text-gray-900 dark:text-gray-100">
+							<span class="text-gray-600 dark:text-gray-400">Pending deployments:</span>
+							<span class="font-semibold text-amber-600 dark:text-amber-400">
 								{metrics.deploymentInfo.pendingDeployment}
 							</span>
 						</div>
 						<div class="flex justify-between text-sm">
-							<span class="text-gray-600 dark:text-gray-400">Avg. uptime:</span>
-							<span class="font-semibold text-emerald-600 dark:text-emerald-400">
-								{metrics.deploymentInfo.averageUptime}%
+							<span class="text-gray-600 dark:text-gray-400">Failed deployments:</span>
+							<span class="font-semibold text-red-600 dark:text-red-400">
+								{metrics.deploymentInfo.failedDeployments}
 							</span>
 						</div>
 					</div>

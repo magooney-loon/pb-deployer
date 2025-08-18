@@ -37,7 +37,7 @@ export interface DashboardMetrics {
 	deploymentInfo: {
 		appsDeployed: number;
 		pendingDeployment: number;
-		averageUptime: number;
+		failedDeployments: number;
 	};
 	updateInfo: {
 		appsWithUpdates: number;
@@ -139,12 +139,10 @@ export class DashboardLogic {
 			unknown: apps?.filter((a) => a.status !== 'online' && a.status !== 'offline').length || 0
 		};
 
-		const appsDeployed = apps?.filter((a) => a.current_version).length || 0;
-		const pendingDeployment = apps?.filter((a) => !a.current_version).length || 0;
-		const averageUptime =
-			onlineApps.length > 0 && (apps?.length || 0) > 0
-				? Math.round((onlineApps.length / (apps?.length || 1)) * 100)
-				: 0;
+		const successfulDeployments = deployments?.filter((d) => d.status === 'success').length || 0;
+		const pendingDeployments =
+			deployments?.filter((d) => d.status === 'pending' || d.status === 'running').length || 0;
+		const failedDeployments = deployments?.filter((d) => d.status === 'failed').length || 0;
 
 		const appsNeedingUpdates =
 			apps?.filter(
@@ -165,9 +163,9 @@ export class DashboardLogic {
 			serverStatusCounts,
 			appStatusCounts,
 			deploymentInfo: {
-				appsDeployed,
-				pendingDeployment,
-				averageUptime
+				appsDeployed: successfulDeployments,
+				pendingDeployment: pendingDeployments,
+				failedDeployments: failedDeployments
 			},
 			updateInfo: {
 				appsWithUpdates: appsNeedingUpdates.length,

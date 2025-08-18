@@ -11,7 +11,8 @@ export class DeploymentCrudClient {
 	async getDeployments() {
 		try {
 			const records = await this.pb.collection('deployments').getFullList<Deployment>({
-				sort: '-created'
+				sort: '-created',
+				expand: 'app_id,version_id'
 			});
 
 			const result = { deployments: records || [] };
@@ -24,7 +25,9 @@ export class DeploymentCrudClient {
 
 	async getDeployment(id: string): Promise<Deployment> {
 		try {
-			const deployment = await this.pb.collection('deployments').getOne<Deployment>(id);
+			const deployment = await this.pb.collection('deployments').getOne<Deployment>(id, {
+				expand: 'app_id,version_id'
+			});
 			return deployment;
 		} catch (error) {
 			console.error('Failed to get deployment:', error);
@@ -76,7 +79,8 @@ export class DeploymentCrudClient {
 		try {
 			const records = await this.pb.collection('deployments').getFullList<Deployment>({
 				filter: `app_id = "${appId}"`,
-				sort: '-created'
+				sort: '-created',
+				expand: 'app_id,version_id'
 			});
 
 			return {
@@ -93,7 +97,8 @@ export class DeploymentCrudClient {
 		try {
 			const records = await this.pb.collection('deployments').getFullList<Deployment>({
 				filter: `version_id = "${versionId}"`,
-				sort: '-created'
+				sort: '-created',
+				expand: 'app_id,version_id'
 			});
 
 			return {

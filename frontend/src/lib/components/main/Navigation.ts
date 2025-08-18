@@ -3,7 +3,7 @@ import { themeStore } from '$lib/utils/theme.js';
 export interface NavigationItem {
 	href: string;
 	label: string;
-	icon: 'dashboard' | 'servers' | 'apps' | 'docs';
+	icon: 'dashboard' | 'servers' | 'apps' | 'docs' | 'rocket';
 }
 
 export interface NavigationState {
@@ -19,6 +19,7 @@ export class NavigationLogic {
 		{ href: '/', label: 'Dashboard', icon: 'dashboard' },
 		{ href: '/servers', label: 'Servers', icon: 'servers' },
 		{ href: '/apps', label: 'Applications', icon: 'apps' },
+		{ href: '/deployments', label: 'Deployments', icon: 'rocket' },
 		{ href: '/docs', label: 'Documentation', icon: 'docs' }
 	];
 
