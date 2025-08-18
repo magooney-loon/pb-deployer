@@ -148,9 +148,6 @@
 					</div>
 				</div>
 				<div class="text-right">
-					<div class="text-xs text-gray-500 dark:text-gray-400">
-						{app.service_name}
-					</div>
 					{#if app.current_version}
 						<div class="text-xs text-gray-400 dark:text-gray-500">
 							v{app.current_version}
