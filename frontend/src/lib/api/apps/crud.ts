@@ -121,4 +121,42 @@ export class AppsCrudClient {
 			throw error;
 		}
 	}
+
+	async getLatestVersionForApp(appId: string): Promise<string | null> {
+		try {
+			const versions = await this.pb.collection('versions').getFullList({
+				filter: `app_id = "${appId}"`,
+				sort: '-created',
+				limit: 1
+			});
+
+			return versions.length > 0 ? versions[0].version_number : null;
+		} catch (error) {
+			console.error('Failed to get latest version for app:', error);
+			return null;
+		}
+	}
+
+	async getAppsWithLatestVersions() {
+		try {
+			const apps = await this.pb.collection('apps').getFullList<App>({
+				sort: '-created'
+			});
+
+			const appsWithVersions = await Promise.all(
+				apps.map(async (app) => {
+					const latestVersion = await this.getLatestVersionForApp(app.id);
+					return {
+						...app,
+						latest_version: latestVersion || undefined
+					};
+				})
+			);
+
+			return { apps: appsWithVersions };
+		} catch (error) {
+			console.error('Failed to get apps with latest versions:', error);
+			throw error;
+		}
+	}
 }

@@ -46,7 +46,7 @@
 	<LoadingSpinner text="Loading dashboard..." />
 {:else}
 	<!-- Metrics Cards -->
-	<div class="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+	<div class="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-5">
 		<MetricCard title="Total Servers" value={metrics.totalServers}>
 			{#snippet iconSnippet()}
 				<Icon name="servers" size="h-6 w-6" />
@@ -65,6 +65,11 @@
 		<MetricCard title="Online Apps" value={metrics.onlineApps.length} color="green">
 			{#snippet iconSnippet()}
 				<Icon name="green-circle" size="h-6 w-6" />
+			{/snippet}
+		</MetricCard>
+		<MetricCard title="Updates Available" value={metrics.updateInfo.appsWithUpdates} color="purple">
+			{#snippet iconSnippet()}
+				<Icon name="upload" size="h-6 w-6" />
 			{/snippet}
 		</MetricCard>
 	</div>
@@ -127,6 +132,9 @@
 							class="ml-2"
 							dot
 						/>
+						{#if app.latest_version && logic.hasUpdateAvailable(app.current_version, app.latest_version)}
+							<StatusBadge status="Update" variant="update" size="xs" class="ml-1" />
+						{/if}
 					</div>
 					<div class="text-xs text-gray-500 dark:text-gray-400">
 						<a
@@ -145,11 +153,19 @@
 					</div>
 					{#if app.current_version}
 						<div class="text-xs text-gray-400 dark:text-gray-500">
-							v{app.current_version} • Created {new Date(app.created).toLocaleDateString()}
+							v{app.current_version}
+							{#if app.latest_version && app.current_version !== app.latest_version}
+								<span class="text-purple-500">→ v{app.latest_version}</span>
+							{/if}
+						</div>
+						<div class="text-xs text-gray-400 dark:text-gray-500">
+							Created {new Date(app.created).toLocaleDateString()}
 						</div>
 					{:else}
 						<div class="text-xs text-gray-400 dark:text-gray-500">
-							Created {new Date(app.created).toLocaleDateString()}
+							{#if app.latest_version}
+								v{app.latest_version} ready •
+							{/if}Created {new Date(app.created).toLocaleDateString()}
 						</div>
 					{/if}
 				</div>
@@ -204,7 +220,7 @@
 	<!-- Status Summary -->
 	{#if logic.hasData()}
 		<Card title="System Status" class="mt-8">
-			<div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+			<div class="grid grid-cols-1 gap-6 md:grid-cols-4">
 				<div>
 					<h4 class="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">Server Status</h4>
 					<div class="space-y-2">
@@ -274,6 +290,35 @@
 							<span class="text-gray-600 dark:text-gray-400">Avg. uptime:</span>
 							<span class="font-semibold text-emerald-600 dark:text-emerald-400">
 								{metrics.deploymentInfo.averageUptime}%
+							</span>
+						</div>
+					</div>
+				</div>
+				<div>
+					<h4 class="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">Update Status</h4>
+					<div class="space-y-2">
+						<div class="flex justify-between text-sm">
+							<span class="text-gray-600 dark:text-gray-400">Updates available:</span>
+							<span class="font-semibold text-purple-600 dark:text-purple-400">
+								{metrics.updateInfo.appsWithUpdates}
+							</span>
+						</div>
+						<div class="flex justify-between text-sm">
+							<span class="text-gray-600 dark:text-gray-400">Up to date:</span>
+							<span class="font-semibold text-emerald-600 dark:text-emerald-400">
+								{metrics.totalApps - metrics.updateInfo.appsWithUpdates}
+							</span>
+						</div>
+						<div class="flex justify-between text-sm">
+							<span class="text-gray-600 dark:text-gray-400">Coverage:</span>
+							<span class="font-semibold text-gray-900 dark:text-gray-100">
+								{metrics.totalApps > 0
+									? Math.round(
+											((metrics.totalApps - metrics.updateInfo.appsWithUpdates) /
+												metrics.totalApps) *
+												100
+										)
+									: 100}%
 							</span>
 						</div>
 					</div>

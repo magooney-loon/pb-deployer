@@ -4,7 +4,8 @@ import {
 	getServerStatusBadge,
 	getAppStatusIcon,
 	getDeploymentStatusBadge,
-	getAppStatusBadge
+	getAppStatusBadge,
+	hasUpdateAvailable
 } from '$lib/components/partials/index.js';
 
 export interface DashboardState {
@@ -37,6 +38,11 @@ export interface DashboardMetrics {
 		appsDeployed: number;
 		pendingDeployment: number;
 		averageUptime: number;
+	};
+	updateInfo: {
+		appsWithUpdates: number;
+		appsNeedingUpdates: App[];
+		totalUpdatesAvailable: number;
 	};
 }
 
@@ -80,7 +86,7 @@ export class DashboardLogic {
 
 			const [serversResponse, appsResponse, deploymentsResponse] = await Promise.all([
 				this.api.servers.getServers(),
-				this.api.apps.getApps(),
+				this.api.apps.getAppsWithLatestVersions(),
 				this.api.deployments.getDeployments()
 			]);
 
@@ -140,6 +146,14 @@ export class DashboardLogic {
 				? Math.round((onlineApps.length / (apps?.length || 1)) * 100)
 				: 0;
 
+		const appsNeedingUpdates =
+			apps?.filter(
+				(app) =>
+					app.latest_version &&
+					app.current_version &&
+					hasUpdateAvailable(app.current_version, app.latest_version)
+			) || [];
+
 		return {
 			totalServers: servers?.length || 0,
 			readyServers,
@@ -154,6 +168,11 @@ export class DashboardLogic {
 				appsDeployed,
 				pendingDeployment,
 				averageUptime
+			},
+			updateInfo: {
+				appsWithUpdates: appsNeedingUpdates.length,
+				appsNeedingUpdates,
+				totalUpdatesAvailable: appsNeedingUpdates.length
 			}
 		};
 	}
@@ -175,6 +194,10 @@ export class DashboardLogic {
 	}
 
 	public getAppStatusBadge(app: App) {
-		return getAppStatusBadge(app);
+		return getAppStatusBadge(app, app.latest_version);
+	}
+
+	public hasUpdateAvailable(currentVersion: string, latestVersion: string): boolean {
+		return hasUpdateAvailable(currentVersion, latestVersion);
 	}
 }

@@ -9,6 +9,7 @@ export interface App {
 	domain: string;
 	current_version: string;
 	status: string;
+	latest_version?: string | undefined;
 }
 
 export interface AppRequest {
@@ -23,6 +24,7 @@ export interface AppResponse extends App {
 	server?: Server;
 	versions?: Version[];
 	deployments?: Deployment[];
+	latest_version?: string | undefined;
 }
 
 // Import related interfaces

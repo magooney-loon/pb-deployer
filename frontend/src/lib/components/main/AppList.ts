@@ -3,7 +3,8 @@ import type { App, AppRequest, Server } from '$lib/api/index.js';
 import {
 	getAppStatusBadge,
 	getAppStatusIcon,
-	formatTimestamp
+	formatTimestamp,
+	hasUpdateAvailable
 } from '$lib/components/partials/index.js';
 
 export interface AppFormData {
@@ -94,7 +95,7 @@ export class AppListLogic {
 	public async loadApps(): Promise<void> {
 		try {
 			this.updateState({ loading: true, error: null });
-			const response = await this.api.apps.getApps();
+			const response = await this.api.apps.getAppsWithLatestVersions();
 			const apps = response.apps || [];
 			this.updateState({ apps });
 		} catch (err) {
@@ -311,7 +312,7 @@ export class AppListLogic {
 	}
 
 	public getAppStatusBadge(app: App) {
-		return getAppStatusBadge(app);
+		return getAppStatusBadge(app, app.latest_version);
 	}
 
 	public openApp(domain: string): void {
@@ -324,5 +325,9 @@ export class AppListLogic {
 
 	public getStatusIcon(status: string): string {
 		return getAppStatusIcon(status);
+	}
+
+	public hasUpdateAvailable(currentVersion: string, latestVersion: string): boolean {
+		return hasUpdateAvailable(currentVersion, latestVersion);
 	}
 }

@@ -149,14 +149,28 @@
 								<div class="text-xs text-gray-500 dark:text-gray-400">{app.remote_path}</div>
 							</td>
 							<td class="px-6 py-4 whitespace-nowrap">
-								<StatusBadge
-									status="{logic.getStatusIcon(app.status)} {statusBadge.text}"
-									variant={statusBadge.variant}
-									dot
-								/>
+								<div class="flex flex-col space-y-1">
+									<StatusBadge
+										status="{logic.getStatusIcon(app.status)} {statusBadge.text}"
+										variant={statusBadge.variant}
+										dot
+									/>
+									{#if app.latest_version && logic.hasUpdateAvailable(app.current_version, app.latest_version)}
+										<StatusBadge status="Update Available" variant="update" size="xs" />
+									{/if}
+								</div>
 							</td>
 							<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
-								{app.current_version || 'Not deployed'}
+								<div class="flex flex-col">
+									<span class="font-medium text-gray-900 dark:text-gray-100">
+										{app.current_version || 'Not deployed'}
+									</span>
+									{#if app.latest_version && app.current_version !== app.latest_version}
+										<span class="text-xs text-purple-600 dark:text-purple-400">
+											Latest: v{app.latest_version}
+										</span>
+									{/if}
+								</div>
 							</td>
 							<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
 								{logic.formatTimestamp(app.created)}

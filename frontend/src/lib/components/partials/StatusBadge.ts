@@ -1,7 +1,7 @@
 import type { Server, App } from '$lib/api/index.js';
 import type { Deployment } from '$lib/api/deployment/types.js';
 
-export type StatusBadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'gray';
+export type StatusBadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'gray' | 'update';
 
 export interface StatusBadgeResult {
 	text: string;
@@ -27,7 +27,19 @@ export function getServerStatusBadge(server: Server): StatusBadgeResult {
 	}
 }
 
-export function getAppStatusBadge(app: App): StatusBadgeResult {
+export function getAppStatusBadge(app: App, latestVersion?: string): StatusBadgeResult {
+	// Check for version update first
+	if (
+		latestVersion &&
+		app.current_version &&
+		hasUpdateAvailable(app.current_version, latestVersion)
+	) {
+		return {
+			text: 'Update Available',
+			variant: 'update'
+		};
+	}
+
 	switch (app.status) {
 		case 'online':
 			return {
@@ -45,6 +57,56 @@ export function getAppStatusBadge(app: App): StatusBadgeResult {
 				variant: 'gray'
 			};
 	}
+}
+
+export function hasUpdateAvailable(currentVersion: string, latestVersion: string): boolean {
+	if (!currentVersion || !latestVersion) {
+		return false;
+	}
+
+	const current = parseVersion(currentVersion);
+	const latest = parseVersion(latestVersion);
+
+	// Compare major.minor.patch
+	if (latest.major > current.major) return true;
+	if (latest.major < current.major) return false;
+
+	if (latest.minor > current.minor) return true;
+	if (latest.minor < current.minor) return false;
+
+	if (latest.patch > current.patch) return true;
+
+	return false;
+}
+
+function parseVersion(version: string): { major: number; minor: number; patch: number } {
+	// Remove 'v' prefix if present and clean up
+	const cleaned = version.replace(/^v/, '').trim();
+	const parts = cleaned.split('.').map((part) => {
+		const num = parseInt(part, 10);
+		return isNaN(num) ? 0 : num;
+	});
+
+	return {
+		major: parts[0] || 0,
+		minor: parts[1] || 0,
+		patch: parts[2] || 0
+	};
+}
+
+export function getAppUpdateStatus(app: App, latestVersion?: string): StatusBadgeResult | null {
+	if (!latestVersion || !app.current_version) {
+		return null;
+	}
+
+	if (hasUpdateAvailable(app.current_version, latestVersion)) {
+		return {
+			text: `v${latestVersion} Available`,
+			variant: 'update'
+		};
+	}
+
+	return null;
 }
 
 export function getAppStatusIcon(status: string): string {

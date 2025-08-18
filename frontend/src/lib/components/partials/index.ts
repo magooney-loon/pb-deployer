@@ -20,6 +20,8 @@ export {
 	getAppStatusIcon,
 	getDeploymentStatusBadge,
 	formatTimestamp,
+	hasUpdateAvailable,
+	getAppUpdateStatus,
 	type StatusBadgeVariant,
 	type StatusBadgeResult
 } from './StatusBadge.js';
