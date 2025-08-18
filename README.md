@@ -13,12 +13,6 @@
   <hr>
 </div>
 
-**Server Setup**: Non-root user creation, directory structure
-<br>
-**Deployment**: SFTP && systemd service management
-<br>
-**Security**: UFW firewall, fail2ban, SSH lockdown
-
 ## 🚀 Quick Start
 
 ```bash
