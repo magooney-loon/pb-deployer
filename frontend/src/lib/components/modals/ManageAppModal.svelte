@@ -254,7 +254,24 @@
 			(d) => d.version_id === version.id && ['pending', 'running'].includes(d.status)
 		);
 
+		// Only prevent deletion for successful deployments, not pending ones
 		return !hasSuccessfulDeployment && !hasPendingDeployment;
+	}
+
+	function getDeleteButtonText(version: Version): string {
+		const hasSuccessfulDeployment = deployments.some(
+			(d) => d.version_id === version.id && d.status === 'success'
+		);
+		const hasPendingDeployment = deployments.some(
+			(d) => d.version_id === version.id && ['pending', 'running'].includes(d.status)
+		);
+
+		if (hasSuccessfulDeployment) {
+			return 'Currently deployed';
+		} else if (hasPendingDeployment) {
+			return 'Deployment in progress';
+		}
+		return '';
 	}
 
 	function getVersionStatus(version: Version): {
@@ -559,7 +576,9 @@
 												Delete
 											</Button>
 										{:else}
-											<div class="text-xs text-gray-500 dark:text-gray-400">Currently deployed</div>
+											<div class="text-xs text-gray-500 dark:text-gray-400">
+												{getDeleteButtonText(version)}
+											</div>
 										{/if}
 									</div>
 								</div>
