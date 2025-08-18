@@ -9,6 +9,14 @@ import (
 	"time"
 )
 
+func getTestPackages() []string {
+	return []string{
+		"./internal/api",
+		"./internal/logger",
+		"./internal/tunnel",
+	}
+}
+
 // Color constants for styling
 const (
 	Reset  = "\033[0m"
@@ -93,13 +101,6 @@ func checkPrerequisites() error {
 	fmt.Printf("✓  %sGo toolchain available%s\n", Green, Reset)
 	fmt.Println()
 	return nil
-}
-
-func getTestPackages() []string {
-	return []string{
-		"./internal/api",
-		"./internal/logger",
-	}
 }
 
 // runTestSuite executes all test packages with beautiful output
