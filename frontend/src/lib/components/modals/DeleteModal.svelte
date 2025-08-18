@@ -13,6 +13,19 @@
 			security_locked?: boolean;
 			domain?: string;
 			status?: string;
+			// App-specific properties
+			deployed_version?: string | null;
+			has_pending_deployment?: boolean;
+			latest_version?: string;
+			current_version?: string;
+			server_id?: string;
+			service_name?: string;
+			remote_path?: string;
+			// Deployment-specific properties
+			app_name?: string;
+			version?: string;
+			started_at?: string;
+			completed_at?: string;
 		} | null;
 		itemType?: string;
 		itemDisplayName?: string;
@@ -86,9 +99,17 @@
 						</h3>
 						<div class="mt-2 text-sm text-red-600 dark:text-red-400">
 							<p>
-								This will permanently delete the {itemType} configuration.
-								{#if itemType === 'server'}
-									The actual VPS server will not be affected.
+								{#if itemType === 'app'}
+									This will permanently delete the application configuration and all its versions.
+									The actual deployed files on the server will remain but will no longer be managed.
+								{:else if itemType === 'deployment'}
+									This will permanently delete this deployment record. The deployed application will
+									remain running.
+								{:else if itemType === 'server'}
+									This will permanently delete the server configuration. The actual VPS server will
+									not be affected.
+								{:else}
+									This will permanently delete the {itemType} configuration.
 								{/if}
 							</p>
 						</div>
@@ -130,11 +151,21 @@
 						</div>
 					{/if}
 
-					{#if itemType === 'app' && item.domain}
-						<div class="flex justify-between">
-							<span class="text-gray-600 dark:text-gray-400">Domain:</span>
-							<span class="font-mono text-gray-900 dark:text-gray-100">{item.domain}</span>
-						</div>
+					{#if itemType === 'app'}
+						{#if item.domain}
+							<div class="flex justify-between">
+								<span class="text-gray-600 dark:text-gray-400">Domain:</span>
+								<span class="font-mono text-gray-900 dark:text-gray-100">
+									<a
+										href="https://{item.domain}"
+										target="_blank"
+										class="text-blue-600 underline-offset-4 hover:underline dark:text-blue-400"
+									>
+										{item.domain}
+									</a>
+								</span>
+							</div>
+						{/if}
 						{#if item.status}
 							<div class="flex justify-between">
 								<span class="text-gray-600 dark:text-gray-400">Status:</span>
@@ -146,6 +177,103 @@
 									{:else}
 										<StatusBadge status="Unknown" variant="gray" />
 									{/if}
+								</span>
+							</div>
+						{/if}
+						{#if item.deployed_version}
+							<div class="flex justify-between">
+								<span class="text-gray-600 dark:text-gray-400">Deployed Version:</span>
+								<span class="font-mono text-gray-900 dark:text-gray-100"
+									>v{item.deployed_version}</span
+								>
+							</div>
+						{/if}
+						{#if item.latest_version && item.deployed_version !== item.latest_version}
+							<div class="flex justify-between">
+								<span class="text-gray-600 dark:text-gray-400">Latest Version:</span>
+								<span class="font-mono text-purple-600 dark:text-purple-400"
+									>v{item.latest_version}</span
+								>
+							</div>
+						{/if}
+						{#if item.has_pending_deployment}
+							<div class="flex justify-between">
+								<span class="text-gray-600 dark:text-gray-400">Deployment:</span>
+								<StatusBadge status="In Progress" variant="warning" />
+							</div>
+						{/if}
+						{#if item.service_name}
+							<div class="flex justify-between">
+								<span class="text-gray-600 dark:text-gray-400">Service:</span>
+								<span class="font-mono text-gray-900 dark:text-gray-100">{item.service_name}</span>
+							</div>
+						{/if}
+						{#if item.remote_path}
+							<div class="flex justify-between">
+								<span class="text-gray-600 dark:text-gray-400">Remote Path:</span>
+								<span class="font-mono text-gray-900 dark:text-gray-100">{item.remote_path}</span>
+							</div>
+						{/if}
+					{/if}
+
+					{#if itemType === 'deployment'}
+						{#if item.app_name}
+							<div class="flex justify-between">
+								<span class="text-gray-600 dark:text-gray-400">Application:</span>
+								<span class="font-medium text-gray-900 dark:text-gray-100">{item.app_name}</span>
+							</div>
+						{/if}
+						{#if item.domain}
+							<div class="flex justify-between">
+								<span class="text-gray-600 dark:text-gray-400">Domain:</span>
+								<span class="font-mono text-gray-900 dark:text-gray-100">
+									<a
+										href="https://{item.domain}"
+										target="_blank"
+										class="text-blue-600 underline-offset-4 hover:underline dark:text-blue-400"
+									>
+										{item.domain}
+									</a>
+								</span>
+							</div>
+						{/if}
+						{#if item.version}
+							<div class="flex justify-between">
+								<span class="text-gray-600 dark:text-gray-400">Version:</span>
+								<span class="font-mono text-gray-900 dark:text-gray-100">v{item.version}</span>
+							</div>
+						{/if}
+						{#if item.status}
+							<div class="flex justify-between">
+								<span class="text-gray-600 dark:text-gray-400">Status:</span>
+								<span class="text-gray-900 dark:text-gray-100">
+									{#if item.status === 'success'}
+										<StatusBadge status="Success" variant="success" />
+									{:else if item.status === 'failed'}
+										<StatusBadge status="Failed" variant="error" />
+									{:else if item.status === 'running'}
+										<StatusBadge status="Running" variant="info" />
+									{:else if item.status === 'pending'}
+										<StatusBadge status="Pending" variant="warning" />
+									{:else}
+										<StatusBadge status={item.status} variant="gray" />
+									{/if}
+								</span>
+							</div>
+						{/if}
+						{#if item.started_at}
+							<div class="flex justify-between">
+								<span class="text-gray-600 dark:text-gray-400">Started:</span>
+								<span class="text-sm text-gray-900 dark:text-gray-100">
+									{new Date(item.started_at).toLocaleString()}
+								</span>
+							</div>
+						{/if}
+						{#if item.completed_at}
+							<div class="flex justify-between">
+								<span class="text-gray-600 dark:text-gray-400">Completed:</span>
+								<span class="text-sm text-gray-900 dark:text-gray-100">
+									{new Date(item.completed_at).toLocaleString()}
 								</span>
 							</div>
 						{/if}
@@ -175,21 +303,36 @@
 							</h3>
 							<div class="mt-2">
 								<p class="text-sm text-amber-600 dark:text-amber-400">
-									This {itemType} has {relatedItems.length}
-									{relatedItemsType}{relatedItems.length !== 1 ? '' : ''}:
+									{#if itemType === 'app'}
+										Deleting this app will also remove {relatedItems.length} related {relatedItemsType}.
+										This includes all versions, deployment history, and configurations.
+									{:else if itemType === 'deployment'}
+										This deployment is related to {relatedItems.length} other {relatedItemsType} for
+										the same app or version.
+									{:else}
+										This {itemType} has {relatedItems.length} related {relatedItemsType}.
+									{/if}
 								</p>
-								<ul
-									class="mt-2 list-inside list-disc space-y-1 text-sm text-amber-600 dark:text-amber-400"
-								>
-									{#each relatedItems as relatedItem (relatedItem.id)}
-										<li>
-											<span class="font-medium">{relatedItem.name}</span>
-											{#if relatedItem.domain}
-												<span class="text-xs">({relatedItem.domain})</span>
-											{/if}
-										</li>
-									{/each}
-								</ul>
+								<div class="mt-3 max-h-32 overflow-y-auto">
+									<ul class="space-y-1 text-sm text-amber-600 dark:text-amber-400">
+										{#each relatedItems as relatedItem (relatedItem.id)}
+											<li
+												class="flex items-center justify-between rounded bg-amber-100 px-2 py-1 dark:bg-amber-900/30"
+											>
+												<span class="font-medium">{relatedItem.name}</span>
+												{#if relatedItem.domain}
+													<span class="text-xs opacity-75">{relatedItem.domain}</span>
+												{/if}
+											</li>
+										{/each}
+									</ul>
+								</div>
+								{#if itemType === 'app'}
+									<p class="mt-2 text-xs text-amber-700 dark:text-amber-300">
+										⚠️ To keep your app running, deploy it manually after deletion or migrate to a
+										new app configuration.
+									</p>
+								{/if}
 							</div>
 						</div>
 					</div>
@@ -201,8 +344,17 @@
 				class="rounded-lg bg-gray-50 p-4 ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-800"
 			>
 				<p class="mb-2 text-sm text-gray-700 dark:text-gray-300">
-					To confirm deletion, type the {itemType} name:
-					<br /><strong class="font-mono">{displayName}</strong>
+					{#if itemType === 'app'}
+						⚠️ <strong>WARNING:</strong> This will permanently delete the app and all related data.
+						<br />To confirm, type the app name:
+						<strong class="font-mono text-red-600 dark:text-red-400">{displayName}</strong>
+					{:else if itemType === 'deployment'}
+						To confirm deletion of this deployment record, type the deployment name:
+						<br /><strong class="font-mono">{displayName}</strong>
+					{:else}
+						To confirm deletion, type the {itemType} name:
+						<br /><strong class="font-mono">{displayName}</strong>
+					{/if}
 				</p>
 				<input
 					type="text"
