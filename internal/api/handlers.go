@@ -19,6 +19,11 @@ func RegisterHandlers(app core.App) {
 			return handleServerValidation(c)
 		})
 
+		e.Router.POST("/api/deploy", func(c *core.RequestEvent) error {
+			return handleDeploy(c, app)
+		})
+
 		return e.Next()
 	})
+
 }
