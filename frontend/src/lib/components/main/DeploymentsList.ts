@@ -13,6 +13,10 @@ export interface DeploymentsListState {
 	deploymentToShowLogs: Deployment | null;
 	showCreateModal: boolean;
 	creating: boolean;
+	showDeleteModal: boolean;
+	deploymentToDelete: { id: string; name: string } | null;
+	deleting: boolean;
+	retrying: boolean;
 }
 
 export class DeploymentsListLogic {
@@ -26,7 +30,11 @@ export class DeploymentsListLogic {
 		showLogsModal: false,
 		deploymentToShowLogs: null,
 		showCreateModal: false,
-		creating: false
+		creating: false,
+		showDeleteModal: false,
+		deploymentToDelete: null,
+		deleting: false,
+		retrying: false
 	};
 
 	private stateUpdateCallbacks: ((state: DeploymentsListState) => void)[] = [];
@@ -195,6 +203,80 @@ export class DeploymentsListLogic {
 
 	getVersionsForApp(appId: string): Version[] {
 		return this.state.versions.filter((version) => version.app_id === appId);
+	}
+
+	deleteDeployment(deployment: Deployment): void {
+		const deploymentDisplay = {
+			id: deployment.id,
+			name: this.getDeploymentDisplayName(deployment)
+		};
+
+		this.updateState({
+			showDeleteModal: true,
+			deploymentToDelete: deploymentDisplay
+		});
+	}
+
+	getDeploymentDisplayName(deployment: Deployment): string {
+		const appName = deployment.expand?.app_id?.name || 'Unknown App';
+		const versionNumber = deployment.expand?.version_id?.version_number || 'Unknown Version';
+		return `${appName} - v${versionNumber}`;
+	}
+
+	closeDeleteModal(): void {
+		this.updateState({
+			showDeleteModal: false,
+			deploymentToDelete: null
+		});
+	}
+
+	async confirmDeleteDeployment(deploymentId: string): Promise<void> {
+		this.updateState({ deleting: true, error: null });
+
+		try {
+			await this.apiClient.deployments.deleteDeployment(deploymentId);
+
+			// Reload deployments after deletion
+			await this.loadDeployments();
+			this.updateState({
+				deleting: false,
+				showDeleteModal: false,
+				deploymentToDelete: null
+			});
+		} catch (error) {
+			console.error('Failed to delete deployment:', error);
+			this.updateState({
+				error: 'Failed to delete deployment. Please try again.',
+				deleting: false
+			});
+		}
+	}
+
+	async retryDeployment(deployment: Deployment): Promise<void> {
+		this.updateState({ retrying: true, error: null });
+
+		try {
+			// Create a new deployment with the same app and version
+			await this.apiClient.deployments.createDeployment({
+				app_id: deployment.app_id,
+				version_id: deployment.version_id,
+				status: 'pending'
+			});
+
+			// Reload deployments after creation
+			await this.loadDeployments();
+			this.updateState({ retrying: false });
+		} catch (error) {
+			console.error('Failed to retry deployment:', error);
+			this.updateState({
+				error: 'Failed to retry deployment. Please try again.',
+				retrying: false
+			});
+		}
+	}
+
+	isPendingDeployment(deployment: Deployment): boolean {
+		return deployment.status === 'pending';
 	}
 
 	isDeploymentComplete(deployment: Deployment): boolean {

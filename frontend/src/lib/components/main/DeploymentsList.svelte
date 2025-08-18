@@ -3,6 +3,7 @@
 	import { DeploymentsListLogic, type DeploymentsListState } from './DeploymentsList.js';
 	import LogsModal from '$lib/components/modals/LogsModal.svelte';
 	import DeploymentCreateModal from '$lib/components/modals/DeploymentCreateModal.svelte';
+	import DeleteModal from '$lib/components/modals/DeleteModal.svelte';
 	import { Button, Toast, EmptyState, LoadingSpinner, StatusBadge } from '$lib/components/partials';
 	import Icon from '$lib/components/icons/Icon.svelte';
 
@@ -36,7 +37,7 @@
 		<Button
 			variant="outline"
 			onclick={() => logic.openCreateModal()}
-			disabled={state.loading || state.creating}
+			disabled={state.loading || state.creating || state.deleting || state.retrying}
 		>
 			{#snippet iconSnippet()}
 				<Icon name="rocket" />
@@ -159,6 +160,35 @@
 								</div>
 							</td>
 							<td class="space-x-1 px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
+								{#if logic.isPendingDeployment(deployment)}
+									<Button
+										variant="ghost"
+										color="blue"
+										size="sm"
+										loading={state.retrying}
+										disabled={state.deleting || state.creating || state.retrying}
+										onclick={() => logic.retryDeployment(deployment)}
+									>
+										{#snippet iconSnippet()}
+											<Icon name="rocket" />
+										{/snippet}
+										{state.retrying ? 'Retrying...' : 'Deploy'}
+									</Button>
+
+									<Button
+										variant="ghost"
+										color="red"
+										size="sm"
+										disabled={state.deleting || state.creating || state.retrying}
+										onclick={() => logic.deleteDeployment(deployment)}
+									>
+										{#snippet iconSnippet()}
+											<Icon name="delete" />
+										{/snippet}
+										Delete
+									</Button>
+								{/if}
+
 								<Button
 									variant="ghost"
 									color="blue"
@@ -187,7 +217,7 @@
 			variant="outline"
 			size="sm"
 			onclick={() => logic.loadDeployments()}
-			disabled={state.loading || state.creating}
+			disabled={state.loading || state.creating || state.deleting || state.retrying}
 		>
 			{#snippet iconSnippet()}
 				<Icon name="refresh" />
@@ -196,6 +226,16 @@
 		</Button>
 	</div>
 {/if}
+
+<!-- Delete Deployment Modal -->
+<DeleteModal
+	open={state.showDeleteModal}
+	item={state.deploymentToDelete}
+	itemType="deployment"
+	loading={state.deleting}
+	onclose={() => logic.closeDeleteModal()}
+	onconfirm={(id) => logic.confirmDeleteDeployment(id)}
+/>
 
 <!-- Deployment Create Modal -->
 <DeploymentCreateModal
