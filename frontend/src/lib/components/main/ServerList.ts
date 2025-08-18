@@ -1,5 +1,6 @@
 import { ApiClient } from '$lib/api/index.js';
 import type { Server, ServerRequest } from '$lib/api/index.js';
+import type { ValidationResponse } from '$lib/api/index.js';
 import { getServerStatusBadge } from '$lib/components/partials/index.js';
 
 export interface ServerFormData {
@@ -29,6 +30,12 @@ export interface ServerListState {
 	setupError: string | null;
 	securityError: string | null;
 	validationError: string | null;
+	// Troubleshoot operations
+	troubleshootInProgress: string | null; // Server ID being troubleshot
+	troubleshootError: string | null;
+	showTroubleshootModal: boolean;
+	troubleshootResults: ValidationResponse | null; // Validation results
+	troubleshootServerId: string | null; // Server ID that was troubleshot
 }
 
 export class ServerListLogic {
@@ -66,7 +73,13 @@ export class ServerListLogic {
 			validationInProgress: null,
 			setupError: null,
 			securityError: null,
-			validationError: null
+			validationError: null,
+			// Troubleshoot operations
+			troubleshootInProgress: null,
+			troubleshootError: null,
+			showTroubleshootModal: false,
+			troubleshootResults: null,
+			troubleshootServerId: null
 		};
 	}
 
@@ -311,6 +324,74 @@ export class ServerListLogic {
 
 	public dismissValidationError(): void {
 		this.updateState({ validationError: null });
+	}
+
+	public async troubleshootServer(serverId: string): Promise<void> {
+		try {
+			this.updateState({
+				troubleshootInProgress: serverId,
+				troubleshootError: null,
+				troubleshootResults: null,
+				error: null,
+				successMessage: null,
+				showTroubleshootModal: true,
+				troubleshootServerId: serverId
+			});
+
+			const results = await this.api.setup.validateServerFromRecord(serverId);
+
+			// Ensure results has the expected structure
+			const validatedResults = {
+				valid: results?.valid ?? false,
+				message: results?.message ?? 'No message received',
+				setup_info: results?.setup_info
+					? {
+							os: results.setup_info.os ?? 'Unknown',
+							architecture: results.setup_info.architecture ?? 'Unknown',
+							hostname: results.setup_info.hostname ?? 'Unknown',
+							pocketbase_setup: results.setup_info.pocketbase_setup ?? false,
+							installed_apps: results.setup_info.installed_apps ?? []
+						}
+					: undefined,
+				error: results?.error
+			};
+
+			this.updateState({
+				troubleshootInProgress: null,
+				troubleshootResults: validatedResults
+			});
+		} catch (err) {
+			console.error('Troubleshoot failed:', err);
+			const error = err instanceof Error ? err.message : 'Failed to troubleshoot server';
+			this.updateState({
+				troubleshootInProgress: null,
+				troubleshootError: error,
+				error
+			});
+		}
+	}
+
+	public closeTroubleshootModal(): void {
+		// First close the modal to start the animation
+		this.updateState({
+			showTroubleshootModal: false
+		});
+
+		// Then clear the results after a short delay to prevent abrupt content change
+		setTimeout(() => {
+			this.updateState({
+				troubleshootResults: null,
+				troubleshootServerId: null
+			});
+		}, 200);
+	}
+
+	public dismissTroubleshootError(): void {
+		this.updateState({ troubleshootError: null });
+	}
+
+	public isTroubleshootInProgress(serverId: string): boolean {
+		return this.state.troubleshootInProgress === serverId;
 	}
 
 	public async cleanup(): Promise<void> {

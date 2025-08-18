@@ -4,6 +4,7 @@
 	import { ServerListLogic, type ServerListState } from './ServerList.js';
 	import DeleteModal from '$lib/components/modals/DeleteModal.svelte';
 	import ServerCreateModal from '$lib/components/modals/ServerCreateModal.svelte';
+	import TroubleshootModal from '$lib/components/modals/TroubleshootModal.svelte';
 	import { Button, Toast, EmptyState, LoadingSpinner, StatusBadge } from '$lib/components/partials';
 	import Icon from '$lib/components/icons/Icon.svelte';
 
@@ -85,6 +86,14 @@
 		message={state.validationError}
 		type="error"
 		onDismiss={() => logic.dismissValidationError()}
+	/>
+{/if}
+
+{#if state.troubleshootError}
+	<Toast
+		message={state.troubleshootError}
+		type="error"
+		onDismiss={() => logic.dismissTroubleshootError()}
 	/>
 {/if}
 
@@ -195,6 +204,26 @@
 									</Button>
 								{/if}
 
+								<!-- Troubleshoot Button -->
+								<Button
+									variant="ghost"
+									color="blue"
+									size="sm"
+									disabled={state.creating ||
+										state.deleting ||
+										logic.isServerSetupInProgress(server.id) ||
+										logic.isServerSecurityInProgress(server.id) ||
+										logic.isTroubleshootInProgress(server.id)}
+									onclick={() => logic.troubleshootServer(server.id)}
+								>
+									{#snippet iconSnippet()}
+										<Icon
+											name={logic.isTroubleshootInProgress(server.id) ? 'loading' : 'diagnostic'}
+										/>
+									{/snippet}
+									{logic.isTroubleshootInProgress(server.id) ? 'Checking' : 'Troubleshoot'}
+								</Button>
+
 								<!-- Delete Button -->
 								<Button
 									variant="ghost"
@@ -259,4 +288,18 @@
 	relatedItemsType="apps"
 	onclose={() => logic.closeDeleteModal()}
 	onconfirm={(id) => logic.confirmDeleteServer(id)}
+/>
+
+<!-- Troubleshoot Modal -->
+<TroubleshootModal
+	open={state.showTroubleshootModal}
+	server={state.troubleshootServerId
+		? state.servers.find((s) => s.id === state.troubleshootServerId) || null
+		: null}
+	results={state.troubleshootResults}
+	setupInProgress={state.troubleshootServerId
+		? logic.isServerSetupInProgress(state.troubleshootServerId)
+		: false}
+	onclose={() => logic.closeTroubleshootModal()}
+	onsetup={(serverId) => logic.setupServer(serverId)}
 />
