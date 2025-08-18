@@ -289,31 +289,6 @@
 					</div>
 				</div>
 				<div>
-					<h4 class="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-						Deployment Info
-					</h4>
-					<div class="space-y-2">
-						<div class="flex justify-between text-sm">
-							<span class="text-gray-600 dark:text-gray-400">Successful deployments:</span>
-							<span class="font-semibold text-emerald-600 dark:text-emerald-400">
-								{metrics.deploymentInfo.appsDeployed}
-							</span>
-						</div>
-						<div class="flex justify-between text-sm">
-							<span class="text-gray-600 dark:text-gray-400">Pending deployments:</span>
-							<span class="font-semibold text-amber-600 dark:text-amber-400">
-								{metrics.deploymentInfo.pendingDeployment}
-							</span>
-						</div>
-						<div class="flex justify-between text-sm">
-							<span class="text-gray-600 dark:text-gray-400">Failed deployments:</span>
-							<span class="font-semibold text-red-600 dark:text-red-400">
-								{metrics.deploymentInfo.failedDeployments}
-							</span>
-						</div>
-					</div>
-				</div>
-				<div>
 					<h4 class="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">Update Status</h4>
 					<div class="space-y-2">
 						<div class="flex justify-between text-sm">
@@ -338,6 +313,31 @@
 												100
 										)
 									: 100}%
+							</span>
+						</div>
+					</div>
+				</div>
+				<div>
+					<h4 class="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
+						Deployment Info
+					</h4>
+					<div class="space-y-2">
+						<div class="flex justify-between text-sm">
+							<span class="text-gray-600 dark:text-gray-400">Successful deployments:</span>
+							<span class="font-semibold text-emerald-600 dark:text-emerald-400">
+								{metrics.deploymentInfo.appsDeployed}
+							</span>
+						</div>
+						<div class="flex justify-between text-sm">
+							<span class="text-gray-600 dark:text-gray-400">Pending deployments:</span>
+							<span class="font-semibold text-amber-600 dark:text-amber-400">
+								{metrics.deploymentInfo.pendingDeployment}
+							</span>
+						</div>
+						<div class="flex justify-between text-sm">
+							<span class="text-gray-600 dark:text-gray-400">Failed deployments:</span>
+							<span class="font-semibold text-red-600 dark:text-red-400">
+								{metrics.deploymentInfo.failedDeployments}
 							</span>
 						</div>
 					</div>

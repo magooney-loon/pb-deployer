@@ -26,18 +26,16 @@
 			Monitor deployment history and status
 		</p>
 	</div>
-	{#if state.deployments.length === 0}
-		<Button
-			variant="outline"
-			onclick={() => logic.openCreateModal()}
-			disabled={state.loading || state.creating || state.deleting || state.retrying}
-		>
-			{#snippet iconSnippet()}
-				<Icon name="rocket" />
-			{/snippet}
-			Deploy
-		</Button>
-	{/if}
+	<Button
+		variant="outline"
+		onclick={() => logic.openCreateModal()}
+		disabled={state.loading || state.creating || state.deleting || state.retrying}
+	>
+		{#snippet iconSnippet()}
+			<Icon name="rocket" />
+		{/snippet}
+		Deploy
+	</Button>
 </header>
 
 {#if state.error}
