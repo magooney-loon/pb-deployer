@@ -27,6 +27,42 @@
 		app_username: 'pocketbase'
 	});
 
+	let hostError = $state<string | undefined>(undefined);
+
+	function validateHost(host: string): string | undefined {
+		if (!host.trim()) {
+			return 'IP address or hostname is required';
+		}
+
+		const trimmedHost = host.trim();
+
+		// Check for invalid prefixes
+		if (trimmedHost.startsWith('http://') || trimmedHost.startsWith('https://')) {
+			return 'Remove http:// or https:// prefix';
+		}
+
+		if (trimmedHost.startsWith('www.')) {
+			return 'Remove www. prefix';
+		}
+
+		// Check if it's a valid IP address (IPv4)
+		const ipv4Regex =
+			/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+
+		// Check if it's a valid hostname/domain (must have TLD)
+		const hostnameRegex =
+			/^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+
+		const isValidIP = ipv4Regex.test(trimmedHost);
+		const isValidHostname = hostnameRegex.test(trimmedHost);
+
+		if (!isValidIP && !isValidHostname) {
+			return 'Enter a valid IP address or hostname with TLD (e.g., server.com)';
+		}
+
+		return undefined;
+	}
+
 	function handleClose() {
 		if (!creating) {
 			resetForm();
@@ -42,6 +78,7 @@
 			root_username: 'root',
 			app_username: 'pocketbase'
 		};
+		hostError = undefined;
 	}
 
 	async function handleSubmit(e: Event) {
@@ -49,6 +86,12 @@
 		if (oncreate && !creating) {
 			await oncreate(formData);
 		}
+	}
+
+	function handleHostInput(e: Event) {
+		const value = (e.target as HTMLInputElement).value;
+		formData.host = value;
+		hostError = validateHost(value);
 	}
 
 	async function handleButtonClick() {
@@ -62,6 +105,13 @@
 			setTimeout(() => {
 				resetForm();
 			}, 300);
+		}
+	});
+
+	// Validate host on initial load
+	$effect(() => {
+		if (formData.host) {
+			hostError = validateHost(formData.host);
 		}
 	});
 </script>
@@ -104,9 +154,10 @@
 						label="IP Address / Hostname"
 						value={formData.host}
 						placeholder="192.168.1.100 or server.example.com"
+						errorText={hostError}
 						required
 						disabled={creating}
-						oninput={(e) => (formData.host = (e.target as HTMLInputElement).value)}
+						oninput={handleHostInput}
 						helperText="The IP address or hostname of your VPS"
 					/>
 
@@ -201,7 +252,7 @@
 			<Button
 				variant="primary"
 				onclick={handleButtonClick}
-				disabled={creating || !formData.name || !formData.host}
+				disabled={creating || !formData.name || !formData.host || !!hostError}
 				class="min-w-[120px] px-6 py-2"
 			>
 				{#if creating}

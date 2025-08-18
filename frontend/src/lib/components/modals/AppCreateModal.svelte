@@ -37,6 +37,7 @@
 	let initialZipFile = $state<File | null>(null);
 	let fileError = $state<string | undefined>(undefined);
 	let versionError = $state<string | undefined>(undefined);
+	let domainError = $state<string | undefined>(undefined);
 
 	let availableServers = $derived(servers.filter((s) => s.setup_complete));
 	let selectedServer = $derived(availableServers.find((s) => s.id === formData.server_id));
@@ -52,6 +53,33 @@
 
 		if (!semverRegex.test(version.trim())) {
 			return 'Version must follow semantic versioning format (e.g., 1.0.0)';
+		}
+
+		return undefined;
+	}
+
+	function validateDomain(domain: string): string | undefined {
+		if (!domain.trim()) {
+			return 'Domain is required';
+		}
+
+		const trimmedDomain = domain.trim();
+
+		// Check for invalid prefixes
+		if (trimmedDomain.startsWith('http://') || trimmedDomain.startsWith('https://')) {
+			return 'Remove http:// or https:// prefix';
+		}
+
+		if (trimmedDomain.startsWith('www.')) {
+			return 'Remove www. prefix';
+		}
+
+		// Check if it's a valid domain (must have TLD)
+		const domainRegex =
+			/^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+
+		if (!domainRegex.test(trimmedDomain)) {
+			return 'Enter a valid domain with TLD (e.g., myapp.example.com)';
 		}
 
 		return undefined;
@@ -77,6 +105,7 @@
 		initialZipFile = null;
 		fileError = undefined;
 		versionError = undefined;
+		domainError = undefined;
 	}
 
 	function handleFileSelect(file: File | File[] | null) {
@@ -100,6 +129,12 @@
 		const value = (e.target as HTMLInputElement).value;
 		formData.version_number = value;
 		versionError = validateVersion(value);
+	}
+
+	function handleDomainInput(e: Event) {
+		const value = (e.target as HTMLInputElement).value;
+		formData.domain = value;
+		domainError = validateDomain(value);
 	}
 
 	async function handleSubmit(e: Event) {
@@ -127,6 +162,13 @@
 	$effect(() => {
 		if (formData.version_number) {
 			versionError = validateVersion(formData.version_number);
+		}
+	});
+
+	// Validate domain on initial load
+	$effect(() => {
+		if (formData.domain) {
+			domainError = validateDomain(formData.domain);
 		}
 	});
 </script>
@@ -187,9 +229,10 @@
 							value={formData.domain}
 							placeholder="myapp.example.com"
 							helperText="The domain where your app will be served"
+							errorText={domainError}
 							required
 							disabled={creating}
-							oninput={(e) => (formData.domain = (e.target as HTMLInputElement).value)}
+							oninput={handleDomainInput}
 						/>
 					</div>
 				</div>
@@ -318,7 +361,8 @@
 					!initialZipFile ||
 					availableServers.length === 0 ||
 					!!fileError ||
-					!!versionError}
+					!!versionError ||
+					!!domainError}
 				class="min-w-[120px] px-6 py-2"
 			>
 				{#if creating}
