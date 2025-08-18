@@ -66,7 +66,9 @@
 				</div>
 				<div>
 					<div class="text-xs font-medium text-gray-500 uppercase dark:text-gray-400">ID</div>
-					<div class="mt-1 font-mono text-xs text-gray-600 dark:text-gray-400">
+					<div
+						class="mt-1 font-mono text-sm text-gray-600 select-text hover:cursor-text dark:text-gray-400"
+					>
 						{deployment.id}
 					</div>
 				</div>
