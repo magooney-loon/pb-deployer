@@ -66,7 +66,6 @@ func (l *Logger) formatMessage(level, symbol, color, message string, args ...any
 		message,
 	)
 
-	// Use standard log to maintain consistency with existing logs
 	log.Print(logLine)
 }
 

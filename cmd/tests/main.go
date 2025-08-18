@@ -17,7 +17,6 @@ func getTestPackages() []string {
 	}
 }
 
-// Color constants for styling
 const (
 	Reset  = "\033[0m"
 	Red    = "\033[31m"
@@ -31,7 +30,6 @@ const (
 	Dim    = "\033[2m"
 )
 
-// TestResult represents the result of running a test package
 type TestResult struct {
 	Package     string
 	Passed      int
@@ -43,7 +41,6 @@ type TestResult struct {
 	FailedTests []string
 }
 
-// TestSuite represents the overall test suite results
 type TestSuite struct {
 	Results     []TestResult
 	TotalPassed int
@@ -54,29 +51,23 @@ type TestSuite struct {
 }
 
 func main() {
-	// Print header
 	printHeader()
 
-	// Check prerequisites
 	if err := checkPrerequisites(); err != nil {
 		printError("Prerequisites check failed", err.Error())
 		os.Exit(1)
 	}
 
-	// Get test packages
 	packages := getTestPackages()
 	if len(packages) == 0 {
 		printWarning("No test packages found")
 		os.Exit(0)
 	}
 
-	// Run test suite
 	suite := runTestSuite(packages)
 
-	// Print final summary
 	printSummary(suite)
 
-	// Exit with appropriate code
 	if suite.Success {
 		os.Exit(0)
 	} else {
@@ -103,7 +94,7 @@ func checkPrerequisites() error {
 	return nil
 }
 
-// runTestSuite executes all test packages with beautiful output
+// runTestSuite executes all test packages
 func runTestSuite(packages []string) TestSuite {
 	suite := TestSuite{
 		Results: make([]TestResult, 0, len(packages)),
@@ -119,7 +110,6 @@ func runTestSuite(packages []string) TestSuite {
 		result := runTestPackage(pkg, i+1, len(packages))
 		suite.Results = append(suite.Results, result)
 
-		// Update totals
 		suite.TotalPassed += result.Passed
 		suite.TotalFailed += result.Failed
 		suite.TotalTests += result.Passed + result.Failed + result.Skipped
@@ -141,14 +131,12 @@ func runTestPackage(packagePath string, current, total int) TestResult {
 		FailedTests: []string{},
 	}
 
-	// Print package header
 	fmt.Printf("├─ %s[%d/%d]%s %s%s%s\n",
 		Dim, current, total, Reset,
 		Bold, packagePath, Reset)
 
 	start := time.Now()
 
-	// Run go test command
 	cmd := exec.Command("go", "test", "-v", packagePath)
 	output, err := cmd.CombinedOutput()
 	result.Duration = time.Since(start)
@@ -159,10 +147,8 @@ func runTestPackage(packagePath string, current, total int) TestResult {
 		result.Success = true
 	}
 
-	// Parse test output
 	parseTestOutput(string(output), &result)
 
-	// Print result with timing
 	if result.Success {
 		fmt.Printf("│  %s✓%s %sPassed%s %s(%dms)%s\n",
 			Green, Reset, Green, Reset,
@@ -183,7 +169,6 @@ func runTestPackage(packagePath string, current, total int) TestResult {
 		}
 	}
 
-	// Show failed tests
 	if len(result.FailedTests) > 0 {
 		for _, failedTest := range result.FailedTests {
 			fmt.Printf("│  %s└─ %s%s\n", Red, failedTest, Reset)
@@ -200,11 +185,9 @@ func runTestPackage(packagePath string, current, total int) TestResult {
 	return result
 }
 
-// parseTestOutput parses the go test output to extract test statistics
 func parseTestOutput(output string, result *TestResult) {
 	lines := strings.Split(output, "\n")
 
-	// Regex patterns for parsing test output
 	testPassRegex := regexp.MustCompile(`^\s*--- PASS: (\w+)`)
 	testFailRegex := regexp.MustCompile(`^\s*--- FAIL: (\w+)`)
 	testSkipRegex := regexp.MustCompile(`^\s*--- SKIP: (\w+)`)
@@ -224,13 +207,11 @@ func parseTestOutput(output string, result *TestResult) {
 		}
 	}
 
-	// If we have failures, mark as unsuccessful
 	if result.Failed > 0 {
 		result.Success = false
 	}
 }
 
-// printSummary prints the final test suite summary
 func printSummary(suite TestSuite) {
 	fmt.Println()
 
@@ -252,7 +233,6 @@ func printSummary(suite TestSuite) {
 	fmt.Printf("   %sDuration:%s  %s%dms%s\n", Gray, Reset, Gray, suite.Duration.Milliseconds(), Reset)
 	fmt.Printf("   %sPackages:%s  %d\n", Gray, Reset, len(suite.Results))
 
-	// Show failed packages if any
 	if !suite.Success {
 		fmt.Println()
 		fmt.Printf("🚨 %sFailed Packages:%s\n", Bold+Red, Reset)
@@ -268,7 +248,6 @@ func printSummary(suite TestSuite) {
 	fmt.Println()
 }
 
-// checkGoTestAvailable verifies that go test command is available
 func checkGoTestAvailable() error {
 	cmd := exec.Command("go", "version")
 	output, err := cmd.CombinedOutput()
@@ -285,7 +264,6 @@ func checkGoTestAvailable() error {
 	return nil
 }
 
-// Utility print functions
 func printError(title, message string) {
 	fmt.Printf("❌ %s%s%s\n", Bold+Red, title, Reset)
 	fmt.Printf("   %s%s%s\n", Red, message, Reset)

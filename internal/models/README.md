@@ -40,7 +40,6 @@ Version (deleted) → Deployments (cascade delete)
 ### Versions Collection
 - `idx_versions_app`: App-based version queries
 - `idx_versions_version`: Version number lookups
-- `idx_versions_app_version` (unique): Prevent duplicate versions per app
 
 ### Deployments Collection
 - `idx_deployments_app`: App-based deployment history

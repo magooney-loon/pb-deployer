@@ -27,7 +27,6 @@ const (
 )
 
 func main() {
-	// Define command line flags
 	installDeps := flag.Bool("install", false, "Install project dependencies")
 	buildOnly := flag.Bool("build-only", false, "Build frontend without running the server")
 	runOnly := flag.Bool("run-only", false, "Run the server without building the frontend")
@@ -37,13 +36,11 @@ func main() {
 	help := flag.Bool("help", false, "Show help and usage information")
 	flag.Parse()
 
-	// Show help if requested
 	if *help {
 		showHelp()
 		return
 	}
 
-	// Show banner
 	operation := "DEVELOPMENT"
 	if *production {
 		operation = "PRODUCTION"
@@ -61,7 +58,6 @@ func main() {
 	}
 	printSuccess("System requirements satisfied!")
 
-	// Get the root directory of the project
 	rootDir, err := os.Getwd()
 	if err != nil {
 		printError("Failed to get current directory: %v", err)
@@ -70,7 +66,6 @@ func main() {
 
 	printStep("📁", "Project root: %s", rootDir)
 
-	// Handle test-only mode
 	if *testOnly {
 		if err := testOnlyMode(rootDir, *distDir); err != nil {
 			printError("Test suite failed: %v", err)
@@ -80,7 +75,6 @@ func main() {
 		return
 	}
 
-	// Handle production build
 	if *production {
 		if err := productionBuild(rootDir, *installDeps, *distDir); err != nil {
 			printError("Production build failed: %v", err)
@@ -90,7 +84,6 @@ func main() {
 		return
 	}
 
-	// If not in run-only mode, build the frontend
 	if !*runOnly {
 		if err := buildFrontend(rootDir, *installDeps); err != nil {
 			printError("Frontend build failed: %v", err)
@@ -98,7 +91,6 @@ func main() {
 		}
 	}
 
-	// Run the server unless in build-only mode
 	if !*buildOnly {
 		if err := runServer(rootDir); err != nil {
 			printError("Server startup failed: %v", err)
@@ -115,7 +107,6 @@ func main() {
 func productionBuild(rootDir string, installDeps bool, distDir string) error {
 	printHeader("🚀 PRODUCTION BUILD")
 
-	// Create output directory
 	outputDir := filepath.Join(rootDir, distDir)
 	printStep("🧹", "Cleaning output directory...")
 
@@ -128,32 +119,26 @@ func productionBuild(rootDir string, installDeps bool, distDir string) error {
 	}
 	printSuccess("Output directory prepared: %s", outputDir)
 
-	// Build frontend
 	if err := buildFrontendProduction(rootDir, installDeps); err != nil {
 		return fmt.Errorf("frontend production build failed: %w", err)
 	}
 
-	// Copy to dist
 	if err := copyFrontendToDist(rootDir, outputDir); err != nil {
 		return fmt.Errorf("failed to copy frontend to dist: %w", err)
 	}
 
-	// Run test suite and generate report
 	if err := runTestSuiteAndGenerateReport(rootDir, outputDir); err != nil {
 		return fmt.Errorf("test suite failed: %w", err)
 	}
 
-	// Generate package metadata
 	if err := generatePackageMetadata(rootDir, outputDir); err != nil {
 		return fmt.Errorf("failed to generate package metadata: %w", err)
 	}
 
-	// Build server binary
 	if err := buildServerBinary(rootDir, outputDir); err != nil {
 		return fmt.Errorf("failed to build server binary: %w", err)
 	}
 
-	// Create project archive
 	if err := createProjectArchive(rootDir, outputDir); err != nil {
 		return fmt.Errorf("failed to create project archive: %w", err)
 	}
@@ -208,10 +193,8 @@ func validateFrontendSetup(frontendDir string) error {
 func installDependencies(rootDir, frontendDir string) error {
 	printStep("📦", "Installing dependencies...")
 
-	// Install Go dependencies first
 	printStep("🏗️", "Installing Go dependencies...")
 
-	// Run go mod tidy first
 	printStep("🧹", "Tidying Go modules...")
 	cmd := exec.Command("go", "mod", "tidy")
 	cmd.Dir = rootDir
@@ -224,7 +207,6 @@ func installDependencies(rootDir, frontendDir string) error {
 	}
 	printSuccess("Go modules tidied in %s", time.Since(start).Round(time.Millisecond))
 
-	// Run go mod download
 	printStep("⬇️", "Downloading Go modules...")
 	cmd = exec.Command("go", "mod", "download")
 	cmd.Dir = rootDir
@@ -237,7 +219,6 @@ func installDependencies(rootDir, frontendDir string) error {
 	}
 	printSuccess("Go modules downloaded in %s", time.Since(start).Round(time.Millisecond))
 
-	// Install frontend dependencies
 	printStep("📦", "Installing frontend dependencies...")
 	cmd = exec.Command("npm", "install")
 	cmd.Dir = frontendDir
@@ -326,7 +307,6 @@ func runTestSuiteAndGenerateReport(rootDir, outputDir string) error {
 
 	start := time.Now()
 
-	// Run our beautiful test runner
 	cmd := exec.Command("go", "run", "./cmd/tests")
 	cmd.Dir = rootDir
 	cmd.Stdout = os.Stdout
@@ -336,7 +316,6 @@ func runTestSuiteAndGenerateReport(rootDir, outputDir string) error {
 		return fmt.Errorf("test suite failed: %w", err)
 	}
 
-	// Generate coverage reports
 	coverageFile := filepath.Join(reportsDir, "coverage.out")
 	htmlCoverageFile := filepath.Join(reportsDir, "coverage.html")
 
@@ -556,19 +535,16 @@ func checkSystemRequirements() error {
 func createProjectArchive(rootDir, outputDir string) error {
 	printStep("📦", "Creating production build archive...")
 
-	// Define the archive filename with timestamp
 	timestamp := time.Now().Format("20060102-150405")
 	archiveName := fmt.Sprintf("pb-deployer-production-%s.zip", timestamp)
 	// Create zip file outside dist directory first to avoid infinite loop
 	tempArchivePath := filepath.Join(rootDir, archiveName)
 
-	// Check if dist directory exists
 	distDir := filepath.Join(rootDir, "dist")
 	if _, err := os.Stat(distDir); os.IsNotExist(err) {
 		return fmt.Errorf("dist directory not found - please run production build first")
 	}
 
-	// Create the zip file
 	zipFile, err := os.Create(tempArchivePath)
 	if err != nil {
 		return fmt.Errorf("failed to create archive file: %w", err)
@@ -581,13 +557,11 @@ func createProjectArchive(rootDir, outputDir string) error {
 	fileCount := 0
 	totalSize := int64(0)
 
-	// Walk through all files in the dist directory
 	err = filepath.Walk(distDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		// Get relative path from dist directory
 		relPath, err := filepath.Rel(distDir, path)
 		if err != nil {
 			return err
@@ -598,9 +572,7 @@ func createProjectArchive(rootDir, outputDir string) error {
 			return nil
 		}
 
-		// Handle directories
 		if info.IsDir() {
-			// Create directory entry in zip
 			_, err := zipWriter.Create(relPath + "/")
 			return err
 		}
@@ -611,7 +583,6 @@ func createProjectArchive(rootDir, outputDir string) error {
 			return nil
 		}
 
-		// Create a new file entry in the zip
 		header, err := zip.FileInfoHeader(info)
 		if err != nil {
 			return err
@@ -624,14 +595,12 @@ func createProjectArchive(rootDir, outputDir string) error {
 			return err
 		}
 
-		// Open the file to be added
 		file, err := os.Open(path)
 		if err != nil {
 			return err
 		}
 		defer file.Close()
 
-		// Copy file content to zip
 		written, err := io.Copy(writer, file)
 		if err != nil {
 			return err
@@ -647,20 +616,17 @@ func createProjectArchive(rootDir, outputDir string) error {
 		return fmt.Errorf("failed to create archive: %w", err)
 	}
 
-	// Move the zip file into the dist directory
 	finalArchivePath := filepath.Join(distDir, archiveName)
 	err = os.Rename(tempArchivePath, finalArchivePath)
 	if err != nil {
 		return fmt.Errorf("failed to move archive to dist directory: %w", err)
 	}
 
-	// Get archive file size
 	archiveInfo, err := os.Stat(finalArchivePath)
 	if err != nil {
 		return fmt.Errorf("failed to get archive info: %w", err)
 	}
 
-	// Format sizes for display
 	formatSize := func(size int64) string {
 		const unit = 1024
 		if size < unit {

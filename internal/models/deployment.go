@@ -115,7 +115,7 @@ func (d *Deployment) CreateCollection(app core.App) error {
 
 	collection.Fields.Add(&core.RelationField{
 		Name:          "version_id",
-		Required:      false, // Some deployments might not have a specific version
+		Required:      false,
 		CollectionId:  versionsCollection.Id,
 		CascadeDelete: true,
 	})
@@ -146,7 +146,6 @@ func (d *Deployment) CreateCollection(app core.App) error {
 		Name: "completed_at",
 	})
 
-	// Add auto-date fields
 	collection.Fields.Add(&core.AutodateField{
 		Name:     "created",
 		OnCreate: true,

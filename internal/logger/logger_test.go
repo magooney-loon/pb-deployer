@@ -107,7 +107,6 @@ func TestLogWithArgs(t *testing.T) {
 func TestDebugMode(t *testing.T) {
 	logger := NewLogger("TEST")
 
-	// Test without DEBUG env var
 	os.Unsetenv("DEBUG")
 	output := captureLogOutput(func() {
 		logger.Debug("debug message")
@@ -117,7 +116,6 @@ func TestDebugMode(t *testing.T) {
 		t.Errorf("Expected no debug output without DEBUG env var, got: %s", output)
 	}
 
-	// Test with DEBUG env var
 	os.Setenv("DEBUG", "1")
 	output = captureLogOutput(func() {
 		logger.Debug("debug message")
@@ -127,7 +125,6 @@ func TestDebugMode(t *testing.T) {
 		t.Errorf("Expected debug output with DEBUG env var, got: %s", output)
 	}
 
-	// Clean up
 	os.Unsetenv("DEBUG")
 }
 
@@ -279,7 +276,6 @@ func TestSSHCommandResult(t *testing.T) {
 func TestFileTransferLogging(t *testing.T) {
 	logger := NewLogger("TUNNEL")
 
-	// Test file transfer start
 	output := captureLogOutput(func() {
 		logger.FileTransfer("Upload", "/local/file", "/remote/file")
 	})
@@ -291,7 +287,6 @@ func TestFileTransferLogging(t *testing.T) {
 		}
 	}
 
-	// Test successful completion
 	output = captureLogOutput(func() {
 		logger.FileTransferComplete("Upload", nil)
 	})
@@ -300,7 +295,6 @@ func TestFileTransferLogging(t *testing.T) {
 		t.Errorf("Expected successful completion message, got: %s", output)
 	}
 
-	// Test failed completion
 	output = captureLogOutput(func() {
 		logger.FileTransferComplete("Upload", os.ErrNotExist)
 	})
@@ -373,12 +367,10 @@ func TestTimestampFormat(t *testing.T) {
 		logger.Info("test")
 	})
 
-	// Check that timestamp is in format [HH:MM:SS.mmm]
 	if !strings.Contains(output, "[") || !strings.Contains(output, "]") {
 		t.Errorf("Expected timestamp brackets in output: %s", output)
 	}
 
-	// Extract timestamp part
 	start := strings.Index(output, "[")
 	end := strings.Index(output, "]")
 	if start == -1 || end == -1 || end <= start {
@@ -394,7 +386,6 @@ func TestTimestampFormat(t *testing.T) {
 }
 
 func TestColorCodes(t *testing.T) {
-	// Test that color codes are defined
 	colors := map[string]string{
 		"Reset":  Reset,
 		"Red":    Red,

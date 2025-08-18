@@ -15,9 +15,9 @@ type App struct {
 	ServerID       string    `json:"server_id" db:"server_id"`
 	RemotePath     string    `json:"remote_path" db:"remote_path"`
 	ServiceName    string    `json:"service_name" db:"service_name"`
-	Domain         string    `json:"domain" db:"domain"` // Production domain (e.g., "myapp.example.com")
+	Domain         string    `json:"domain" db:"domain"`
 	CurrentVersion string    `json:"current_version" db:"current_version"`
-	Status         string    `json:"status" db:"status"` // online/offline/unknown via /api/health ping
+	Status         string    `json:"status" db:"status"`
 }
 
 func NewApp() *App {
@@ -62,7 +62,6 @@ func (a *App) CreateCollection(app core.App) error {
 		CascadeDelete: true,
 	})
 
-	// Set permissions to allow all operations (local-only tool)
 	collection.ListRule = types.Pointer("")
 	collection.ViewRule = types.Pointer("")
 	collection.CreateRule = types.Pointer("")

@@ -82,7 +82,6 @@ func handleServerSetup(c *core.RequestEvent, app core.App) error {
 		})
 	}
 
-	// Setup cleanup manager for proper resource management
 	cleanup := tunnel.NewCleanupManager()
 	defer cleanup.Close()
 	cleanup.AddCloser(client)
@@ -185,7 +184,6 @@ func handleServerSecurity(c *core.RequestEvent, app core.App) error {
 		EnableFail2ban bool                  `json:"enable_fail2ban"`
 	}
 
-	// Step tracking for security process
 	sendStep := func(step int, message string) {
 		log.Step(step, 4, message)
 	}
@@ -230,7 +228,6 @@ func handleServerSecurity(c *core.RequestEvent, app core.App) error {
 		})
 	}
 
-	// Setup cleanup manager for proper resource management
 	cleanup := tunnel.NewCleanupManager()
 	defer cleanup.Close()
 	cleanup.AddCloser(client)
@@ -362,7 +359,6 @@ func handleServerValidation(c *core.RequestEvent) error {
 		})
 	}
 
-	// Setup cleanup manager for proper resource management
 	cleanup := tunnel.NewCleanupManager()
 	defer cleanup.Close()
 	cleanup.AddCloser(client)
@@ -516,7 +512,6 @@ func createSSHClient(host string, port int, user string) (*tunnel.Client, error)
 		RetryDelay: 5 * time.Second,
 	}
 
-	// Function to attempt client creation with proper error handling
 	createClient := func() (*tunnel.Client, error) {
 		client, err := tunnel.NewClient(config)
 		if err != nil {
@@ -538,7 +533,6 @@ func createSSHClient(host string, port int, user string) (*tunnel.Client, error)
 
 					log.Success("Successfully cleaned known_hosts file, retrying client creation")
 
-					// Retry after cleanup
 					retryClient, retryErr := tunnel.NewClient(config)
 					if retryErr != nil {
 						log.Error("Failed to create tunnel client after cleanup: %v", retryErr)
@@ -557,7 +551,6 @@ func createSSHClient(host string, port int, user string) (*tunnel.Client, error)
 		return client, nil
 	}
 
-	// Attempt to create client with error recovery
 	client, err := createClient()
 	if err != nil {
 		return nil, err

@@ -135,7 +135,6 @@ func TestValidateSSHConnection_NilClient(t *testing.T) {
 	}
 }
 
-// Test the basic validation logic without HTTP layer
 func TestBasicValidation(t *testing.T) {
 	// Test host validation
 	tests := []struct {
@@ -154,7 +153,6 @@ func TestBasicValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Simple validation logic
 			valid := tt.host != "" && tt.user != "" && tt.username != ""
 
 			if valid != tt.valid {
@@ -189,7 +187,6 @@ func TestPortDefaults(t *testing.T) {
 	}
 }
 
-// Test SSH key prefix validation
 func TestSSHKeyValidation(t *testing.T) {
 	validPrefixes := []string{"ssh-", "ecdsa-"}
 
