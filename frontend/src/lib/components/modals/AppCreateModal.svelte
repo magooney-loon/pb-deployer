@@ -36,9 +36,26 @@
 
 	let initialZipFile = $state<File | null>(null);
 	let fileError = $state<string | undefined>(undefined);
+	let versionError = $state<string | undefined>(undefined);
 
 	let availableServers = $derived(servers.filter((s) => s.setup_complete));
 	let selectedServer = $derived(availableServers.find((s) => s.id === formData.server_id));
+
+	function validateVersion(version: string): string | undefined {
+		if (!version.trim()) {
+			return 'Version number is required';
+		}
+
+		// Check semantic versioning format (major.minor.patch)
+		const semverRegex =
+			/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
+
+		if (!semverRegex.test(version.trim())) {
+			return 'Version must follow semantic versioning format (e.g., 1.0.0)';
+		}
+
+		return undefined;
+	}
 
 	function handleClose() {
 		if (!creating) {
@@ -59,6 +76,7 @@
 		};
 		initialZipFile = null;
 		fileError = undefined;
+		versionError = undefined;
 	}
 
 	function handleFileSelect(file: File | File[] | null) {
@@ -76,6 +94,12 @@
 		fileError = error;
 		initialZipFile = null;
 		formData.initialZip = undefined;
+	}
+
+	function handleVersionInput(e: Event) {
+		const value = (e.target as HTMLInputElement).value;
+		formData.version_number = value;
+		versionError = validateVersion(value);
 	}
 
 	async function handleSubmit(e: Event) {
@@ -96,6 +120,13 @@
 			setTimeout(() => {
 				resetForm();
 			}, 300);
+		}
+	});
+
+	// Validate version on initial load
+	$effect(() => {
+		if (formData.version_number) {
+			versionError = validateVersion(formData.version_number);
 		}
 	});
 </script>
@@ -203,10 +234,11 @@
 						label="Version Number"
 						value={formData.version_number}
 						placeholder="1.0.0"
-						helperText="Semantic versioning recommended (major.minor.patch)"
+						helperText="Semantic versioning required (e.g., 1.0.0, 2.1.3)"
+						errorText={versionError}
 						required
 						disabled={creating}
-						oninput={(e) => (formData.version_number = (e.target as HTMLInputElement).value)}
+						oninput={handleVersionInput}
 					/>
 
 					<FormField
@@ -224,13 +256,14 @@
 				<div class="space-y-4">
 					<FileUpload
 						id="initial-zip"
-						label="Upload Initial PocketBase Package (Optional)"
+						label="Upload Initial PocketBase Package"
 						accept=".zip,application/zip"
 						maxSize={150 * 1024 * 1024}
 						disabled={creating}
 						value={initialZipFile}
 						errorText={fileError}
-						helperText="Upload your PocketBase distribution as a ZIP file (150MB max)"
+						helperText="Upload your PocketBase distribution as a ZIP file (150MB max) - Required"
+						required
 						onFileSelect={handleFileSelect}
 						onError={handleFileError}
 					/>
@@ -255,7 +288,7 @@
 							</div>
 						</div>
 						<p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-							✓ = Required • ○ = Optional | You can also upload the initial version later
+							✓ = Required • ○ = Optional | Initial ZIP package is required for app creation
 						</p>
 					</div>
 				</div>
@@ -281,8 +314,11 @@
 					!formData.name ||
 					!formData.server_id ||
 					!formData.domain ||
+					!formData.version_number ||
+					!initialZipFile ||
 					availableServers.length === 0 ||
-					!!fileError}
+					!!fileError ||
+					!!versionError}
 				class="min-w-[120px] px-6 py-2"
 			>
 				{#if creating}
