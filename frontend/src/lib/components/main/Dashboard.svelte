@@ -101,7 +101,7 @@
 				</div>
 				<div class="text-right">
 					<div class="text-xs text-gray-400 dark:text-gray-500">
-						Created {new Date(server.created).toLocaleDateString()}
+						{new Date(server.created).toLocaleDateString()}
 					</div>
 				</div>
 			{/snippet}
@@ -156,13 +156,14 @@
 							{/if}
 						</div>
 						<div class="text-xs text-gray-400 dark:text-gray-500">
-							Created {new Date(app.created).toLocaleDateString()}
+							{new Date(app.created).toLocaleDateString()}
 						</div>
 					{:else}
 						<div class="text-xs text-gray-400 dark:text-gray-500">
 							{#if app.latest_version}
 								v{app.latest_version} ready •
-							{/if}Created {new Date(app.created).toLocaleDateString()}
+							{/if}
+							{new Date(app.created).toLocaleDateString()}
 						</div>
 					{/if}
 				</div>
