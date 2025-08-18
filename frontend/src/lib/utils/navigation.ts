@@ -1,5 +1,5 @@
 import { goto } from '$app/navigation';
-import { writable } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 import { browser } from '$app/environment';
 import {
 	startViewTransition,
@@ -13,6 +13,18 @@ import {
 export const animationsEnabled = writable(true);
 
 /**
+ * Performance monitoring
+ */
+let navigationStartTime = 0;
+let pendingNavigations = 0;
+
+/**
+ * Debounced navigation to prevent rapid-fire calls
+ */
+const navigationDebounceMap = new Map<string, number>();
+const NAVIGATION_DEBOUNCE_MS = 100;
+
+/**
  * Update animation preference from settings
  */
 export function updateAnimationPreference(enabled: boolean): void {
@@ -20,19 +32,56 @@ export function updateAnimationPreference(enabled: boolean): void {
 }
 
 /**
- * Get current animation preference synchronously
+ * Get current animation preference asynchronously (non-blocking)
  */
-export function getAnimationPreference(): boolean {
-	let enabled = true;
-	if (browser) {
-		const unsubscribe = animationsEnabled.subscribe((value) => (enabled = value));
-		unsubscribe();
+export async function getAnimationPreference(): Promise<boolean> {
+	if (!browser) return true;
+
+	try {
+		return get(animationsEnabled);
+	} catch {
+		return true; // Safe fallback
 	}
-	return enabled;
 }
 
 /**
- * Enhanced navigation function that uses View Transition API for smooth page transitions
+ * Get current animation preference synchronously with fallback
+ */
+export function getAnimationPreferenceSync(): boolean {
+	if (!browser) return true;
+
+	try {
+		return get(animationsEnabled);
+	} catch {
+		return true; // Safe fallback
+	}
+}
+
+/**
+ * Check if navigation should be debounced
+ */
+function shouldDebounceNavigation(url: string): boolean {
+	const now = Date.now();
+	const lastNavigation = navigationDebounceMap.get(url);
+
+	if (lastNavigation && now - lastNavigation < NAVIGATION_DEBOUNCE_MS) {
+		return true;
+	}
+
+	navigationDebounceMap.set(url, now);
+
+	// Clean up old entries
+	if (navigationDebounceMap.size > 10) {
+		const entries = Array.from(navigationDebounceMap.entries());
+		const oldEntries = entries.filter(([, time]) => now - time > NAVIGATION_DEBOUNCE_MS * 5);
+		oldEntries.forEach(([key]) => navigationDebounceMap.delete(key));
+	}
+
+	return false;
+}
+
+/**
+ * Enhanced navigation function with performance optimizations
  */
 export async function navigateWithTransition(
 	url: string | URL,
@@ -44,9 +93,17 @@ export async function navigateWithTransition(
 		state?: Record<string, unknown>;
 		transitionName?: string;
 		skipIfRunning?: boolean;
+		force?: boolean;
 	} = {}
 ): Promise<void> {
-	const { transitionName, skipIfRunning, ...gotoOptions } = options;
+	const { transitionName, skipIfRunning, force, ...gotoOptions } = options;
+	const urlString = typeof url === 'string' ? url : url.toString();
+
+	// Debounce navigation unless forced
+	if (!force && shouldDebounceNavigation(urlString)) {
+		console.debug('Navigation debounced:', urlString);
+		return;
+	}
 
 	// Prevent navigation if transition is already running and skipIfRunning is true
 	if (skipIfRunning && isTransitionRunning()) {
@@ -54,9 +111,18 @@ export async function navigateWithTransition(
 		return;
 	}
 
+	// Prevent too many concurrent navigations
+	if (pendingNavigations > 2) {
+		console.warn('Too many pending navigations, skipping:', urlString);
+		return;
+	}
+
+	pendingNavigations++;
+	navigationStartTime = performance.now();
+
 	try {
-		// Check if animations are enabled
-		const shouldUseAnimations = getAnimationPreference();
+		// Check if animations are enabled (async for better performance)
+		const shouldUseAnimations = await getAnimationPreference();
 
 		if (!shouldUseAnimations) {
 			// Use regular navigation without transitions
@@ -64,14 +130,35 @@ export async function navigateWithTransition(
 			return;
 		}
 
-		if (transitionName) {
-			await createNamedTransition(transitionName, async () => {
-				await goto(url, gotoOptions);
+		// Use requestIdleCallback for better performance if available
+		const runTransition = async () => {
+			if (transitionName) {
+				await createNamedTransition(transitionName, async () => {
+					await goto(url, gotoOptions);
+				});
+			} else {
+				await startViewTransition(async () => {
+					await goto(url, gotoOptions);
+				});
+			}
+		};
+
+		if ('requestIdleCallback' in window) {
+			await new Promise<void>((resolve, reject) => {
+				requestIdleCallback(
+					async () => {
+						try {
+							await runTransition();
+							resolve();
+						} catch (error) {
+							reject(error);
+						}
+					},
+					{ timeout: 1000 }
+				);
 			});
 		} else {
-			await startViewTransition(async () => {
-				await goto(url, gotoOptions);
-			});
+			await runTransition();
 		}
 	} catch (error) {
 		console.error('Navigation with transition failed:', error);
@@ -82,11 +169,21 @@ export async function navigateWithTransition(
 			console.error('Fallback navigation also failed:', fallbackError);
 			throw fallbackError;
 		}
+	} finally {
+		pendingNavigations = Math.max(0, pendingNavigations - 1);
+
+		// Performance monitoring
+		if (navigationStartTime > 0) {
+			const duration = performance.now() - navigationStartTime;
+			if (duration > 1000) {
+				console.warn(`Slow navigation detected: ${duration.toFixed(2)}ms to ${urlString}`);
+			}
+		}
 	}
 }
 
 /**
- * Enhanced link click handler that uses view transitions
+ * Enhanced link click handler with better performance
  */
 export function createTransitionLink(
 	href: string,
@@ -103,7 +200,15 @@ export function createTransitionLink(
 		onNavigationError?: (error: Error) => void;
 	} = {}
 ) {
+	let isNavigating = false;
+
 	return async (event: MouseEvent) => {
+		// Prevent double-click navigation
+		if (isNavigating) {
+			event.preventDefault();
+			return;
+		}
+
 		// Only handle left clicks without modifier keys
 		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
 			return;
@@ -131,35 +236,34 @@ export function createTransitionLink(
 		}
 
 		event.preventDefault();
-
-		// Check if animations are disabled
-		if (!getAnimationPreference()) {
-			// Use regular navigation
-			try {
-				options.onNavigationStart?.();
-				await goto(href, options);
-				options.onNavigationEnd?.();
-			} catch (error) {
-				const navigationError = error instanceof Error ? error : new Error(String(error));
-				options.onNavigationError?.(navigationError);
-			}
-			return;
-		}
+		isNavigating = true;
 
 		try {
 			options.onNavigationStart?.();
-			await navigateWithTransition(href, options);
+
+			// Use sync check for immediate response
+			if (!getAnimationPreferenceSync()) {
+				await goto(href, options);
+			} else {
+				await navigateWithTransition(href, { ...options, force: true });
+			}
+
 			options.onNavigationEnd?.();
 		} catch (error) {
 			const navigationError = error instanceof Error ? error : new Error(String(error));
 			options.onNavigationError?.(navigationError);
 			console.error('Link navigation failed:', navigationError);
+		} finally {
+			// Reset navigation state after a small delay
+			setTimeout(() => {
+				isNavigating = false;
+			}, 100);
 		}
 	};
 }
 
 /**
- * Svelte action for automatically adding view transition to links
+ * Optimized Svelte action for transition links
  */
 export function transitionLink(
 	node: HTMLAnchorElement,
@@ -177,19 +281,31 @@ export function transitionLink(
 	} = {}
 ) {
 	let currentHref = node.getAttribute('href');
+	let handleClick: ((event: MouseEvent) => Promise<void>) | null = null;
+	let cleanup: (() => void) | null = null;
 
-	if (!currentHref) {
-		console.warn('transitionLink action applied to anchor without href');
-		return {};
-	}
+	const setupLink = () => {
+		if (!currentHref) {
+			console.warn('transitionLink action applied to anchor without href');
+			return;
+		}
 
-	let handleClick = createTransitionLink(currentHref, options);
+		// Remove old listener
+		if (handleClick && cleanup) {
+			cleanup();
+		}
 
-	node.addEventListener('click', handleClick);
+		handleClick = createTransitionLink(currentHref, options);
+		node.addEventListener('click', handleClick, { passive: false });
 
-	// Add visual feedback for transitions
-	const addTransitionClass = () => {
-		if (getAnimationPreference()) {
+		cleanup = () => {
+			if (handleClick) {
+				node.removeEventListener('click', handleClick);
+			}
+		};
+
+		// Add transition attributes only if animations are enabled
+		if (getAnimationPreferenceSync()) {
 			node.classList.add('transition-link');
 			if (options.transitionName) {
 				node.setAttribute('data-transition', options.transitionName);
@@ -197,40 +313,22 @@ export function transitionLink(
 		}
 	};
 
-	const removeTransitionClass = () => {
-		node.classList.remove('transition-link');
-		node.removeAttribute('data-transition');
-	};
-
-	addTransitionClass();
+	setupLink();
 
 	return {
 		destroy() {
-			node.removeEventListener('click', handleClick);
-			removeTransitionClass();
+			cleanup?.();
+			node.classList.remove('transition-link');
+			node.removeAttribute('data-transition');
 		},
 		update(newOptions: typeof options) {
-			// Remove old event listener
-			node.removeEventListener('click', handleClick);
-
-			// Update options
 			Object.assign(options, newOptions);
 
-			// Update href if it changed
 			const newHref = node.getAttribute('href');
 			if (newHref && newHref !== currentHref) {
 				currentHref = newHref;
+				setupLink();
 			}
-
-			// Create new event listener with updated options
-			if (currentHref) {
-				handleClick = createTransitionLink(currentHref, options);
-				node.addEventListener('click', handleClick);
-			}
-
-			// Update transition attributes
-			removeTransitionClass();
-			addTransitionClass();
 		}
 	};
 }
@@ -239,33 +337,36 @@ export function transitionLink(
  * Helper function to get the current route for transition naming
  */
 export function getRouteTransitionName(pathname: string): string {
-	// Clean up pathname and create a consistent name
 	const cleanPath = pathname.replace(/\/$/, '') || 'home';
 	return cleanPath.replace(/\//g, '-').replace(/^-/, '');
 }
 
 /**
- * Preload a route for faster transitions
+ * Optimized route preloading with error handling
  */
 export async function preloadRoute(href: string): Promise<void> {
 	if (typeof window === 'undefined') return;
 
 	try {
-		// Use SvelteKit's built-in preloading
 		const { preloadData } = await import('$app/navigation');
-		await preloadData(href);
+		await Promise.race([
+			preloadData(href),
+			new Promise((_, reject) => setTimeout(() => reject(new Error('Preload timeout')), 3000))
+		]);
 	} catch (error) {
 		console.warn('Failed to preload route:', href, error);
 	}
 }
 
 /**
- * Navigation state management
+ * Optimized navigation state management
  */
 class NavigationState {
 	private isNavigating = false;
 	private currentTransition: string | null = null;
 	private navigationQueue: Array<() => Promise<void>> = [];
+	private processing = false;
+	private maxQueueSize = 3;
 
 	isCurrentlyNavigating(): boolean {
 		return this.isNavigating;
@@ -276,12 +377,24 @@ class NavigationState {
 	}
 
 	async queueNavigation(navigationFn: () => Promise<void>): Promise<void> {
+		// Drop oldest items if queue is too large
+		if (this.navigationQueue.length >= this.maxQueueSize) {
+			console.warn('Navigation queue full, dropping oldest items');
+			this.navigationQueue.splice(0, this.navigationQueue.length - this.maxQueueSize + 1);
+		}
+
 		return new Promise((resolve, reject) => {
+			const timeoutId = setTimeout(() => {
+				reject(new Error('Navigation timeout'));
+			}, 10000);
+
 			this.navigationQueue.push(async () => {
 				try {
+					clearTimeout(timeoutId);
 					await navigationFn();
 					resolve();
 				} catch (error) {
+					clearTimeout(timeoutId);
 					reject(error);
 				}
 			});
@@ -291,38 +404,44 @@ class NavigationState {
 	}
 
 	private async processQueue(): Promise<void> {
-		if (this.isNavigating || this.navigationQueue.length === 0) {
+		if (this.processing || this.navigationQueue.length === 0) {
 			return;
 		}
 
+		this.processing = true;
 		this.isNavigating = true;
-		const nextNavigation = this.navigationQueue.shift();
 
-		if (nextNavigation) {
-			try {
-				await nextNavigation();
-			} catch (error) {
-				console.error('Queued navigation failed:', error);
+		while (this.navigationQueue.length > 0) {
+			const nextNavigation = this.navigationQueue.shift();
+			if (nextNavigation) {
+				try {
+					await nextNavigation();
+				} catch (error) {
+					console.error('Queued navigation failed:', error);
+				}
 			}
 		}
 
 		this.isNavigating = false;
-
-		// Process next item in queue
-		if (this.navigationQueue.length > 0) {
-			setTimeout(() => this.processQueue(), 0);
-		}
+		this.processing = false;
 	}
 
 	setTransition(name: string | null): void {
 		this.currentTransition = name;
+	}
+
+	clear(): void {
+		this.navigationQueue.length = 0;
+		this.isNavigating = false;
+		this.processing = false;
+		this.currentTransition = null;
 	}
 }
 
 export const navigationState = new NavigationState();
 
 /**
- * Navigate with queue management to prevent overlapping transitions
+ * Navigate with optimized queue management
  */
 export async function navigateWithQueue(
 	url: string | URL,
@@ -339,7 +458,7 @@ export async function navigateWithQueue(
 }
 
 /**
- * Enhanced back navigation with transitions
+ * Enhanced back navigation with better error handling
  */
 export async function goBackWithTransition(
 	options: {
@@ -351,9 +470,14 @@ export async function goBackWithTransition(
 
 	try {
 		if (window.history.length > 1) {
-			await startViewTransition(async () => {
+			const shouldUseAnimations = await getAnimationPreference();
+			if (shouldUseAnimations) {
+				await startViewTransition(async () => {
+					window.history.back();
+				});
+			} else {
 				window.history.back();
-			});
+			}
 		} else if (options.fallbackUrl) {
 			await navigateWithTransition(options.fallbackUrl, {
 				replaceState: true,
@@ -361,25 +485,50 @@ export async function goBackWithTransition(
 			});
 		}
 	} catch (error) {
-		console.error('Back navigation with transition failed:', error);
-		// Fallback to regular back navigation
+		console.error('Back navigation failed:', error);
 		window.history.back();
 	}
 }
 
 /**
- * Enhanced forward navigation with transitions
+ * Enhanced forward navigation with better error handling
  */
 export async function goForwardWithTransition(): Promise<void> {
 	if (typeof window === 'undefined') return;
 
 	try {
-		await startViewTransition(async () => {
+		const shouldUseAnimations = await getAnimationPreference();
+		if (shouldUseAnimations) {
+			await startViewTransition(async () => {
+				window.history.forward();
+			});
+		} else {
 			window.history.forward();
-		});
+		}
 	} catch (error) {
-		console.error('Forward navigation with transition failed:', error);
-		// Fallback to regular forward navigation
+		console.error('Forward navigation failed:', error);
 		window.history.forward();
 	}
+}
+
+/**
+ * Clear all navigation state (useful for cleanup)
+ */
+export function clearNavigationState(): void {
+	navigationState.clear();
+	navigationDebounceMap.clear();
+	pendingNavigations = 0;
+	navigationStartTime = 0;
+}
+
+/**
+ * Get navigation performance metrics
+ */
+export function getNavigationMetrics() {
+	return {
+		pendingNavigations,
+		queueSize: navigationState['navigationQueue']?.length || 0,
+		isNavigating: navigationState.isCurrentlyNavigating(),
+		currentTransition: navigationState.getCurrentTransition()
+	};
 }
