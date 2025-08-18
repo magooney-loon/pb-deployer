@@ -93,7 +93,7 @@
 						<span class="text-sm font-medium text-gray-900 dark:text-gray-100">
 							{server.name}
 						</span>
-						<StatusBadge status={serverBadge.text} variant={serverBadge.variant} class="ml-2" />
+						<StatusBadge status={serverBadge.text} variant={serverBadge.variant} class="ml-2" dot />
 					</div>
 					<div class="text-xs text-gray-500 dark:text-gray-400">
 						{server.host}:{server.port}
@@ -133,7 +133,7 @@
 							dot
 						/>
 						{#if app.latest_version && logic.hasUpdateAvailable(app.current_version, app.latest_version)}
-							<StatusBadge status="Update" variant="update" size="xs" class="ml-1" />
+							<StatusBadge status="Update" variant="update" size="xs" class="ml-1" dot />
 						{/if}
 					</div>
 					<div class="text-xs text-gray-500 dark:text-gray-400">
@@ -193,6 +193,7 @@
 							status={deploymentBadge.text}
 							variant={deploymentBadge.variant}
 							class="ml-2"
+							dot
 						/>
 					</div>
 					<div class="text-xs text-gray-500 dark:text-gray-400">

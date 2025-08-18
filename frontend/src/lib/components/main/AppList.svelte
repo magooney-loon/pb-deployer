@@ -152,7 +152,7 @@
 								<div class="flex w-fit flex-col space-y-1">
 									<StatusBadge status={statusBadge.text} variant={statusBadge.variant} dot />
 									{#if app.latest_version && logic.hasUpdateAvailable(app.current_version, app.latest_version)}
-										<StatusBadge status="Update Available" variant="update" size="xs" />
+										<StatusBadge status="Update Available" variant="update" size="xs" dot />
 									{/if}
 								</div>
 							</td>

@@ -150,7 +150,7 @@
 								</div>
 							</td>
 							<td class="px-6 py-4 whitespace-nowrap">
-								<StatusBadge status={statusBadge.text} variant={statusBadge.variant} />
+								<StatusBadge status={statusBadge.text} variant={statusBadge.variant} dot />
 							</td>
 							<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
 								<div>Root: {server.root_username}</div>
