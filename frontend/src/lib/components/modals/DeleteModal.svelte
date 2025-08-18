@@ -190,9 +190,6 @@
 										</li>
 									{/each}
 								</ul>
-								<p class="mt-2 text-sm text-amber-600 dark:text-amber-400">
-									You should delete or migrate these {relatedItemsType} before deleting the {itemType}.
-								</p>
 							</div>
 						</div>
 					</div>
