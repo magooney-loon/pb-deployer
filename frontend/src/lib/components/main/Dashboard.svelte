@@ -94,6 +94,11 @@
 						{server.host}:{server.port}
 					</div>
 				</div>
+				<div class="text-right">
+					<div class="text-xs text-gray-400 dark:text-gray-500">
+						Created {new Date(server.created).toLocaleDateString()}
+					</div>
+				</div>
 			{/snippet}
 		</RecentItemsCard>
 
@@ -133,21 +138,20 @@
 							<Icon name="link" size="h-3 w-3" />
 						</a>
 					</div>
-					{#if app.current_version}
-						<div class="text-xs text-gray-400 dark:text-gray-500">
-							v{app.current_version}
-						</div>
-					{/if}
 				</div>
 				<div class="text-right">
-					<a
-						href="https://{app.domain}"
-						target="_blank"
-						class="inline-flex items-center space-x-1 text-xs text-gray-600 underline-offset-4 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-100"
-					>
-						<span>Open</span>
-						<Icon name="link" size="h-3 w-3" />
-					</a>
+					<div class="text-xs text-gray-500 dark:text-gray-400">
+						{app.service_name}
+					</div>
+					{#if app.current_version}
+						<div class="text-xs text-gray-400 dark:text-gray-500">
+							v{app.current_version} • Created {new Date(app.created).toLocaleDateString()}
+						</div>
+					{:else}
+						<div class="text-xs text-gray-400 dark:text-gray-500">
+							Created {new Date(app.created).toLocaleDateString()}
+						</div>
+					{/if}
 				</div>
 			{/snippet}
 		</RecentItemsCard>
@@ -180,8 +184,17 @@
 					<div class="text-xs text-gray-500 dark:text-gray-400">
 						App ID: {deployment.app_id.slice(-8)}
 					</div>
+				</div>
+				<div class="text-right">
+					{#if deployment.version_id}
+						<div class="text-xs text-gray-500 dark:text-gray-400">
+							Version: {deployment.version_id.slice(-8)}
+						</div>
+					{/if}
 					<div class="text-xs text-gray-400 dark:text-gray-500">
-						{new Date(deployment.created).toLocaleDateString()}
+						{new Date(deployment.created).toLocaleDateString()} at {new Date(
+							deployment.created
+						).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
 					</div>
 				</div>
 			{/snippet}
