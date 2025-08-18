@@ -149,12 +149,8 @@
 								<div class="text-xs text-gray-500 dark:text-gray-400">{app.remote_path}</div>
 							</td>
 							<td class="px-6 py-4 whitespace-nowrap">
-								<div class="flex flex-col space-y-1">
-									<StatusBadge
-										status="{logic.getStatusIcon(app.status)} {statusBadge.text}"
-										variant={statusBadge.variant}
-										dot
-									/>
+								<div class="flex w-fit flex-col space-y-1">
+									<StatusBadge status={statusBadge.text} variant={statusBadge.variant} dot />
 									{#if app.latest_version && logic.hasUpdateAvailable(app.current_version, app.latest_version)}
 										<StatusBadge status="Update Available" variant="update" size="xs" />
 									{/if}
