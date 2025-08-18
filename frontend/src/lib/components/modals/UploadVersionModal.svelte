@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Modal from '$lib/components/main/Modal.svelte';
 	import { Button, FormField, FileUpload } from '$lib/components/partials';
+	import { ApiClient } from '$lib/api/index.js';
 	import type { App } from '$lib/api/index.js';
 
 	interface VersionData {
@@ -18,6 +19,8 @@
 	}
 
 	let { open = false, app = null, uploading = false, onclose, onupload }: Props = $props();
+
+	const api = new ApiClient();
 
 	let formData = $state({
 		version_number: '',
@@ -48,6 +51,19 @@
 		}
 	}
 
+	async function fetchLatestVersion(appId: string): Promise<string> {
+		try {
+			const response = await api.versions.getAppVersions(appId);
+			if (response.versions && response.versions.length > 0) {
+				// Get the most recent version (they're sorted by -created)
+				return response.versions[0].version_number;
+			}
+		} catch (error) {
+			console.error('Failed to fetch latest version:', error);
+		}
+		return '0.0.0';
+	}
+
 	// Update formData when nextVersion changes
 	$effect(() => {
 		formData.version_number = nextVersion;
@@ -55,8 +71,16 @@
 
 	// Get current version when app changes
 	$effect(() => {
-		if (app?.current_version) {
-			currentVersion = app.current_version;
+		if (app?.id) {
+			// First try to use app's current_version if available
+			if (app.current_version && app.current_version !== '' && app.current_version !== '0.0.0') {
+				currentVersion = app.current_version;
+			} else {
+				// Fallback to fetching latest version from API
+				fetchLatestVersion(app.id).then((version) => {
+					currentVersion = version;
+				});
+			}
 		} else {
 			currentVersion = '0.0.0';
 		}

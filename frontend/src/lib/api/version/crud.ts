@@ -85,6 +85,18 @@ export class VersionCrudClient {
 			console.log('Sending FormData to PocketBase...');
 			const version = await this.pb.collection('versions').create<Version>(formData);
 			console.log('Version created successfully:', version.id);
+
+			// Update app's current_version field
+			try {
+				await this.pb.collection('apps').update(data.app_id, {
+					current_version: data.version_number
+				});
+				console.log('Updated app current_version to:', data.version_number);
+			} catch (updateError) {
+				console.warn('Failed to update app current_version:', updateError);
+				// Don't throw here as the version was created successfully
+			}
+
 			return version;
 		} catch (error) {
 			console.error('Failed to create version:', error);

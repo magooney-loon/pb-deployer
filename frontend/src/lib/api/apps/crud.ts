@@ -83,6 +83,18 @@ export class AppsCrudClient {
 		}
 	}
 
+	async updateAppCurrentVersion(id: string, version: string): Promise<App> {
+		try {
+			const app = await this.pb.collection('apps').update<App>(id, {
+				current_version: version
+			});
+			return app;
+		} catch (error) {
+			console.error('Failed to update app current version:', error);
+			throw error;
+		}
+	}
+
 	async deleteApp(id: string) {
 		try {
 			await this.pb.collection('apps').delete(id);
