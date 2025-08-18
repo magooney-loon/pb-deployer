@@ -1,5 +1,6 @@
 import { ApiClient } from '$lib/api/index.js';
 import type { App, AppRequest, Server } from '$lib/api/index.js';
+import type { Deployment } from '$lib/api/deployment/types.js';
 import {
 	getAppStatusBadge,
 	getAppStatusIcon,
@@ -19,8 +20,14 @@ export interface AppFormData {
 	initialZip?: File;
 }
 
+// Extended App interface for deployment tracking
+interface AppWithDeploymentStatus extends App {
+	deployed_version: string | null;
+	has_pending_deployment: boolean;
+}
+
 export interface AppListState {
-	apps: App[];
+	apps: AppWithDeploymentStatus[];
 	servers: Server[];
 	loading: boolean;
 	error: string | null;
@@ -29,9 +36,9 @@ export interface AppListState {
 	creating: boolean;
 	deleting: boolean;
 	showDeleteModal: boolean;
-	appToDelete: App | null;
+	appToDelete: AppWithDeploymentStatus | null;
 	showManageModal: boolean;
-	appToManage: App | null;
+	appToManage: AppWithDeploymentStatus | null;
 }
 
 export class AppListLogic {
@@ -93,9 +100,18 @@ export class AppListLogic {
 	public async loadApps(): Promise<void> {
 		try {
 			this.updateState({ loading: true, error: null });
-			const response = await this.api.apps.getAppsWithLatestVersions();
-			const apps = response.apps || [];
-			this.updateState({ apps });
+			const [appsResponse, deploymentsResponse] = await Promise.all([
+				this.api.apps.getAppsWithLatestVersions(),
+				this.api.deployments.getDeployments()
+			]);
+
+			const apps = appsResponse.apps || [];
+			const deployments = deploymentsResponse.deployments || [];
+
+			// Enhance apps with actual deployment status
+			const enhancedApps = await this.enhanceAppsWithDeploymentStatus(apps, deployments);
+
+			this.updateState({ apps: enhancedApps });
 		} catch (err) {
 			const error = err instanceof Error ? err.message : 'Failed to load apps';
 			this.updateState({ error, apps: [] });
@@ -112,6 +128,59 @@ export class AppListLogic {
 		} catch {
 			this.updateState({ servers: [] });
 		}
+	}
+
+	private async enhanceAppsWithDeploymentStatus(
+		apps: App[],
+		deployments: Deployment[]
+	): Promise<AppWithDeploymentStatus[]> {
+		const enhancedApps = await Promise.all(
+			apps.map(async (app) => {
+				try {
+					// Get versions for this app
+					const versionsResponse = await this.api.versions.getAppVersions(app.id);
+					const versions = versionsResponse.versions || [];
+
+					// Find the latest successful deployment for this app
+					const appDeployments = deployments.filter((d) => d.app_id === app.id);
+					const latestSuccessfulDeployment = appDeployments
+						.filter((d) => d.status === 'success')
+						.sort(
+							(a, b) =>
+								new Date(b.completed_at || b.created).getTime() -
+								new Date(a.completed_at || a.created).getTime()
+						)[0];
+
+					let deployedVersion = null;
+					if (latestSuccessfulDeployment) {
+						const deployedVersionObj = versions.find(
+							(v) => v.id === latestSuccessfulDeployment.version_id
+						);
+						deployedVersion = deployedVersionObj?.version_number || null;
+					}
+
+					// Check if there are pending deployments
+					const hasPendingDeployment = appDeployments.some((d) =>
+						['pending', 'running'].includes(d.status)
+					);
+
+					return {
+						...app,
+						deployed_version: deployedVersion,
+						has_pending_deployment: hasPendingDeployment
+					} as AppWithDeploymentStatus;
+				} catch (error) {
+					console.warn('Failed to enhance app deployment status:', error);
+					return {
+						...app,
+						deployed_version: app.current_version,
+						has_pending_deployment: false
+					} as AppWithDeploymentStatus;
+				}
+			})
+		);
+
+		return enhancedApps;
 	}
 
 	public async createApp(initialZip?: File): Promise<boolean> {
@@ -143,10 +212,9 @@ export class AppListLogic {
 				});
 			}
 
-			// Update apps list
-			const apps = [...this.state.apps, app];
+			// Reload apps list to get proper deployment status
+			await this.loadApps();
 			this.updateState({
-				apps,
 				showCreateForm: false,
 				creating: false
 			});
@@ -282,5 +350,13 @@ export class AppListLogic {
 
 	public hasUpdateAvailable(currentVersion: string, latestVersion: string): boolean {
 		return hasUpdateAvailable(currentVersion, latestVersion);
+	}
+
+	public getDeployedVersion(app: AppWithDeploymentStatus): string {
+		return app.deployed_version || 'Not deployed';
+	}
+
+	public hasPendingDeployment(app: AppWithDeploymentStatus): boolean {
+		return app.has_pending_deployment;
 	}
 }

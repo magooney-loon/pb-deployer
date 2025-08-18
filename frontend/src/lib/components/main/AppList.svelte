@@ -151,7 +151,10 @@
 							<td class="px-6 py-4 whitespace-nowrap">
 								<div class="flex w-fit flex-col space-y-1">
 									<StatusBadge status={statusBadge.text} variant={statusBadge.variant} dot />
-									{#if app.latest_version && logic.hasUpdateAvailable(app.current_version, app.latest_version)}
+									{#if logic.hasPendingDeployment(app)}
+										<StatusBadge status="Deploying" variant="warning" size="xs" dot />
+									{/if}
+									{#if app.latest_version && app.deployed_version && logic.hasUpdateAvailable(app.deployed_version, app.latest_version)}
 										<StatusBadge status="Update Available" variant="update" size="xs" dot />
 									{/if}
 								</div>
@@ -159,11 +162,20 @@
 							<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
 								<div class="flex flex-col">
 									<span class="font-medium text-gray-900 dark:text-gray-100">
-										{app.current_version || 'Not deployed'}
+										{logic.getDeployedVersion(app)}
 									</span>
-									{#if app.latest_version && app.current_version !== app.latest_version}
+									{#if app.latest_version && app.deployed_version && app.deployed_version !== app.latest_version}
 										<span class="text-xs text-purple-600 dark:text-purple-400">
 											Latest: v{app.latest_version}
+										</span>
+									{:else if app.latest_version && !app.deployed_version}
+										<span class="text-xs text-blue-600 dark:text-blue-400">
+											v{app.latest_version} ready
+										</span>
+									{/if}
+									{#if logic.hasPendingDeployment(app)}
+										<span class="text-xs text-amber-600 dark:text-amber-400">
+											Deployment in progress...
 										</span>
 									{/if}
 								</div>
