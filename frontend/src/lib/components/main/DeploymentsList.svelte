@@ -26,14 +26,7 @@
 			Monitor deployment history and status
 		</p>
 	</div>
-	{#if state.deployments.length > 0}
-		<Button variant="outline" onclick={() => logic.loadDeployments()} disabled={state.loading}>
-			{#snippet iconSnippet()}
-				<Icon name="refresh" />
-			{/snippet}
-			Refresh
-		</Button>
-	{:else}
+	{#if state.deployments.length === 0}
 		<Button
 			variant="outline"
 			onclick={() => logic.openCreateModal()}
