@@ -2,6 +2,7 @@
   <img src="frontend/static/favicon.svg" alt="Logo" width="200">
   <h1 align="center">pb-deployer</h1>
   <h3 align="center">Automates the lifecycle of deploying PocketBase apps to production</h3>
+  <a target="_blank" href="https://magooney.org/">Web Demo UI</a>
 </div>
 
 <div align="center">
