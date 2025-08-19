@@ -14,7 +14,7 @@
 2. Go to **SSL/TLS** → **Overview**
 3. Set SSL mode to **"Full (strict)"**
 
-## 3. Add A Record and CNAME for Domains
+## 3. Add A Records for Domains
 
 ### Add A Record
 1. Go to **DNS** → **Records**
@@ -25,11 +25,11 @@
    - **Proxy status**: Proxied (orange cloud)
    - Click **Save**
 
-### Add CNAME Record
-1. Add CNAME record:
-   - **Type**: CNAME
+### Add A Record
+1. Add A record:
+   - **Type**: A
    - **Name**: www
-   - **Target**: yourdomain.com
+   - **Target**: Your Hetzner server IP
    - **Proxy status**: Proxied (orange cloud)
    - Click **Save**
 

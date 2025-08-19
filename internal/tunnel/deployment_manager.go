@@ -53,6 +53,7 @@ type DeploymentContext struct {
 	SystemdService    string
 	RollbackNeeded    bool
 	ServiceWasRunning bool
+	useRootFallback   bool
 }
 
 func NewDeploymentManager(manager *Manager, app core.App) *DeploymentManager {
@@ -183,7 +184,7 @@ func (d *DeploymentManager) downloadAndStageVersion(ctx context.Context, deployC
 
 	// Extract the ZIP file
 	d.logProgress(req, "Extracting deployment package...")
-	result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("cd %s && unzip -o deployment.zip", deployCtx.StagingPath))
+	result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("bash -c \"cd %s && unzip -o deployment.zip\"", deployCtx.StagingPath))
 	if err != nil || result.ExitCode != 0 {
 		return fmt.Errorf("failed to extract deployment package: %s", result.Stderr)
 	}
@@ -222,7 +223,7 @@ func (d *DeploymentManager) downloadAndStageVersion(ctx context.Context, deployC
 
 	// Rename binary to app name
 	newBinaryPath := fmt.Sprintf("%s/%s", deployCtx.StagingPath, req.AppName)
-	result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("mv %s %s && chmod +x %s", pocketbasePath, newBinaryPath, newBinaryPath))
+	result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("bash -c \"mv %s %s && chmod +x %s\"", pocketbasePath, newBinaryPath, newBinaryPath))
 	if err != nil || result.ExitCode != 0 {
 		return fmt.Errorf("failed to rename binary: %s", result.Stderr)
 	}
@@ -274,9 +275,16 @@ func (d *DeploymentManager) backupCurrentDeployment(ctx context.Context, deployC
 		return nil
 	}
 
+	// Check if directory has any files to backup
+	result, err = d.manager.client.Execute(fmt.Sprintf("find %s -mindepth 1 -maxdepth 1 | head -1", deployCtx.WorkingDir))
+	if err != nil || result.ExitCode != 0 || strings.TrimSpace(result.Stdout) == "" {
+		d.logProgress(deployCtx.Request, "No existing deployment files to backup (initial deployment)")
+		return nil
+	}
+
 	d.logProgress(deployCtx.Request, "Creating backup of current deployment...")
-	result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("mkdir -p %s && cp -r %s/* %s/",
-		filepath.Dir(deployCtx.BackupPath), deployCtx.WorkingDir, deployCtx.BackupPath))
+	result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("bash -c \"mkdir -p %s && cp -r %s/* %s/\"",
+		deployCtx.BackupPath, deployCtx.WorkingDir, deployCtx.BackupPath))
 	if err != nil || result.ExitCode != 0 {
 		return fmt.Errorf("failed to create backup: %s", result.Stderr)
 	}
@@ -295,7 +303,7 @@ func (d *DeploymentManager) prepareDeploymentDir(ctx context.Context, deployCtx 
 	}
 
 	// Set appropriate ownership and permissions
-	result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("chown -R %s:%s %s && chmod 755 %s",
+	result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("bash -c \"chown -R %s:%s %s && chmod 755 %s\"",
 		deployCtx.Request.AppUsername, deployCtx.Request.AppUsername, deployCtx.WorkingDir, deployCtx.WorkingDir))
 	if err != nil || result.ExitCode != 0 {
 		return fmt.Errorf("failed to set directory permissions: %s", result.Stderr)
@@ -309,21 +317,46 @@ func (d *DeploymentManager) swapDeployment(ctx context.Context, deployCtx *Deplo
 
 	d.logProgress(req, "Installing new version...")
 
-	// Remove old binary if exists
-	d.manager.client.ExecuteSudo(fmt.Sprintf("rm -f %s", deployCtx.BinaryPath))
-
-	// Copy new binary from staging
-	result, err := d.manager.client.ExecuteSudo(fmt.Sprintf("cp %s/%s %s && chmod +x %s",
-		deployCtx.StagingPath, req.AppName, deployCtx.BinaryPath, deployCtx.BinaryPath))
+	// Copy all files and directories preserving structure from staging to working directory
+	d.logProgress(req, "Copying deployment files...")
+	result, err := d.manager.client.ExecuteSudo(fmt.Sprintf("bash -c \"cd %s && cp -r . %s/\"",
+		deployCtx.StagingPath, deployCtx.WorkingDir))
 	if err != nil || result.ExitCode != 0 {
-		return fmt.Errorf("failed to install new binary: %s", result.Stderr)
+		return fmt.Errorf("failed to copy deployment files: %s", result.Stderr)
 	}
 
-	// Copy any additional files (excluding the binary and zip)
-	result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("cd %s && find . -type f ! -name '%s' ! -name 'deployment.zip' -exec cp {} %s/ \\;",
-		deployCtx.StagingPath, req.AppName, deployCtx.WorkingDir))
-	if err != nil {
-		d.logger.Warning("Failed to copy additional files: %v", err)
+	// Remove deployment.zip from working directory
+	d.manager.client.ExecuteSudo(fmt.Sprintf("rm -f %s/deployment.zip", deployCtx.WorkingDir))
+
+	// Ensure binary is executable
+	result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("chmod +x %s", deployCtx.BinaryPath))
+	if err != nil || result.ExitCode != 0 {
+		return fmt.Errorf("failed to make binary executable: %s", result.Stderr)
+	}
+
+	// Grant capability to bind to privileged ports (80, 443) for non-root user
+	d.logProgress(req, "Granting port binding capabilities...")
+
+	// First check if setcap is available
+	setcapResult, setcapErr := d.manager.client.Execute("which setcap")
+	if setcapErr != nil || setcapResult.ExitCode != 0 {
+		d.logProgress(req, "setcap not available, installing libcap2-bin...")
+		installResult, installErr := d.manager.client.ExecuteSudo("apt update && apt install -y libcap2-bin")
+		if installErr != nil || installResult.ExitCode != 0 {
+			d.logProgress(req, "Warning: Could not install libcap2-bin, will use root fallback")
+		}
+	}
+
+	// Try to set capabilities
+	result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("setcap 'cap_net_bind_service=+ep' %s", deployCtx.BinaryPath))
+	if err != nil || result.ExitCode != 0 {
+		d.logProgress(req, "Warning: Failed to set port capabilities, falling back to root user")
+		d.logProgress(req, fmt.Sprintf("setcap error: %s", result.Stderr))
+
+		// Fallback: Update systemd service to run as root
+		deployCtx.useRootFallback = true
+	} else {
+		d.logProgress(req, "Port binding capabilities granted successfully")
 	}
 
 	return nil
@@ -333,6 +366,18 @@ func (d *DeploymentManager) createSystemdService(ctx context.Context, deployCtx 
 	req := deployCtx.Request
 
 	d.logProgress(req, "Creating/updating systemd service...")
+
+	// Determine user/group based on capability fallback
+	var serviceUser, serviceGroup string
+	if deployCtx.useRootFallback {
+		serviceUser = "root"
+		serviceGroup = "root"
+		d.logProgress(req, "Creating systemd service with root user (capability fallback)")
+	} else {
+		serviceUser = req.AppUsername
+		serviceGroup = req.AppUsername
+		d.logProgress(req, "Creating systemd service with app user")
+	}
 
 	serviceContent := fmt.Sprintf(`[Unit]
 Description=%s PocketBase Server
@@ -352,7 +397,7 @@ ExecStart=%s serve %s
 
 [Install]
 WantedBy=multi-user.target
-`, req.AppName, req.AppUsername, req.AppUsername, req.AppName, req.AppName, deployCtx.WorkingDir, deployCtx.BinaryPath, req.Domain)
+`, req.AppName, serviceUser, serviceGroup, req.AppName, req.AppName, deployCtx.WorkingDir, deployCtx.BinaryPath, req.Domain)
 
 	// Write service file
 	result, err := d.manager.client.ExecuteSudo(fmt.Sprintf("cat > %s << 'EOF'\n%sEOF", deployCtx.ServicePath, serviceContent))
@@ -408,7 +453,7 @@ func (d *DeploymentManager) createSuperuser(ctx context.Context, deployCtx *Depl
 	// Wait a bit for PocketBase to fully initialize
 	time.Sleep(5 * time.Second)
 
-	cmd := fmt.Sprintf("cd %s && ./%s superuser create %s %s",
+	cmd := fmt.Sprintf("bash -c \"cd %s && ./%s superuser create %s %s\"",
 		deployCtx.WorkingDir, req.AppName, req.SuperuserEmail, req.SuperuserPass)
 
 	result, err := d.manager.client.ExecuteSudo(cmd, WithTimeout(30*time.Second))
@@ -425,26 +470,50 @@ func (d *DeploymentManager) verifyDeployment(ctx context.Context, deployCtx *Dep
 
 	d.logProgress(req, "Verifying deployment health...")
 
-	healthURL := fmt.Sprintf("https://%s/api/health", req.Domain)
+	// Debug: Check service status first
+	result, err := d.manager.client.Execute(fmt.Sprintf("systemctl status %s", deployCtx.SystemdService))
+	if err == nil {
+		d.logProgress(req, fmt.Sprintf("Service status: %s", strings.TrimSpace(result.Stdout)))
+	}
 
-	// Try HTTP first in case HTTPS isn't set up yet
-	httpURL := fmt.Sprintf("http://%s/api/health", req.Domain)
+	// Debug: Check service logs for any errors
+	logResult, logErr := d.manager.client.Execute(fmt.Sprintf("tail -10 /opt/pocketbase/logs/%s.log", req.AppName))
+	if logErr == nil && strings.TrimSpace(logResult.Stdout) != "" {
+		d.logProgress(req, fmt.Sprintf("Service logs: %s", strings.TrimSpace(logResult.Stdout)))
+	}
+
+	// Debug: Check if any process is listening on port 80 or 8080
+	portResult, portErr := d.manager.client.Execute("netstat -tulpn | grep ':80\\|:8080'")
+	if portErr == nil && strings.TrimSpace(portResult.Stdout) != "" {
+		d.logProgress(req, fmt.Sprintf("Listening ports: %s", strings.TrimSpace(portResult.Stdout)))
+	}
+
+	// Health check URLs to try in order
+	healthUrls := []struct {
+		url         string
+		description string
+	}{
+		{"http://localhost:8080/api/health", "localhost:8080"},
+		{"http://localhost:80/api/health", "localhost:80"},
+		{"https://localhost:443/api/health", "localhost:443"},
+		{fmt.Sprintf("http://%s/api/health", req.Domain), fmt.Sprintf("HTTP %s", req.Domain)},
+		{fmt.Sprintf("https://%s/api/health", req.Domain), fmt.Sprintf("HTTPS %s", req.Domain)},
+	}
 
 	for i := 0; i < 15; i++ {
 		time.Sleep(2 * time.Second)
 
-		// Try HTTPS first
-		result, err := d.manager.client.Execute(fmt.Sprintf("curl -s -f -m 10 %s", healthURL), WithTimeout(15*time.Second))
-		if err == nil && result.ExitCode == 0 {
-			d.logProgress(req, "Health check passed (HTTPS)")
-			return nil
-		}
-
-		// Try HTTP
-		result, err = d.manager.client.Execute(fmt.Sprintf("curl -s -f -m 10 %s", httpURL), WithTimeout(15*time.Second))
-		if err == nil && result.ExitCode == 0 {
-			d.logProgress(req, "Health check passed (HTTP)")
-			return nil
+		// Try each URL in order
+		for _, healthCheck := range healthUrls {
+			result, err := d.manager.client.Execute(fmt.Sprintf("curl -s -f -m 10 -k %s", healthCheck.url), WithTimeout(15*time.Second))
+			if err == nil && result.ExitCode == 0 {
+				d.logProgress(req, fmt.Sprintf("Health check passed (%s)", healthCheck.description))
+				return nil
+			}
+			// Debug: Log curl error details for first attempt
+			if i == 0 {
+				d.logProgress(req, fmt.Sprintf("Health check failed for %s: exit=%d, stderr=%s", healthCheck.description, result.ExitCode, strings.TrimSpace(result.Stderr)))
+			}
 		}
 
 		d.logProgress(req, fmt.Sprintf("Health check attempt %d/15 failed, retrying...", i+1))
@@ -458,7 +527,7 @@ func (d *DeploymentManager) finalizeDeployment(ctx context.Context, deployCtx *D
 
 	// Clean up old backups (keep last 5)
 	backupDir := filepath.Dir(deployCtx.BackupPath)
-	_, err := d.manager.client.ExecuteSudo(fmt.Sprintf("cd %s && ls -1t | tail -n +6 | xargs -r rm -rf", backupDir))
+	_, err := d.manager.client.ExecuteSudo(fmt.Sprintf("bash -c \"cd %s && ls -1t | tail -n +6 | xargs -r rm -rf\"", backupDir))
 	if err != nil {
 		d.logger.Warning("Failed to clean up old backups: %v", err)
 	}
@@ -487,7 +556,7 @@ func (d *DeploymentManager) rollback(deployCtx *DeploymentContext) error {
 	}
 
 	// Restore from backup
-	result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("rm -rf %s/* && cp -r %s/* %s/",
+	result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("bash -c \"rm -rf %s/* && cp -r %s/* %s/\"",
 		deployCtx.WorkingDir, deployCtx.BackupPath, deployCtx.WorkingDir))
 	if err != nil || result.ExitCode != 0 {
 		d.logger.Error("Failed to restore from backup: %s", result.Stderr)

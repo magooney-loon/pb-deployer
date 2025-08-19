@@ -145,6 +145,7 @@ func (s *SetupManager) InstallEssentials() error {
 		"unzip",
 		"systemd",
 		"logrotate",
+		"libcap2-bin",
 	}
 
 	return s.manager.InstallPackages(essentials...)
@@ -186,7 +187,7 @@ func (s *SetupManager) VerifySetup(username string) error {
 		}
 	}
 
-	essentials := []string{"curl", "wget", "unzip"}
+	essentials := []string{"curl", "wget", "unzip", "setcap"}
 	for _, pkg := range essentials {
 		if result, err := s.manager.client.Execute(fmt.Sprintf("which %s", pkg)); err != nil || result.ExitCode != 0 {
 			return &Error{
