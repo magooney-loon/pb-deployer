@@ -12,11 +12,14 @@ import (
 	"time"
 
 	"pb-deployer/internal/logger"
+
+	"github.com/pocketbase/pocketbase/core"
 )
 
 type DeploymentManager struct {
 	manager *Manager
 	logger  *logger.Logger
+	app     core.App
 	cleanup []func()
 	mu      sync.Mutex
 	closed  bool
@@ -34,8 +37,9 @@ type DeploymentRequest struct {
 	IsInitialDeploy  bool
 	SuperuserEmail   string
 	SuperuserPass    string
-	ProgressCallback func(step int, total int, message string)
-	LogCallback      func(message string)
+	AppUsername      string
+	ProgressCallback func(int, int, string)
+	LogCallback      func(string)
 }
 
 type DeploymentContext struct {
@@ -50,10 +54,11 @@ type DeploymentContext struct {
 	ServiceWasRunning bool
 }
 
-func NewDeploymentManager(manager *Manager) *DeploymentManager {
+func NewDeploymentManager(manager *Manager, app core.App) *DeploymentManager {
 	return &DeploymentManager{
 		manager: manager,
 		logger:  logger.GetTunnelLogger(),
+		app:     app,
 	}
 }
 
@@ -63,10 +68,10 @@ func (d *DeploymentManager) Deploy(ctx context.Context, req *DeploymentRequest) 
 	deployCtx := &DeploymentContext{
 		Request:        req,
 		StagingPath:    fmt.Sprintf("/tmp/pb-deploy-%s-%d", req.AppName, time.Now().Unix()),
-		BackupPath:     fmt.Sprintf("%s/backups/%s-%d", req.RemotePath, req.AppName, time.Now().Unix()),
+		BackupPath:     fmt.Sprintf("/opt/pocketbase/backups/%s-%d", req.AppName, time.Now().Unix()),
 		ServicePath:    fmt.Sprintf("/etc/systemd/system/%s.service", req.ServiceName),
-		BinaryPath:     fmt.Sprintf("%s/%s", req.RemotePath, req.AppName),
-		WorkingDir:     req.RemotePath,
+		BinaryPath:     fmt.Sprintf("/opt/pocketbase/apps/%s/%s", req.AppName, req.AppName),
+		WorkingDir:     fmt.Sprintf("/opt/pocketbase/apps/%s", req.AppName),
 		SystemdService: req.ServiceName,
 	}
 
@@ -78,6 +83,9 @@ func (d *DeploymentManager) Deploy(ctx context.Context, req *DeploymentRequest) 
 		// Cleanup staging
 		d.manager.client.ExecuteSudo(fmt.Sprintf("rm -rf %s", deployCtx.StagingPath))
 	}()
+
+	// Mark deployment as running
+	d.updateDeploymentStatus(deployCtx.Request.DeploymentID, "running", "")
 
 	steps := []struct {
 		step    int
@@ -92,8 +100,8 @@ func (d *DeploymentManager) Deploy(ctx context.Context, req *DeploymentRequest) 
 		{5, 11, "Preparing deployment directory", d.prepareDeploymentDir},
 		{6, 11, "Installing new version", d.swapDeployment},
 		{7, 11, "Creating/updating systemd service", d.createSystemdService},
-		{8, 11, "Starting service", d.startService},
-		{9, 11, "Creating superuser (if initial deployment)", d.createSuperuser},
+		{8, 11, "Creating superuser (if initial deployment)", d.createSuperuser},
+		{9, 11, "Starting service", d.startService},
 		{10, 11, "Verifying deployment health", d.verifyDeployment},
 		{11, 11, "Finalizing deployment", d.finalizeDeployment},
 	}
@@ -107,11 +115,14 @@ func (d *DeploymentManager) Deploy(ctx context.Context, req *DeploymentRequest) 
 
 		if err := step.fn(ctx, deployCtx); err != nil {
 			deployCtx.RollbackNeeded = true
-			return fmt.Errorf("deployment failed at step %d (%s): %w", step.step, step.message, err)
+			errMsg := fmt.Sprintf("deployment failed at step %d (%s): %v", step.step, step.message, err)
+			d.updateDeploymentStatus(deployCtx.Request.DeploymentID, "failed", errMsg)
+			return fmt.Errorf("%s", errMsg)
 		}
 	}
 
 	d.logger.Success("Deployment completed successfully: %s", req.AppName)
+	d.updateDeploymentStatus(deployCtx.Request.DeploymentID, "success", "")
 	return nil
 }
 
@@ -165,16 +176,36 @@ func (d *DeploymentManager) downloadAndStageVersion(ctx context.Context, deployC
 		return fmt.Errorf("failed to extract deployment package: %s", result.Stderr)
 	}
 
-	// Find and rename the PocketBase binary
-	d.logProgress(req, "Preparing PocketBase binary...")
-	result, err = d.manager.client.Execute(fmt.Sprintf("find %s -name 'pocketbase' -type f", deployCtx.StagingPath))
+	// Find executable binary (could be named anything)
+	d.logProgress(req, "Locating executable binary...")
+	result, err = d.manager.client.Execute(fmt.Sprintf("find %s -type f -executable ! -name '*.zip' ! -name '*.txt' ! -name '*.md' ! -name '*.json'", deployCtx.StagingPath))
 	if err != nil || result.ExitCode != 0 {
-		return fmt.Errorf("failed to find PocketBase binary in package")
+		return fmt.Errorf("failed to find executable binary in package")
 	}
 
-	pocketbasePath := strings.TrimSpace(result.Stdout)
+	// Get all executables and find the largest one (likely the main binary)
+	executables := strings.Split(strings.TrimSpace(result.Stdout), "\n")
+	var pocketbasePath string
+	var maxSize int64
+
+	for _, executable := range executables {
+		if executable == "" {
+			continue
+		}
+		// Get file size
+		sizeResult, err := d.manager.client.Execute(fmt.Sprintf("stat -f%%z %s 2>/dev/null || stat -c%%s %s 2>/dev/null", executable, executable))
+		if err == nil && sizeResult.ExitCode == 0 {
+			var size int64
+			fmt.Sscanf(strings.TrimSpace(sizeResult.Stdout), "%d", &size)
+			if size > maxSize {
+				maxSize = size
+				pocketbasePath = executable
+			}
+		}
+	}
+
 	if pocketbasePath == "" {
-		return fmt.Errorf("PocketBase binary not found in deployment package")
+		return fmt.Errorf("no suitable executable binary found in deployment package")
 	}
 
 	// Rename binary to app name
@@ -252,8 +283,8 @@ func (d *DeploymentManager) prepareDeploymentDir(ctx context.Context, deployCtx 
 	}
 
 	// Set appropriate ownership and permissions
-	result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("chown -R root:root %s && chmod 755 %s",
-		deployCtx.WorkingDir, deployCtx.WorkingDir))
+	result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("chown -R %s:%s %s && chmod 755 %s",
+		deployCtx.Request.AppUsername, deployCtx.Request.AppUsername, deployCtx.WorkingDir, deployCtx.WorkingDir))
 	if err != nil || result.ExitCode != 0 {
 		return fmt.Errorf("failed to set directory permissions: %s", result.Stderr)
 	}
@@ -297,19 +328,19 @@ After=network.target
 
 [Service]
 Type=simple
-User=root
-Group=root
+User=%s
+Group=%s
 LimitNOFILE=4096
 Restart=always
 RestartSec=5s
-StandardOutput=append:%s/std.log
-StandardError=append:%s/std.log
+StandardOutput=append:/opt/pocketbase/logs/%s.log
+StandardError=append:/opt/pocketbase/logs/%s.log
 WorkingDirectory=%s
 ExecStart=%s serve %s
 
 [Install]
 WantedBy=multi-user.target
-`, req.AppName, deployCtx.WorkingDir, deployCtx.WorkingDir, deployCtx.WorkingDir, deployCtx.BinaryPath, req.Domain)
+`, req.AppName, req.AppUsername, req.AppUsername, req.AppName, req.AppName, deployCtx.WorkingDir, deployCtx.BinaryPath, req.Domain)
 
 	// Write service file
 	result, err := d.manager.client.ExecuteSudo(fmt.Sprintf("cat > %s << 'EOF'\n%sEOF", deployCtx.ServicePath, serviceContent))
@@ -420,6 +451,9 @@ func (d *DeploymentManager) finalizeDeployment(ctx context.Context, deployCtx *D
 		d.logger.Warning("Failed to clean up old backups: %v", err)
 	}
 
+	// Update app status to online and set current version
+	d.updateAppStatus(deployCtx.Request.AppID, "online", deployCtx.Request.VersionID)
+
 	d.logProgress(deployCtx.Request, "Deployment finalized successfully")
 	return nil
 }
@@ -450,6 +484,9 @@ func (d *DeploymentManager) rollback(deployCtx *DeploymentContext) error {
 		d.manager.client.ExecuteSudo(fmt.Sprintf("systemctl start %s", deployCtx.SystemdService))
 	}
 
+	// Update app status to offline due to rollback
+	d.updateAppStatus(deployCtx.Request.AppID, "offline", "")
+
 	d.logger.Success("Rollback completed")
 	return nil
 }
@@ -459,6 +496,8 @@ func (d *DeploymentManager) logProgress(req *DeploymentRequest, message string) 
 	if req.LogCallback != nil {
 		req.LogCallback(message)
 	}
+	// Also append to deployment logs in database
+	d.appendDeploymentLog(req.DeploymentID, message)
 }
 
 // Close performs cleanup and closes the deployment manager
@@ -498,4 +537,82 @@ func (d *DeploymentManager) IsClosed() bool {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return d.closed
+}
+
+func (d *DeploymentManager) updateDeploymentStatus(deploymentID, status, errorMsg string) {
+	if d.app == nil {
+		return
+	}
+
+	record, err := d.app.FindRecordById("deployments", deploymentID)
+	if err != nil {
+		d.logger.Warning("Failed to find deployment record: %v", err)
+		return
+	}
+
+	record.Set("status", status)
+	if status == "running" {
+		record.Set("started_at", time.Now())
+	} else if status == "success" || status == "failed" {
+		record.Set("completed_at", time.Now())
+		if errorMsg != "" {
+			d.appendDeploymentLog(deploymentID, errorMsg)
+		}
+	}
+
+	if err := d.app.Save(record); err != nil {
+		d.logger.Warning("Failed to update deployment status: %v", err)
+	}
+}
+
+func (d *DeploymentManager) appendDeploymentLog(deploymentID, message string) {
+	if d.app == nil {
+		return
+	}
+
+	record, err := d.app.FindRecordById("deployments", deploymentID)
+	if err != nil {
+		d.logger.Warning("Failed to find deployment record: %v", err)
+		return
+	}
+
+	currentLogs := record.GetString("logs")
+	timestamp := time.Now().Format("2006-01-02 15:04:05")
+	newLog := fmt.Sprintf("[%s] %s\n", timestamp, message)
+
+	// Limit log size to prevent bloat (keep last 50KB)
+	allLogs := currentLogs + newLog
+	if len(allLogs) > 50000 {
+		lines := strings.Split(allLogs, "\n")
+		// Keep roughly half the lines
+		start := len(lines) / 2
+		allLogs = strings.Join(lines[start:], "\n")
+	}
+
+	record.Set("logs", allLogs)
+
+	if err := d.app.Save(record); err != nil {
+		d.logger.Warning("Failed to append deployment log: %v", err)
+	}
+}
+
+func (d *DeploymentManager) updateAppStatus(appID, status, currentVersion string) {
+	if d.app == nil {
+		return
+	}
+
+	record, err := d.app.FindRecordById("apps", appID)
+	if err != nil {
+		d.logger.Warning("Failed to find app record: %v", err)
+		return
+	}
+
+	record.Set("status", status)
+	if currentVersion != "" {
+		record.Set("current_version", currentVersion)
+	}
+
+	if err := d.app.Save(record); err != nil {
+		d.logger.Warning("Failed to update app status: %v", err)
+	}
 }

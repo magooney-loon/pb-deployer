@@ -181,7 +181,7 @@ func performDeployment(app core.App, ctx *deploymentDeploymentContext) error {
 	manager := tunnel.NewManager(client)
 	cleanup.AddCloser(manager)
 
-	deploymentManager := tunnel.NewDeploymentManager(manager)
+	deploymentManager := tunnel.NewDeploymentManager(manager, app)
 	cleanup.AddCloser(deploymentManager)
 
 	// Build deployment request
@@ -197,6 +197,7 @@ func performDeployment(app core.App, ctx *deploymentDeploymentContext) error {
 		IsInitialDeploy: ctx.IsInitialDeploy,
 		SuperuserEmail:  ctx.SuperuserEmail,
 		SuperuserPass:   ctx.SuperuserPass,
+		AppUsername:     ctx.ServerRecord.GetString("app_username"),
 		ProgressCallback: func(step int, total int, message string) {
 			log.Step(step, total, message)
 		},
