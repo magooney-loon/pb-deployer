@@ -45,7 +45,15 @@ func (s *Server) GetSSHAddress() string {
 	return fmt.Sprintf("%s:%d", s.Host, s.Port)
 }
 
+// IsReadyForDeployment returns true if the server has completed setup.
+// Security lock is not required for deployment (allows dev/test deployments).
 func (s *Server) IsReadyForDeployment() bool {
+	return s.SetupComplete
+}
+
+// IsFullySecured returns true if the server is both setup complete and security locked.
+// This represents a production-ready server state.
+func (s *Server) IsFullySecured() bool {
 	return s.SetupComplete && s.SecurityLocked
 }
 

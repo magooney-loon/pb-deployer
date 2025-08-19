@@ -26,20 +26,21 @@ type DeploymentManager struct {
 }
 
 type DeploymentRequest struct {
-	AppName          string
-	AppID            string
-	VersionID        string
-	DeploymentID     string
-	Domain           string
-	ServiceName      string
-	RemotePath       string
-	ZipDownloadURL   string
-	IsInitialDeploy  bool
-	SuperuserEmail   string
-	SuperuserPass    string
-	AppUsername      string
-	ProgressCallback func(int, int, string)
-	LogCallback      func(string)
+	AppName              string
+	AppID                string
+	VersionID            string
+	DeploymentID         string
+	Domain               string
+	ServiceName          string
+	RemotePath           string
+	ZipDownloadURL       string
+	IsInitialDeploy      bool
+	SuperuserEmail       string
+	SuperuserPass        string
+	AppUsername          string
+	ServerSecurityLocked bool
+	ProgressCallback     func(int, int, string)
+	LogCallback          func(string)
 }
 
 type DeploymentContext struct {
@@ -86,6 +87,13 @@ func (d *DeploymentManager) Deploy(ctx context.Context, req *DeploymentRequest) 
 
 	// Mark deployment as running
 	d.updateDeploymentStatus(deployCtx.Request.DeploymentID, "running", "")
+
+	// Warn if deploying to non-secured server
+	if !req.ServerSecurityLocked {
+		warningMsg := "⚠️  SECURITY WARNING: Deploying to non-secured server! Consider completing security configuration for production use."
+		d.logger.Warning(warningMsg)
+		d.appendDeploymentLog(req.DeploymentID, warningMsg)
+	}
 
 	steps := []struct {
 		step    int

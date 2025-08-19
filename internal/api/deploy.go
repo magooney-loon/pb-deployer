@@ -82,12 +82,20 @@ func handleDeploy(c *core.RequestEvent, app core.App) error {
 	}
 
 	// Check if server is ready for deployment
-	if !serverRecord.GetBool("setup_complete") || !serverRecord.GetBool("security_locked") {
-		log.Error("Server not ready for deployment: setup_complete=%v, security_locked=%v",
-			serverRecord.GetBool("setup_complete"), serverRecord.GetBool("security_locked"))
+	if !serverRecord.GetBool("setup_complete") {
+		log.Error("Server not ready for deployment: setup_complete=%v",
+			serverRecord.GetBool("setup_complete"))
 		return c.JSON(http.StatusBadRequest, map[string]any{
-			"error": "Server is not ready for deployment. Complete setup and security configuration first.",
+			"error": "Server is not ready for deployment. Please complete server setup first.",
 		})
+	}
+
+	// Warn if server is not security locked but allow deployment
+	if !serverRecord.GetBool("security_locked") {
+		warningMsg := "⚠️  SECURITY WARNING: Deploying to non-secured server! Server has setup_complete=true but security_locked=false. Consider completing security configuration for production use."
+		log.Warning(warningMsg)
+		// Also add to deployment logs for visibility
+		appendDeploymentLog(app, deploymentRecord, warningMsg)
 	}
 
 	// Check if version has deployment zip
@@ -186,18 +194,19 @@ func performDeployment(app core.App, ctx *deploymentDeploymentContext) error {
 
 	// Build deployment request
 	deployReq := &tunnel.DeploymentRequest{
-		AppName:         ctx.AppRecord.GetString("name"),
-		AppID:           ctx.AppRecord.Id,
-		VersionID:       ctx.VersionRecord.Id,
-		DeploymentID:    ctx.DeploymentRecord.Id,
-		Domain:          ctx.AppRecord.GetString("domain"),
-		ServiceName:     ctx.AppRecord.GetString("service_name"),
-		RemotePath:      ctx.AppRecord.GetString("remote_path"),
-		ZipDownloadURL:  ctx.ZipURL,
-		IsInitialDeploy: ctx.IsInitialDeploy,
-		SuperuserEmail:  ctx.SuperuserEmail,
-		SuperuserPass:   ctx.SuperuserPass,
-		AppUsername:     ctx.ServerRecord.GetString("app_username"),
+		AppName:              ctx.AppRecord.GetString("name"),
+		AppID:                ctx.AppRecord.Id,
+		VersionID:            ctx.VersionRecord.Id,
+		DeploymentID:         ctx.DeploymentRecord.Id,
+		Domain:               ctx.AppRecord.GetString("domain"),
+		ServiceName:          ctx.AppRecord.GetString("service_name"),
+		RemotePath:           ctx.AppRecord.GetString("remote_path"),
+		ZipDownloadURL:       ctx.ZipURL,
+		IsInitialDeploy:      ctx.IsInitialDeploy,
+		SuperuserEmail:       ctx.SuperuserEmail,
+		SuperuserPass:        ctx.SuperuserPass,
+		AppUsername:          ctx.ServerRecord.GetString("app_username"),
+		ServerSecurityLocked: ctx.ServerRecord.GetBool("security_locked"),
 		ProgressCallback: func(step int, total int, message string) {
 			log.Step(step, total, message)
 		},

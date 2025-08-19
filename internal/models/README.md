@@ -112,7 +112,8 @@ type Deployment struct {
 // Server
 server := models.NewServer()
 server.GetSSHAddress()              // "host:port"
-server.IsReadyForDeployment()       // setup && security complete
+server.IsReadyForDeployment()       // setup complete (allows dev/test)
+server.IsFullySecured()             // setup && security complete (production)
 server.IsSetupComplete()            // setup status
 server.IsSecurityLocked()           // security status
 
@@ -147,9 +148,14 @@ server := models.NewServer()
 server.Name = "prod-server"
 server.Host = "192.168.1.100"
 
-// Check readiness
+// Check readiness (only requires setup_complete)
 if !server.IsReadyForDeployment() {
-    return errors.New("server not ready")
+    return errors.New("server setup not complete")
+}
+
+// Optional: warn if not fully secured
+if !server.IsFullySecured() {
+    log.Warning("Deploying to non-secured server (dev/test mode)")
 }
 
 // Deploy application
