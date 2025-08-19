@@ -221,11 +221,22 @@ func (d *DeploymentManager) downloadAndStageVersion(ctx context.Context, deployC
 		return fmt.Errorf("no suitable executable binary found in deployment package")
 	}
 
+	// Debug: Show what binary was found
+	d.logProgress(req, fmt.Sprintf("Found binary: %s", pocketbasePath))
+
 	// Rename binary to app name
 	newBinaryPath := fmt.Sprintf("%s/%s", deployCtx.StagingPath, req.AppName)
+	d.logProgress(req, fmt.Sprintf("Renaming binary from %s to %s", pocketbasePath, newBinaryPath))
+
 	result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("bash -c \"mv %s %s && chmod +x %s\"", pocketbasePath, newBinaryPath, newBinaryPath))
 	if err != nil || result.ExitCode != 0 {
 		return fmt.Errorf("failed to rename binary: %s", result.Stderr)
+	}
+
+	// Debug: Verify staging directory contents after rename
+	stagingResult, _ := d.manager.client.Execute(fmt.Sprintf("ls -la %s", deployCtx.StagingPath))
+	if stagingResult != nil {
+		d.logProgress(req, fmt.Sprintf("Staging directory after rename: %s", strings.TrimSpace(stagingResult.Stdout)))
 	}
 
 	return nil
@@ -302,11 +313,24 @@ func (d *DeploymentManager) prepareDeploymentDir(ctx context.Context, deployCtx 
 		return fmt.Errorf("failed to create deployment directory: %s", result.Stderr)
 	}
 
+	// Create logs directory if it doesn't exist
+	result, err = d.manager.client.ExecuteSudo("mkdir -p /opt/pocketbase/logs")
+	if err != nil || result.ExitCode != 0 {
+		return fmt.Errorf("failed to create logs directory: %s", result.Stderr)
+	}
+
 	// Set appropriate ownership and permissions
 	result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("bash -c \"chown -R %s:%s %s && chmod 755 %s\"",
 		deployCtx.Request.AppUsername, deployCtx.Request.AppUsername, deployCtx.WorkingDir, deployCtx.WorkingDir))
 	if err != nil || result.ExitCode != 0 {
 		return fmt.Errorf("failed to set directory permissions: %s", result.Stderr)
+	}
+
+	// Set permissions for logs directory
+	result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("bash -c \"chown -R %s:%s /opt/pocketbase/logs && chmod 755 /opt/pocketbase/logs\"",
+		deployCtx.Request.AppUsername, deployCtx.Request.AppUsername))
+	if err != nil || result.ExitCode != 0 {
+		return fmt.Errorf("failed to set logs directory permissions: %s", result.Stderr)
 	}
 
 	return nil
@@ -328,10 +352,31 @@ func (d *DeploymentManager) swapDeployment(ctx context.Context, deployCtx *Deplo
 	// Remove deployment.zip from working directory
 	d.manager.client.ExecuteSudo(fmt.Sprintf("rm -f %s/deployment.zip", deployCtx.WorkingDir))
 
+	// Debug: Check what files are in the working directory
+	d.logProgress(req, "Debugging: Checking working directory contents...")
+	debugResult, _ := d.manager.client.Execute(fmt.Sprintf("ls -la %s", deployCtx.WorkingDir))
+	if debugResult != nil {
+		d.logProgress(req, fmt.Sprintf("Working directory contents: %s", strings.TrimSpace(debugResult.Stdout)))
+	}
+
+	// Debug: Check if binary exists at expected path
+	binaryCheckResult, _ := d.manager.client.Execute(fmt.Sprintf("ls -la %s", deployCtx.BinaryPath))
+	if binaryCheckResult != nil && binaryCheckResult.ExitCode == 0 {
+		d.logProgress(req, fmt.Sprintf("Binary found: %s", strings.TrimSpace(binaryCheckResult.Stdout)))
+	} else {
+		d.logProgress(req, fmt.Sprintf("Binary NOT found at: %s", deployCtx.BinaryPath))
+	}
+
 	// Ensure binary is executable
 	result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("chmod +x %s", deployCtx.BinaryPath))
 	if err != nil || result.ExitCode != 0 {
 		return fmt.Errorf("failed to make binary executable: %s", result.Stderr)
+	}
+
+	// Debug: Verify binary is executable after chmod
+	execCheckResult, _ := d.manager.client.Execute(fmt.Sprintf("test -x %s && echo 'executable' || echo 'not executable'", deployCtx.BinaryPath))
+	if execCheckResult != nil {
+		d.logProgress(req, fmt.Sprintf("Binary executable check: %s", strings.TrimSpace(execCheckResult.Stdout)))
 	}
 
 	// Grant capability to bind to privileged ports (80, 443) for non-root user
