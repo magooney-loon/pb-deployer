@@ -68,7 +68,7 @@ func (d *DeploymentManager) Deploy(ctx context.Context, req *DeploymentRequest) 
 
 	deployCtx := &DeploymentContext{
 		Request:        req,
-		StagingPath:    fmt.Sprintf("/tmp/pb-deploy-%s-%d", req.AppName, time.Now().Unix()),
+		StagingPath:    fmt.Sprintf("/opt/pocketbase/staging/%s-%d", req.AppName, time.Now().Unix()),
 		BackupPath:     fmt.Sprintf("/opt/pocketbase/backups/%s-%d", req.AppName, time.Now().Unix()),
 		ServicePath:    fmt.Sprintf("/etc/systemd/system/%s.service", req.ServiceName),
 		BinaryPath:     fmt.Sprintf("/opt/pocketbase/apps/%s/%s", req.AppName, req.AppName),
@@ -76,13 +76,17 @@ func (d *DeploymentManager) Deploy(ctx context.Context, req *DeploymentRequest) 
 		SystemdService: req.ServiceName,
 	}
 
+	// Clean up old staging directories before starting
+	d.cleanupOldStagingDirs()
+
 	defer func() {
 		if deployCtx.RollbackNeeded {
 			d.logger.Warning("Deployment failed, performing rollback")
 			d.rollback(deployCtx)
+			// Clean up current staging on failure
+			d.manager.client.ExecuteSudo(fmt.Sprintf("rm -rf %s", deployCtx.StagingPath))
 		}
-		// Cleanup staging
-		d.manager.client.ExecuteSudo(fmt.Sprintf("rm -rf %s", deployCtx.StagingPath))
+		// Note: Successful deployments clean up staging in finalizeDeployment
 	}()
 
 	// Mark deployment as running
@@ -459,6 +463,9 @@ func (d *DeploymentManager) finalizeDeployment(ctx context.Context, deployCtx *D
 		d.logger.Warning("Failed to clean up old backups: %v", err)
 	}
 
+	// Clean up current staging directory on successful deployment
+	d.manager.client.ExecuteSudo(fmt.Sprintf("rm -rf %s", deployCtx.StagingPath))
+
 	// Update app status to online and set current version
 	d.updateAppStatus(deployCtx.Request.AppID, "online", deployCtx.Request.VersionID)
 
@@ -622,5 +629,15 @@ func (d *DeploymentManager) updateAppStatus(appID, status, currentVersion string
 
 	if err := d.app.Save(record); err != nil {
 		d.logger.Warning("Failed to update app status: %v", err)
+	}
+}
+
+func (d *DeploymentManager) cleanupOldStagingDirs() {
+	d.logger.SystemOperation("Cleaning up old staging directories...")
+
+	// Remove staging directories older than 1 hour (keep recent ones for debugging)
+	_, err := d.manager.client.ExecuteSudo("find /opt/pocketbase/staging -type d -name '*-*' -mmin +60 -exec rm -rf {} + 2>/dev/null || true")
+	if err != nil {
+		d.logger.Warning("Failed to clean up old staging directories: %v", err)
 	}
 }

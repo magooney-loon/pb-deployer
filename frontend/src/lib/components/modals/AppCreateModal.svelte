@@ -330,9 +330,7 @@
 								</span>
 							</div>
 						</div>
-						<p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-							✓ = Required • ○ = Optional | Initial ZIP package is required for app creation
-						</p>
+						<p class="mt-2 text-xs text-gray-500 dark:text-gray-400">✓ = Required • ○ = Optional</p>
 					</div>
 				</div>
 			</div>

@@ -24,6 +24,18 @@ App (deleted) → Versions & Deployments (cascade delete)
 Version (deleted) → Deployments (cascade delete)
 ```
 
+## Directory Structure
+
+PocketBase Deployer uses a standardized directory structure on target servers:
+
+```
+/opt/pocketbase/
+├── apps/           # Application deployments (per app directory)
+├── backups/        # Deployment backups (timestamped)
+├── logs/           # Application logs
+└── staging/        # Temporary staging during deployments
+```
+
 ## Indexes for Performance
 
 ### Servers Collection

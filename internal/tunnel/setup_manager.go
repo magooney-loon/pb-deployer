@@ -86,7 +86,7 @@ func (s *SetupManager) CreatePocketBaseDirectories(username string) error {
 		return err
 	}
 
-	err = s.manager.CreateDirectory("/opt/pocketbase/scripts", "755", username, username)
+	err = s.manager.CreateDirectory("/opt/pocketbase/staging", "755", username, username)
 	if err != nil {
 		return err
 	}
@@ -174,7 +174,7 @@ func (s *SetupManager) VerifySetup(username string) error {
 		"/opt/pocketbase/apps",
 		"/opt/pocketbase/backups",
 		"/opt/pocketbase/logs",
-		"/opt/pocketbase/scripts",
+		"/opt/pocketbase/staging",
 	}
 
 	for _, dir := range directories {
