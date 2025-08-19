@@ -21,6 +21,8 @@ export interface DeploymentsListState {
 	deployingIds: string[];
 	showDeployModal: boolean;
 	deploymentToDeploy: Deployment | null;
+	autoOpenedLogsModal: boolean;
+	logsPollingInterval: number | null;
 }
 
 export class DeploymentsListLogic {
@@ -42,7 +44,9 @@ export class DeploymentsListLogic {
 		deploying: false,
 		deployingIds: [],
 		showDeployModal: false,
-		deploymentToDeploy: null
+		deploymentToDeploy: null,
+		autoOpenedLogsModal: false,
+		logsPollingInterval: null
 	};
 
 	private stateUpdateCallbacks: ((state: DeploymentsListState) => void)[] = [];
@@ -164,13 +168,28 @@ export class DeploymentsListLogic {
 	openLogsModal(deployment: Deployment): void {
 		this.updateState({
 			showLogsModal: true,
-			deploymentToShowLogs: deployment
+			deploymentToShowLogs: deployment,
+			autoOpenedLogsModal: false
 		});
 	}
 
 	closeLogsModal(): void {
+		// Prevent closing if auto-opened and deployment is still in progress
+		if (this.state.autoOpenedLogsModal && this.state.deploymentToShowLogs) {
+			const deployment = this.state.deploymentToShowLogs;
+			if (
+				['pending', 'running'].includes(deployment.status) ||
+				this.isDeploymentInProgress(deployment.id)
+			) {
+				return; // Don't close modal during active deployment
+			}
+		}
+
+		// Stop polling when closing logs modal
+		this.stopLogsPolling();
+
 		// Start closing animation immediately
-		this.updateState({ showLogsModal: false });
+		this.updateState({ showLogsModal: false, autoOpenedLogsModal: false });
 
 		// Clear deployment data after animation completes
 		setTimeout(() => {
@@ -343,6 +362,14 @@ export class DeploymentsListLogic {
 				superuserPass
 			);
 
+			// Auto-open logs modal for the deployment
+			this.updateState({
+				showLogsModal: true,
+				deploymentToShowLogs: deployment,
+				autoOpenedLogsModal: true
+			});
+			this.startLogsPolling(deployment.id);
+
 			// Reload deployments after starting deployment
 			await this.loadDeployments();
 			this.updateState({
@@ -427,6 +454,9 @@ export class DeploymentsListLogic {
 		});
 
 		try {
+			// Get the deployment to auto-open logs modal
+			const deployment = this.state.deployments.find((d) => d.id === deploymentId);
+
 			await this.apiClient.deploy.deployFromRecord(
 				deploymentId,
 				isInitialDeploy,
@@ -434,13 +464,23 @@ export class DeploymentsListLogic {
 				superuserPass
 			);
 
+			// Auto-open logs modal for the deployment
+			if (deployment) {
+				this.updateState({
+					showLogsModal: true,
+					deploymentToShowLogs: deployment,
+					autoOpenedLogsModal: true,
+					showDeployModal: false,
+					deploymentToDeploy: null
+				});
+				this.startLogsPolling(deploymentId);
+			}
+
 			// Reload deployments after starting deployment
 			await this.loadDeployments();
 			this.updateState({
 				deploying: false,
-				deployingIds: this.state.deployingIds.filter((id) => id !== deploymentId),
-				showDeployModal: false,
-				deploymentToDeploy: null
+				deployingIds: this.state.deployingIds.filter((id) => id !== deploymentId)
 			});
 		} catch (error) {
 			console.error('Failed to deploy:', error);
@@ -458,5 +498,57 @@ export class DeploymentsListLogic {
 
 	getDeploymentVersion(deployment: Deployment): Version | undefined {
 		return this.state.versions.find((version) => version.id === deployment.version_id);
+	}
+
+	private startLogsPolling(deploymentId: string): void {
+		// Stop any existing polling
+		this.stopLogsPolling();
+
+		const intervalId = setInterval(async () => {
+			try {
+				// Reload the specific deployment to get updated logs
+				const updatedDeployment = await this.apiClient.deployments.getDeployment(deploymentId);
+
+				// Update the deployment in our state
+				const updatedDeployments = this.state.deployments.map((d) =>
+					d.id === deploymentId ? updatedDeployment : d
+				);
+
+				this.updateState({
+					deployments: updatedDeployments,
+					deploymentToShowLogs: updatedDeployment
+				});
+
+				// Stop polling if deployment is complete
+				if (['success', 'failed'].includes(updatedDeployment.status)) {
+					this.stopLogsPolling();
+				}
+			} catch (error) {
+				console.error('Failed to poll deployment logs:', error);
+				// Stop polling on error
+				this.stopLogsPolling();
+			}
+		}, 1000);
+
+		this.updateState({ logsPollingInterval: intervalId });
+	}
+
+	stopLogsPolling(): void {
+		if (this.state.logsPollingInterval) {
+			clearInterval(this.state.logsPollingInterval);
+			this.updateState({ logsPollingInterval: null });
+		}
+	}
+
+	isLogsModalClosable(): boolean {
+		if (!this.state.autoOpenedLogsModal || !this.state.deploymentToShowLogs) {
+			return true;
+		}
+
+		const deployment = this.state.deploymentToShowLogs;
+		return !(
+			['pending', 'running'].includes(deployment.status) ||
+			this.isDeploymentInProgress(deployment.id)
+		);
 	}
 }

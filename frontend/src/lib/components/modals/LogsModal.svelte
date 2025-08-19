@@ -9,9 +9,11 @@
 		open: boolean;
 		deployment: Deployment | null;
 		onclose: () => void;
+		closable?: boolean;
+		autoOpened?: boolean;
 	}
 
-	let { open, deployment, onclose }: Props = $props();
+	let { open, deployment, onclose, closable = true, autoOpened = false }: Props = $props();
 
 	function formatTimestamp(timestamp: string): string {
 		return new Date(timestamp).toLocaleString();
@@ -34,8 +36,30 @@
 	);
 </script>
 
-<Modal {open} title={modalTitle} size="xl" {onclose}>
+<Modal
+	{open}
+	title={modalTitle}
+	size="xl"
+	closeable={closable}
+	onclose={closable ? onclose : undefined}
+>
 	{#if deployment}
+		<!-- Auto-opened deployment indicator -->
+		{#if autoOpened && !closable}
+			<div
+				class="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20"
+			>
+				<div class="flex items-center space-x-2">
+					<div class="flex-shrink-0">
+						<div class="h-2 w-2 animate-pulse rounded-full bg-blue-500"></div>
+					</div>
+					<p class="text-sm text-blue-800 dark:text-blue-200">
+						Deployment in progress - logs are being updated in real-time
+					</p>
+				</div>
+			</div>
+		{/if}
+
 		<!-- Deployment Info -->
 		<div
 			class="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800"
@@ -109,8 +133,18 @@
 	{/if}
 
 	{#snippet footer()}
-		<div class="flex justify-end">
-			<Button variant="outline" onclick={onclose}>Close</Button>
+		<div class="flex items-center justify-between">
+			{#if !closable && autoOpened}
+				<div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+					<Icon name="info" size="h-4 w-4" />
+					<span>Modal will close automatically when deployment completes</span>
+				</div>
+			{:else}
+				<div></div>
+			{/if}
+			<Button variant="outline" onclick={onclose} disabled={!closable}>
+				{closable ? 'Close' : 'Please wait...'}
+			</Button>
 		</div>
 	{/snippet}
 </Modal>

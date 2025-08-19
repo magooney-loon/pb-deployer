@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { DeploymentsListLogic, type DeploymentsListState } from './DeploymentsList.js';
 	import LogsModal from '$lib/components/modals/LogsModal.svelte';
 	import DeploymentCreateModal from '$lib/components/modals/DeploymentCreateModal.svelte';
@@ -17,6 +17,11 @@
 
 	onMount(async () => {
 		await logic.initialize();
+	});
+
+	onDestroy(() => {
+		// Clean up logs polling when component is destroyed
+		logic.stopLogsPolling();
 	});
 </script>
 
@@ -312,5 +317,7 @@
 <LogsModal
 	open={state.showLogsModal}
 	deployment={state.deploymentToShowLogs}
+	closable={logic.isLogsModalClosable()}
+	autoOpened={state.autoOpenedLogsModal}
 	onclose={() => logic.closeLogsModal()}
 />
