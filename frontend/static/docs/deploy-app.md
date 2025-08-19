@@ -1,16 +1,16 @@
-# Step 5: Deploy App
+# Step 4: Deploy App
 
-TODO: This section will cover:
+Now that your server is set up, you can deploy your first application using the pb-deployer dashboard.
 
-- Installing and configuring PocketBase
-- Setting up application environment variables
-- Configuring database connections
-- Setting up Nginx reverse proxy
-- Configuring SSL certificates with Let's Encrypt
-- Testing the deployment
-- Setting up application monitoring
-- Configuring log rotation
-- Setting up health checks
-- Domain configuration and testing
+## 1. Create New Deployment
 
-**Coming soon!**
+1. In the pb-deployer dashboard, go to Deployments
+2. Click **"Deployment"**
+3. Select and app version
+
+## 2. Deploy
+
+1. Review your deployment configuration
+2. Click **"Deploy"** button
+3. Wait for deployment to complete
+4. Monitor the deployment logs in real-time
