@@ -25,10 +25,22 @@ go run cmd/scripts/main.go --install
 ## Core Workflow
 
 1. **Server Registration**: Add remote host connection details
-2. **Server Setup**: Automated user creation and directory structure (`/opt/pocketbase/apps/`)
+2. **Server Setup**: Automated user creation and directory structure
 3. **Security Lockdown**: Firewall, fail2ban, disable root SSH
 4. **App Deployment**: Upload prod dist, systemd service creation
 5. **Version Management**: Rollback support with file storage
+
+## Directory Structure
+
+pb-deployer uses a std directory structure on target servers:
+
+```
+/opt/pocketbase/
+├── apps/           # Application deployments (per app directory)
+├── backups/        # Deployment backups (timestamped)
+├── logs/           # Application logs
+└── staging/        # Temporary staging during deployments
+```
 
 See `**/*/README.md` for detailed docs.
 
