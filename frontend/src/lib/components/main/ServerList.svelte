@@ -204,25 +204,27 @@
 									</Button>
 								{/if}
 
-								<!-- Troubleshoot Button -->
-								<Button
-									variant="ghost"
-									color="blue"
-									size="sm"
-									disabled={state.creating ||
-										state.deleting ||
-										logic.isServerSetupInProgress(server.id) ||
-										logic.isServerSecurityInProgress(server.id) ||
-										logic.isTroubleshootInProgress(server.id)}
-									onclick={() => logic.troubleshootServer(server.id)}
-								>
-									{#snippet iconSnippet()}
-										<Icon
-											name={logic.isTroubleshootInProgress(server.id) ? 'loading' : 'diagnostic'}
-										/>
-									{/snippet}
-									{logic.isTroubleshootInProgress(server.id) ? 'Checking' : 'Troubleshoot'}
-								</Button>
+								<!-- Troubleshoot Button (only if setup is complete) -->
+								{#if !logic.canSetupServer(server)}
+									<Button
+										variant="ghost"
+										color="blue"
+										size="sm"
+										disabled={state.creating ||
+											state.deleting ||
+											logic.isServerSetupInProgress(server.id) ||
+											logic.isServerSecurityInProgress(server.id) ||
+											logic.isTroubleshootInProgress(server.id)}
+										onclick={() => logic.troubleshootServer(server.id)}
+									>
+										{#snippet iconSnippet()}
+											<Icon
+												name={logic.isTroubleshootInProgress(server.id) ? 'loading' : 'diagnostic'}
+											/>
+										{/snippet}
+										{logic.isTroubleshootInProgress(server.id) ? 'Checking' : 'Troubleshoot'}
+									</Button>
+								{/if}
 
 								<!-- Delete Button -->
 								<Button

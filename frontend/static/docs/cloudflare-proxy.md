@@ -13,8 +13,6 @@
 1. Add your domain to Cloudflare (if not already added during purchase)
 2. Go to **SSL/TLS** → **Overview**
 3. Set SSL mode to **"Full (strict)"**
-4. Go to **SSL/TLS** → **Edge Certificates**
-5. Enable **"Always Use HTTPS"**
 
 ## 3. Add A Record and CNAME for Domains
 
@@ -22,7 +20,7 @@
 1. Go to **DNS** → **Records**
 2. Add A record:
    - **Type**: A
-   - **Name**: @ 
+   - **Name**: @
    - **IPv4 address**: Your Hetzner server IP
    - **Proxy status**: Proxied (orange cloud)
    - Click **Save**
@@ -32,7 +30,7 @@
    - **Type**: CNAME
    - **Name**: www
    - **Target**: yourdomain.com
-   - **Proxy status**: Proxied (orange cloud)  
+   - **Proxy status**: Proxied (orange cloud)
    - Click **Save**
 
 Done! Your domain will now point to your VPS with SSL enabled.

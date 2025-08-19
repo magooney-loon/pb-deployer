@@ -116,7 +116,7 @@ func (c *Client) Connect() error {
 		Timeout:         c.config.Timeout,
 	}
 
-	authMethods, cleanup, err := GetAuthMethods(authConfig)
+	authResult, err := GetAuthMethods(authConfig)
 	if err != nil {
 		c.tracer.OnError("get_auth_methods", err)
 		return &Error{
@@ -125,10 +125,14 @@ func (c *Client) Connect() error {
 			Cause:   err,
 		}
 	}
-	if cleanup != nil {
-		c.addCleanup(cleanup)
+	if authResult.Cleanup != nil {
+		c.addCleanup(authResult.Cleanup)
 	}
-	sshConfig.Auth = authMethods
+
+	// Log authentication info
+	c.logger.Info("SSH Agent: %d keys available (%v)", authResult.Info.KeysInAgent, authResult.Info.KeyTypes)
+
+	sshConfig.Auth = authResult.Methods
 
 	var lastErr error
 	for i := 0; i <= c.config.RetryCount; i++ {
