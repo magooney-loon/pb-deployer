@@ -26,7 +26,7 @@ go run cmd/scripts/main.go --install
 
 1. **Server Registration**: Add remote host connection details
 2. **Server Setup**: Automated user creation and directory structure
-3. **Security Lockdown**: Firewall, fail2ban, disable root SSH
+3. **Security Lockdown**: Firewall, fail2ban, disable root SSH (Optional)
 4. **App Deployment**: Upload prod dist, systemd service creation
 5. **Version Management**: Rollback support with file storage
 
