@@ -244,29 +244,38 @@
 	}
 
 	function canDeleteVersion(version: Version): boolean {
-		// Check if this version has any successful deployments
-		const hasSuccessfulDeployment = deployments.some(
-			(d) => d.version_id === version.id && d.status === 'success'
-		);
+		// Find the latest successful deployment across all versions
+		const latestSuccessfulDeployment = deployments
+			.filter((d) => d.status === 'success')
+			.sort((a, b) => new Date(b.created || 0).getTime() - new Date(a.created || 0).getTime())[0];
 
 		// Check if this version has any pending/running deployments
 		const hasPendingDeployment = deployments.some(
 			(d) => d.version_id === version.id && ['pending', 'running'].includes(d.status)
 		);
 
-		// Only prevent deletion for successful deployments, not pending ones
-		return !hasSuccessfulDeployment && !hasPendingDeployment;
+		// Only prevent deletion if this is the latest deployed version or has pending deployment
+		const isLatestDeployed =
+			latestSuccessfulDeployment && latestSuccessfulDeployment.version_id === version.id;
+
+		return !isLatestDeployed && !hasPendingDeployment;
 	}
 
 	function getDeleteButtonText(version: Version): string {
-		const hasSuccessfulDeployment = deployments.some(
-			(d) => d.version_id === version.id && d.status === 'success'
-		);
+		// Find the latest successful deployment across all versions
+		const latestSuccessfulDeployment = deployments
+			.filter((d) => d.status === 'success')
+			.sort((a, b) => new Date(b.created || 0).getTime() - new Date(a.created || 0).getTime())[0];
+
 		const hasPendingDeployment = deployments.some(
 			(d) => d.version_id === version.id && ['pending', 'running'].includes(d.status)
 		);
 
-		if (hasSuccessfulDeployment) {
+		// Only show "Currently deployed" for the latest deployed version
+		const isLatestDeployed =
+			latestSuccessfulDeployment && latestSuccessfulDeployment.version_id === version.id;
+
+		if (isLatestDeployed) {
 			return 'Currently deployed';
 		} else if (hasPendingDeployment) {
 			return 'Deployment in progress';
@@ -290,8 +299,19 @@
 			(d) => d.version_id === version.id && d.status === 'failed'
 		);
 
+		// Find the latest successful deployment across all versions
+		const latestSuccessfulDeployment = deployments
+			.filter((d) => d.status === 'success')
+			.sort((a, b) => new Date(b.created || 0).getTime() - new Date(a.created || 0).getTime())[0];
+
 		if (successfulDeployment) {
-			return { text: 'Deployed', variant: 'success', isDeployed: true, isPending: false };
+			// Check if this version has the latest successful deployment
+			if (latestSuccessfulDeployment && latestSuccessfulDeployment.version_id === version.id) {
+				return { text: 'Deployed', variant: 'success', isDeployed: true, isPending: false };
+			} else {
+				// This version was deployed but is not the latest
+				return { text: 'Superseded', variant: 'gray', isDeployed: false, isPending: false };
+			}
 		} else if (pendingDeployment) {
 			return {
 				text: pendingDeployment.status === 'running' ? 'Deploying' : 'Pending',
