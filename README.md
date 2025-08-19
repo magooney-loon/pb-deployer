@@ -42,6 +42,22 @@ pb-deployer uses a std directory structure on target servers:
 └── staging/        # Temporary staging during deployments
 ```
 
+## Deployment Steps
+
+Each deployment follows these automated steps:
+
+1. **Downloading and staging deployment package**
+2. **Checking service status**
+3. **Stopping existing service**
+4. **Creating backup of current deployment**
+5. **Preparing deployment directory**
+6. **Installing new version**
+7. **Creating/updating systemd service**
+8. **Creating superuser (if initial deployment)**
+9. **Starting service**
+10. **Verifying deployment health**
+11. **Finalizing deployment**
+
 See `**/*/README.md` for detailed docs.
 
 ## Contribution
