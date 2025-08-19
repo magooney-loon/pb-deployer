@@ -32,8 +32,6 @@ go run cmd/scripts/main.go --install
 
 ## Directory Structure
 
-pb-deployer uses a std directory structure on target servers:
-
 ```
 /opt/pocketbase/
 ├── apps/           # Application deployments (per app directory)
@@ -43,8 +41,6 @@ pb-deployer uses a std directory structure on target servers:
 ```
 
 ## Deployment Steps
-
-Each deployment follows these automated steps:
 
 1. **Downloading and staging deployment package**
 2. **Checking service status**
