@@ -4,6 +4,7 @@ import { ServerCrudClient } from './servers/crud.js';
 import { ServerSetupClient } from './servers/setup.js';
 import { VersionCrudClient } from './version/crud.js';
 import { DeploymentCrudClient } from './deployment/crud.js';
+import { DeploymentClient } from './deployment/deploy.js';
 
 export class ApiClient {
 	private pb: PocketBase;
@@ -12,6 +13,7 @@ export class ApiClient {
 	private _setup: ServerSetupClient;
 	private _versions: VersionCrudClient;
 	private _deployments: DeploymentCrudClient;
+	private _deploy: DeploymentClient;
 
 	constructor(baseUrl: string = 'http://localhost:8090') {
 		this.pb = new PocketBase(baseUrl);
@@ -22,6 +24,7 @@ export class ApiClient {
 		this._setup = new ServerSetupClient(this.pb);
 		this._versions = new VersionCrudClient(this.pb);
 		this._deployments = new DeploymentCrudClient(this.pb);
+		this._deploy = new DeploymentClient(this.pb);
 	}
 
 	get apps() {
@@ -42,6 +45,10 @@ export class ApiClient {
 
 	get deployments() {
 		return this._deployments;
+	}
+
+	get deploy() {
+		return this._deploy;
 	}
 
 	getPocketBase(): PocketBase {

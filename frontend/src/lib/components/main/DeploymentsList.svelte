@@ -29,7 +29,7 @@
 	<Button
 		variant="outline"
 		onclick={() => logic.openCreateModal()}
-		disabled={state.loading || state.creating || state.deleting || state.retrying}
+		disabled={state.loading || state.creating || state.deleting || state.deploying}
 	>
 		{#snippet iconSnippet()}
 			<Icon name="rocket" />
@@ -203,21 +203,27 @@
 										variant="ghost"
 										color="blue"
 										size="sm"
-										loading={state.retrying}
-										disabled={state.deleting || state.creating || state.retrying}
+										loading={logic.isDeploymentInProgress(deployment.id)}
+										disabled={state.deleting ||
+											state.creating ||
+											state.deploying ||
+											logic.isDeploymentInProgress(deployment.id)}
 										onclick={() => logic.retryDeployment(deployment)}
 									>
 										{#snippet iconSnippet()}
 											<Icon name="rocket" />
 										{/snippet}
-										{state.retrying ? 'Retrying...' : 'Deploy'}
+										{logic.isDeploymentInProgress(deployment.id) ? 'Deploying...' : 'Deploy'}
 									</Button>
 
 									<Button
 										variant="ghost"
 										color="red"
 										size="sm"
-										disabled={state.deleting || state.creating || state.retrying}
+										disabled={state.deleting ||
+											state.creating ||
+											state.deploying ||
+											logic.isDeploymentInProgress(deployment.id)}
 										onclick={() => logic.deleteDeployment(deployment)}
 									>
 										{#snippet iconSnippet()}
@@ -255,7 +261,7 @@
 			variant="outline"
 			size="sm"
 			onclick={() => logic.loadDeployments()}
-			disabled={state.loading || state.creating || state.deleting || state.retrying}
+			disabled={state.loading || state.creating || state.deleting || state.deploying}
 		>
 			{#snippet iconSnippet()}
 				<Icon name="refresh" />

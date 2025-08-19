@@ -17,6 +17,8 @@ export interface DeploymentsListState {
 	deploymentToDelete: { id: string; name: string } | null;
 	deleting: boolean;
 	retrying: boolean;
+	deploying: boolean;
+	deployingIds: string[];
 }
 
 export class DeploymentsListLogic {
@@ -34,7 +36,9 @@ export class DeploymentsListLogic {
 		showDeleteModal: false,
 		deploymentToDelete: null,
 		deleting: false,
-		retrying: false
+		retrying: false,
+		deploying: false,
+		deployingIds: []
 	};
 
 	private stateUpdateCallbacks: ((state: DeploymentsListState) => void)[] = [];
@@ -312,30 +316,73 @@ export class DeploymentsListLogic {
 	}
 
 	async retryDeployment(deployment: Deployment): Promise<void> {
-		this.updateState({ retrying: true, error: null });
+		this.updateState({
+			deploying: true,
+			error: null,
+			deployingIds: [...this.state.deployingIds, deployment.id]
+		});
 
 		try {
-			// Create a new deployment with the same app and version
-			await this.apiClient.deployments.createDeployment({
-				app_id: deployment.app_id,
-				version_id: deployment.version_id,
-				status: 'pending'
-			});
+			await this.apiClient.deploy.retryDeployment(deployment.id);
 
-			// Reload deployments after creation
+			// Reload deployments after starting deployment
 			await this.loadDeployments();
-			this.updateState({ retrying: false });
+			this.updateState({
+				deploying: false,
+				deployingIds: this.state.deployingIds.filter((id) => id !== deployment.id)
+			});
 		} catch (error) {
 			console.error('Failed to retry deployment:', error);
 			this.updateState({
 				error: 'Failed to retry deployment. Please try again.',
-				retrying: false
+				deploying: false,
+				deployingIds: this.state.deployingIds.filter((id) => id !== deployment.id)
+			});
+		}
+	}
+
+	async deployDeployment(
+		deployment: Deployment,
+		isInitialDeploy = false,
+		superuserEmail?: string,
+		superuserPass?: string
+	): Promise<void> {
+		this.updateState({
+			deploying: true,
+			error: null,
+			deployingIds: [...this.state.deployingIds, deployment.id]
+		});
+
+		try {
+			await this.apiClient.deploy.deployFromRecord(
+				deployment.id,
+				isInitialDeploy,
+				superuserEmail,
+				superuserPass
+			);
+
+			// Reload deployments after starting deployment
+			await this.loadDeployments();
+			this.updateState({
+				deploying: false,
+				deployingIds: this.state.deployingIds.filter((id) => id !== deployment.id)
+			});
+		} catch (error) {
+			console.error('Failed to deploy:', error);
+			this.updateState({
+				error: 'Failed to start deployment. Please try again.',
+				deploying: false,
+				deployingIds: this.state.deployingIds.filter((id) => id !== deployment.id)
 			});
 		}
 	}
 
 	isPendingDeployment(deployment: Deployment): boolean {
 		return deployment.status === 'pending';
+	}
+
+	isDeploymentInProgress(deploymentId: string): boolean {
+		return this.state.deployingIds.includes(deploymentId);
 	}
 
 	isDeploymentComplete(deployment: Deployment): boolean {

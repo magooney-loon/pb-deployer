@@ -13,3 +13,5 @@ export type {
 	ValidationResponse,
 	ValidationError
 } from './servers/setup.js';
+export { DeploymentClient } from './deployment/deploy.js';
+export type { DeployRequest, DeployResponse, DeployError } from './deployment/deploy.js';
