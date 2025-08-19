@@ -54,6 +54,10 @@ go run cmd/scripts/main.go --install
 10. **Verifying deployment health**
 11. **Finalizing deployment**
 
+<div align="center">
+  <img src="frontend/static/favicon.svg" alt="Logo" width="100%">
+</div>
+
 See `**/*/README.md` for detailed docs.
 
 ## Contribution
