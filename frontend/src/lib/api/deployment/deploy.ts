@@ -71,8 +71,8 @@ export class DeploymentClient {
 		const deployment = await this.pb.collection('deployments').getOne(deploymentId);
 
 		const deployRequest: DeployRequest = {
-			app_id: deployment.app,
-			version_id: deployment.version,
+			app_id: deployment.app_id,
+			version_id: deployment.version_id,
 			deployment_id: deploymentId,
 			...(isInitialDeploy &&
 				superuserEmail &&

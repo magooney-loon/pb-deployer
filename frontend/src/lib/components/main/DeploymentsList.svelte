@@ -3,6 +3,7 @@
 	import { DeploymentsListLogic, type DeploymentsListState } from './DeploymentsList.js';
 	import LogsModal from '$lib/components/modals/LogsModal.svelte';
 	import DeploymentCreateModal from '$lib/components/modals/DeploymentCreateModal.svelte';
+	import DeploymentModal from '$lib/components/modals/DeploymentModal.svelte';
 	import DeleteModal from '$lib/components/modals/DeleteModal.svelte';
 	import { Button, Toast, EmptyState, LoadingSpinner, StatusBadge } from '$lib/components/partials';
 	import Icon from '$lib/components/icons/Icon.svelte';
@@ -208,7 +209,7 @@
 											state.creating ||
 											state.deploying ||
 											logic.isDeploymentInProgress(deployment.id)}
-										onclick={() => logic.retryDeployment(deployment)}
+										onclick={() => logic.openDeployModal(deployment)}
 									>
 										{#snippet iconSnippet()}
 											<Icon name="rocket" />
@@ -290,6 +291,21 @@
 	{logic}
 	onclose={() => logic.closeCreateModal()}
 	oncreate={(data) => logic.createDeployment(data)}
+/>
+
+<!-- Deployment Modal -->
+<DeploymentModal
+	open={state.showDeployModal}
+	deployment={state.deploymentToDeploy}
+	app={state.deploymentToDeploy ? logic.getDeploymentApp(state.deploymentToDeploy) || null : null}
+	version={state.deploymentToDeploy
+		? logic.getDeploymentVersion(state.deploymentToDeploy) || null
+		: null}
+	deployments={state.deployments}
+	deploying={state.deploying}
+	onclose={() => logic.closeDeployModal()}
+	ondeploy={(deploymentId, isInitialDeploy, superuserEmail, superuserPass) =>
+		logic.deployFromModal(deploymentId, isInitialDeploy, superuserEmail, superuserPass)}
 />
 
 <!-- Logs Modal -->

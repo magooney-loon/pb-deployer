@@ -19,6 +19,8 @@ export interface DeploymentsListState {
 	retrying: boolean;
 	deploying: boolean;
 	deployingIds: string[];
+	showDeployModal: boolean;
+	deploymentToDeploy: Deployment | null;
 }
 
 export class DeploymentsListLogic {
@@ -38,7 +40,9 @@ export class DeploymentsListLogic {
 		deleting: false,
 		retrying: false,
 		deploying: false,
-		deployingIds: []
+		deployingIds: [],
+		showDeployModal: false,
+		deploymentToDeploy: null
 	};
 
 	private stateUpdateCallbacks: ((state: DeploymentsListState) => void)[] = [];
@@ -316,29 +320,7 @@ export class DeploymentsListLogic {
 	}
 
 	async retryDeployment(deployment: Deployment): Promise<void> {
-		this.updateState({
-			deploying: true,
-			error: null,
-			deployingIds: [...this.state.deployingIds, deployment.id]
-		});
-
-		try {
-			await this.apiClient.deploy.retryDeployment(deployment.id);
-
-			// Reload deployments after starting deployment
-			await this.loadDeployments();
-			this.updateState({
-				deploying: false,
-				deployingIds: this.state.deployingIds.filter((id) => id !== deployment.id)
-			});
-		} catch (error) {
-			console.error('Failed to retry deployment:', error);
-			this.updateState({
-				error: 'Failed to retry deployment. Please try again.',
-				deploying: false,
-				deployingIds: this.state.deployingIds.filter((id) => id !== deployment.id)
-			});
-		}
+		this.openDeployModal(deployment);
 	}
 
 	async deployDeployment(
@@ -413,5 +395,68 @@ export class DeploymentsListLogic {
 		} else {
 			return `${seconds}s`;
 		}
+	}
+
+	openDeployModal(deployment: Deployment): void {
+		this.updateState({
+			showDeployModal: true,
+			deploymentToDeploy: deployment
+		});
+	}
+
+	closeDeployModal(): void {
+		// Start closing animation immediately
+		this.updateState({ showDeployModal: false });
+
+		// Clear deployment data after animation completes
+		setTimeout(() => {
+			this.updateState({ deploymentToDeploy: null });
+		}, 300);
+	}
+
+	async deployFromModal(
+		deploymentId: string,
+		isInitialDeploy: boolean,
+		superuserEmail?: string,
+		superuserPass?: string
+	): Promise<void> {
+		this.updateState({
+			deploying: true,
+			error: null,
+			deployingIds: [...this.state.deployingIds, deploymentId]
+		});
+
+		try {
+			await this.apiClient.deploy.deployFromRecord(
+				deploymentId,
+				isInitialDeploy,
+				superuserEmail,
+				superuserPass
+			);
+
+			// Reload deployments after starting deployment
+			await this.loadDeployments();
+			this.updateState({
+				deploying: false,
+				deployingIds: this.state.deployingIds.filter((id) => id !== deploymentId),
+				showDeployModal: false,
+				deploymentToDeploy: null
+			});
+		} catch (error) {
+			console.error('Failed to deploy:', error);
+			this.updateState({
+				error: 'Failed to start deployment. Please try again.',
+				deploying: false,
+				deployingIds: this.state.deployingIds.filter((id) => id !== deploymentId)
+			});
+		}
+	}
+
+	getDeploymentApp(deployment: Deployment): App | undefined {
+		return this.state.apps.find((app) => app.id === deployment.app_id);
+	}
+
+	getDeploymentVersion(deployment: Deployment): Version | undefined {
+		return this.state.versions.find((version) => version.id === deployment.version_id);
 	}
 }
