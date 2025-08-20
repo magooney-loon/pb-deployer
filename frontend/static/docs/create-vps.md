@@ -7,8 +7,8 @@ Go to [Hetzner Cloud](https://hetzner.cloud/?ref=OziePwGckx9o) and create an acc
 ## 2. Create New Server
 
 1. Click **"Add Server"**
-2. Choose **Ubuntu 22.04**
-3. Select **CX11** ($5/month - cheapest option)
+2. Choose **Ubuntu**
+3. Select any CPU/RAM ($5/month - cheapest option)
 4. Pick any location
 5. Add your SSH key (see step 3)
 6. Click **"Create & Buy Now"**
