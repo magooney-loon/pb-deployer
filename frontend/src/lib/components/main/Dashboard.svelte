@@ -340,7 +340,7 @@
 						<div class="flex justify-between text-sm">
 							<span class="text-gray-600 dark:text-gray-400">Successful deployments:</span>
 							<span class="font-semibold text-emerald-600 dark:text-emerald-400">
-								{metrics.deploymentInfo.appsDeployed}
+								{metrics.deploymentInfo.totalDeployments}
 							</span>
 						</div>
 						<div class="flex justify-between text-sm">

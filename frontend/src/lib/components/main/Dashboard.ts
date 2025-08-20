@@ -38,6 +38,7 @@ export interface DashboardMetrics {
 		appsDeployed: number;
 		pendingDeployment: number;
 		failedDeployments: number;
+		totalDeployments: number;
 	};
 	updateInfo: {
 		appsWithUpdates: number;
@@ -201,6 +202,7 @@ export class DashboardLogic {
 		};
 
 		const failedDeployments = deployments?.filter((d) => d.status === 'failed').length || 0;
+		const totalDeployments = deployments?.filter((d) => d.status === 'success').length || 0;
 
 		// Use deployed_version instead of current_version for update checking
 		const appsNeedingUpdates =
@@ -225,7 +227,8 @@ export class DashboardLogic {
 			deploymentInfo: {
 				appsDeployed: enhancedApps?.filter((app) => app.deployed_version).length || 0,
 				pendingDeployment: enhancedApps?.filter((app) => app.has_pending_deployment).length || 0,
-				failedDeployments: failedDeployments
+				failedDeployments: failedDeployments,
+				totalDeployments: totalDeployments
 			},
 			updateInfo: {
 				appsWithUpdates: appsNeedingUpdates.length,
