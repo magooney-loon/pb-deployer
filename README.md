@@ -48,8 +48,7 @@ go run cmd/scripts/main.go --install
 7. **Creating/updating systemd service**
 8. **Creating superuser (if initial deployment)**
 9. **Starting service**
-10. **Verifying deployment health**
-11. **Finalizing deployment**
+10. **Verifying & finalizing deployment**
 
 <div align="center">
   <img src="frontend/static/deployer2.png" alt="Logo" width="100%">
