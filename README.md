@@ -9,8 +9,9 @@
   <img src="frontend/static/deployer.png" alt="Screenshot" width="100%">
   <h5 align="center">**WARNING**HOBBY PROJECT**</h5>
   <a target="_blank" href="https://magooney.org/">Web Demo UI</a>
-  [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/magooney-loon/pb-deployer)
 </div>
+
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/magooney-loon/pb-deployer)
 
 ## 🚀 Quick Start
 
