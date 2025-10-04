@@ -3,13 +3,10 @@ module pb-deployer
 go 1.24.2
 
 require (
+	github.com/magooney-loon/pb-ext v0.0.0-20251004221003-2817ddf0315a
 	github.com/pkg/sftp v1.13.9
-	golang.org/x/crypto v0.42.0
-)
-
-require (
-	github.com/magooney-loon/pb-ext v0.0.0-20251004161324-b11c3765abfc
 	github.com/pocketbase/pocketbase v0.30.1
+	golang.org/x/crypto v0.42.0
 )
 
 require (
