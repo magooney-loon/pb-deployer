@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 
 	app "github.com/magooney-loon/pb-ext/core"
@@ -12,11 +13,21 @@ import (
 )
 
 func main() {
-	initApp()
+	devMode := flag.Bool("dev", false, "Run in developer mode")
+	flag.Parse()
+
+	initApp(*devMode)
 }
 
-func initApp() {
-	srv := app.New()
+func initApp(devMode bool) {
+	var srv *app.Server
+	if devMode {
+		srv = app.New(app.InDeveloperMode())
+		log.Println("🔧 Developer mode enabled")
+	} else {
+		srv = app.New(app.InNormalMode())
+		log.Println("🚀 Production mode")
+	}
 
 	app.SetupLogging(srv)
 

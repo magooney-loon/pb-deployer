@@ -58,5 +58,7 @@ go run cmd/scripts/main.go --install
 
 See `**/*/README.md` for detailed docs.
 
+Make sure you loaded your SSH keys, check with `ssh-add -l`
+
 ## Contribution
 PRs are encouraged, but consider opening a discussion first for minor/major changelogs.
