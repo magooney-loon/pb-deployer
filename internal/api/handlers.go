@@ -1,5 +1,7 @@
 package api
 
+// API_SOURCE
+
 import (
 	"github.com/magooney-loon/pb-ext/core/server"
 	"github.com/pocketbase/pocketbase/core"
