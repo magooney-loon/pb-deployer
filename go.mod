@@ -8,7 +8,7 @@ require (
 )
 
 require (
-	github.com/magooney-loon/pb-ext v0.0.0-20251004225059-de2bac4b0ae9
+	github.com/magooney-loon/pb-ext v0.0.0-20251005013342-3530ce808d02
 	github.com/pocketbase/pocketbase v0.30.1
 )
 

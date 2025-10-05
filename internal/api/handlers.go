@@ -3,13 +3,13 @@ package api
 // API_SOURCE
 
 import (
-	"github.com/magooney-loon/pb-ext/core/server"
+	"github.com/magooney-loon/pb-ext/core/server/api"
 	"github.com/pocketbase/pocketbase/core"
 )
 
 func RegisterHandlers(app core.App) {
 	app.OnServe().BindFunc(func(e *core.ServeEvent) error {
-		router := server.EnableAutoDocumentation(e)
+		router := api.EnableAutoDocumentation(e)
 
 		router.POST("/api/setup/server", func(c *core.RequestEvent) error {
 			return handleServerSetup(c, app)
