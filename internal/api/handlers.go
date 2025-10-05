@@ -7,27 +7,48 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 )
 
-func RegisterHandlers(app core.App) {
-	app.OnServe().BindFunc(func(e *core.ServeEvent) error {
-		router := api.EnableAutoDocumentation(e)
+func RegisterHandlers(pbApp core.App) {
+	v1Config := &api.APIDocsConfig{
+		Title:       "pb-deployer legacy",
+		Version:     "1.0.0",
+		Description: "legacy devops routes",
+		Status:      "stable",
+		Enabled:     true,
+		AutoDiscovery: &api.AutoDiscoveryConfig{
+			Enabled: true,
+		},
+	}
 
-		router.POST("/api/setup/server", func(c *core.RequestEvent) error {
-			return handleServerSetup(c, app)
+	versions := map[string]*api.APIDocsConfig{
+		"v1": v1Config,
+	}
+	versionManager := api.InitializeVersionedSystem(versions, "v1") // v1 is default/stable
+
+	pbApp.OnServe().BindFunc(func(e *core.ServeEvent) error {
+		// Get version-specific routers
+		v1Router, err := versionManager.GetVersionRouter("v1", e)
+		if err != nil {
+			return err
+		}
+
+		v1Router.POST("/api/setup/server", func(c *core.RequestEvent) error {
+			return handleServerSetup(c, pbApp)
 		})
 
-		router.POST("/api/setup/security", func(c *core.RequestEvent) error {
-			return handleServerSecurity(c, app)
+		v1Router.POST("/api/setup/security", func(c *core.RequestEvent) error {
+			return handleServerSecurity(c, pbApp)
 		})
 
-		router.POST("/api/setup/validate", func(c *core.RequestEvent) error {
+		v1Router.POST("/api/setup/validate", func(c *core.RequestEvent) error {
 			return handleServerValidation(c)
 		})
 
-		router.POST("/api/deploy", func(c *core.RequestEvent) error {
-			return handleDeploy(c, app)
+		v1Router.POST("/api/deploy", func(c *core.RequestEvent) error {
+			return handleDeploy(c, pbApp)
 		})
 
 		return e.Next()
 	})
 
+	versionManager.RegisterWithServer(pbApp)
 }
