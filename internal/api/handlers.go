@@ -14,9 +14,6 @@ func RegisterHandlers(pbApp core.App) {
 		Description: "legacy devops routes",
 		Status:      "stable",
 		Enabled:     true,
-		AutoDiscovery: &api.AutoDiscoveryConfig{
-			Enabled: true,
-		},
 	}
 
 	versions := map[string]*api.APIDocsConfig{
