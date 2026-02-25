@@ -36,6 +36,9 @@ export interface ServerListState {
 	showTroubleshootModal: boolean;
 	troubleshootResults: ValidationResponse | null; // Validation results
 	troubleshootServerId: string | null; // Server ID that was troubleshot
+	// Terminal
+	showTerminalModal: boolean;
+	terminalServerId: string | null;
 }
 
 export class ServerListLogic {
@@ -79,7 +82,10 @@ export class ServerListLogic {
 			troubleshootError: null,
 			showTroubleshootModal: false,
 			troubleshootResults: null,
-			troubleshootServerId: null
+			troubleshootServerId: null,
+			// Terminal
+			showTerminalModal: false,
+			terminalServerId: null
 		};
 	}
 
@@ -392,6 +398,14 @@ export class ServerListLogic {
 
 	public isTroubleshootInProgress(serverId: string): boolean {
 		return this.state.troubleshootInProgress === serverId;
+	}
+
+	public openTerminal(serverId: string): void {
+		this.updateState({ showTerminalModal: true, terminalServerId: serverId });
+	}
+
+	public closeTerminal(): void {
+		this.updateState({ showTerminalModal: false, terminalServerId: null });
 	}
 
 	public async cleanup(): Promise<void> {

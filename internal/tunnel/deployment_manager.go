@@ -226,11 +226,18 @@ func (d *DeploymentManager) downloadAndStageVersion(ctx context.Context, deployC
 
 	// Rename binary to app name
 	newBinaryPath := fmt.Sprintf("%s/%s", deployCtx.StagingPath, req.AppName)
-	d.logProgress(req, fmt.Sprintf("Renaming binary from %s to %s", pocketbasePath, newBinaryPath))
 
-	result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("bash -c \"mv %s %s && chmod +x %s\"", pocketbasePath, newBinaryPath, newBinaryPath))
-	if err != nil || result.ExitCode != 0 {
-		return fmt.Errorf("failed to rename binary: %s", result.Stderr)
+	if pocketbasePath != newBinaryPath {
+		d.logProgress(req, fmt.Sprintf("Renaming binary from %s to %s", pocketbasePath, newBinaryPath))
+		result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("bash -c \"mv %s %s && chmod +x %s\"", pocketbasePath, newBinaryPath, newBinaryPath))
+		if err != nil || result.ExitCode != 0 {
+			return fmt.Errorf("failed to rename binary: %s", result.Stderr)
+		}
+	} else {
+		result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("chmod +x %s", newBinaryPath))
+		if err != nil || result.ExitCode != 0 {
+			return fmt.Errorf("failed to chmod binary: %s", result.Stderr)
+		}
 	}
 
 	// Debug: Verify staging directory contents after rename
@@ -351,6 +358,13 @@ func (d *DeploymentManager) swapDeployment(ctx context.Context, deployCtx *Deplo
 
 	// Remove deployment.zip from working directory
 	d.manager.client.ExecuteSudo(fmt.Sprintf("rm -f %s/deployment.zip", deployCtx.WorkingDir))
+
+	// Fix ownership so the app user can write to all files (including pb_data)
+	result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("chown -R %s:%s %s",
+		req.AppUsername, req.AppUsername, deployCtx.WorkingDir))
+	if err != nil || result.ExitCode != 0 {
+		return fmt.Errorf("failed to set deployment ownership: %s", result.Stderr)
+	}
 
 	// Debug: Check what files are in the working directory
 	d.logProgress(req, "Debugging: Checking working directory contents...")

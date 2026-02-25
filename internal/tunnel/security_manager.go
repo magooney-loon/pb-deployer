@@ -2,6 +2,8 @@ package tunnel
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -191,7 +193,16 @@ func (s *SecurityManager) setupIPTables(rules []FirewallRule) error {
 	}
 
 	for _, cmd := range cmds {
-		s.manager.client.ExecuteSudo(cmd)
+		result, err := s.manager.client.ExecuteSudo(cmd)
+		if err != nil {
+			return err
+		}
+		if result.ExitCode != 0 {
+			return &Error{
+				Type:    ErrorExecution,
+				Message: fmt.Sprintf("iptables setup failed (%s): %s", cmd, result.Stderr),
+			}
+		}
 	}
 
 	for _, rule := range rules {
@@ -209,10 +220,28 @@ func (s *SecurityManager) setupIPTables(rules []FirewallRule) error {
 				rule.Protocol, rule.Port, action)
 		}
 
-		s.manager.client.ExecuteSudo(cmd)
+		result, err := s.manager.client.ExecuteSudo(cmd)
+		if err != nil {
+			return err
+		}
+		if result.ExitCode != 0 {
+			return &Error{
+				Type:    ErrorExecution,
+				Message: fmt.Sprintf("failed to add iptables rule: %s", result.Stderr),
+			}
+		}
 	}
 
-	s.manager.client.ExecuteSudo("iptables-save > /etc/iptables/rules.v4")
+	result, err := s.manager.client.ExecuteSudo("iptables-save > /etc/iptables/rules.v4")
+	if err != nil {
+		return err
+	}
+	if result.ExitCode != 0 {
+		return &Error{
+			Type:    ErrorExecution,
+			Message: fmt.Sprintf("failed to save iptables rules: %s", result.Stderr),
+		}
+	}
 
 	return nil
 }
@@ -223,12 +252,15 @@ func (s *SecurityManager) HardenSSH(config SSHConfig) error {
 
 	var configLines []string
 	configLines = append(configLines, "# SSH Hardening Configuration")
+	configLines = append(configLines, "Protocol 2")
 	configLines = append(configLines, fmt.Sprintf("PasswordAuthentication %s", boolToYesNo(config.PasswordAuth)))
-	configLines = append(configLines, fmt.Sprintf("PermitRootLogin %s", boolToYesNo(config.RootLogin)))
+	configLines = append(configLines, fmt.Sprintf("PermitRootLogin %s", config.RootLogin))
 	configLines = append(configLines, fmt.Sprintf("PubkeyAuthentication %s", boolToYesNo(config.PubkeyAuth)))
 	configLines = append(configLines, fmt.Sprintf("MaxAuthTries %d", config.MaxAuthTries))
+	configLines = append(configLines, fmt.Sprintf("LoginGraceTime %d", config.LoginGraceTime))
 	configLines = append(configLines, fmt.Sprintf("ClientAliveInterval %d", config.ClientAliveInterval))
 	configLines = append(configLines, fmt.Sprintf("ClientAliveCountMax %d", config.ClientAliveCountMax))
+	configLines = append(configLines, "X11Forwarding no")
 
 	if len(config.AllowUsers) > 0 {
 		configLines = append(configLines, fmt.Sprintf("AllowUsers %s", strings.Join(config.AllowUsers, " ")))
@@ -238,7 +270,8 @@ func (s *SecurityManager) HardenSSH(config SSHConfig) error {
 	}
 
 	configContent := strings.Join(configLines, "\n")
-	cmd := fmt.Sprintf("echo '%s' > /etc/ssh/sshd_config.d/99-hardening.conf", configContent)
+	cmd := fmt.Sprintf("printf '%%s' %s | tee /etc/ssh/sshd_config.d/99-hardening.conf > /dev/null",
+		shellescape(configContent))
 	result, err := s.manager.client.ExecuteSudo(cmd)
 	if err != nil {
 		return err
@@ -273,6 +306,9 @@ func (s *SecurityManager) SetupFail2ban() error {
 
 	jailConfig := `[DEFAULT]
 bantime = 3600
+bantime.increment = true
+bantime.multiplier = 24
+bantime.maxtime = 604800
 findtime = 600
 maxretry = 5
 
@@ -282,7 +318,9 @@ port = ssh
 logpath = /var/log/auth.log
 backend = systemd`
 
-	cmd := fmt.Sprintf("echo '%s' > /etc/fail2ban/jail.local", jailConfig)
+	// Use tee to write the config safely — avoids shell quoting issues with echo
+	cmd := fmt.Sprintf("printf '%%s' %s | tee /etc/fail2ban/jail.local > /dev/null",
+		shellescape(jailConfig))
 	result, err := s.manager.client.ExecuteSudo(cmd)
 	if err != nil {
 		return err
@@ -311,9 +349,10 @@ func (s *SecurityManager) GetDefaultPocketBaseRules() []FirewallRule {
 func (s *SecurityManager) GetDefaultSSHConfig() SSHConfig {
 	return SSHConfig{
 		PasswordAuth:        false,
-		RootLogin:           false,
+		RootLogin:           "prohibit-password",
 		PubkeyAuth:          true,
 		MaxAuthTries:        3,
+		LoginGraceTime:      20,
 		ClientAliveInterval: 300,
 		ClientAliveCountMax: 2,
 	}
@@ -331,6 +370,53 @@ func boolToYesNo(b bool) string {
 		return "yes"
 	}
 	return "no"
+}
+
+// shellescape wraps s in single quotes, escaping any embedded single quotes.
+// Safe to embed in shell commands — avoids injection via echo 'config'.
+func shellescape(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
+}
+
+// GetCloudflareFirewallRules fetches current Cloudflare IP ranges and returns
+// FirewallRules that restrict 80/443 to CF origins only. Falls back to the
+// open default rules if the fetch fails so setup is never blocked.
+func (s *SecurityManager) GetCloudflareFirewallRules() ([]FirewallRule, error) {
+	urls := []string{
+		"https://www.cloudflare.com/ips-v4",
+		"https://www.cloudflare.com/ips-v6",
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	var rules []FirewallRule
+
+	// Always allow SSH
+	rules = append(rules, FirewallRule{Port: 22, Protocol: "tcp", Action: "allow", Description: "SSH"})
+
+	for _, url := range urls {
+		resp, err := client.Get(url)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch CF ranges from %s: %w", url, err)
+		}
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("failed to read CF ranges from %s: %w", url, err)
+		}
+
+		for _, cidr := range strings.Split(strings.TrimSpace(string(body)), "\n") {
+			cidr = strings.TrimSpace(cidr)
+			if cidr == "" {
+				continue
+			}
+			rules = append(rules,
+				FirewallRule{Port: 80, Protocol: "tcp", Action: "allow", Source: cidr, Description: "HTTP (Cloudflare)"},
+				FirewallRule{Port: 443, Protocol: "tcp", Action: "allow", Source: cidr, Description: "HTTPS (Cloudflare)"},
+			)
+		}
+	}
+
+	return rules, nil
 }
 
 // Close performs cleanup and closes the security manager

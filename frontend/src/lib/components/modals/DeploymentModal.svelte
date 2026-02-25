@@ -43,9 +43,7 @@
 	});
 
 	function validateEmail(email: string): string | undefined {
-		if (!email.trim()) {
-			return 'Admin email is required for initial deployment';
-		}
+		if (!email.trim()) return undefined; // optional — skip superuser creation if empty
 
 		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 		if (!emailRegex.test(email.trim())) {
@@ -56,9 +54,7 @@
 	}
 
 	function validatePassword(password: string): string | undefined {
-		if (!password.trim()) {
-			return 'Admin password is required for initial deployment';
-		}
+		if (!password.trim()) return undefined; // optional
 
 		if (password.length < 8) {
 			return 'Password must be at least 8 characters long';
@@ -98,22 +94,20 @@
 
 		const isInitial = isInitialDeployment();
 
-		// Validate credentials for initial deployment
-		if (isInitial) {
-			emailError = validateEmail(superuserEmail);
-			passwordError = validatePassword(superuserPassword);
+		// Validate only if something was entered (format check)
+		emailError = validateEmail(superuserEmail);
+		passwordError = validatePassword(superuserPassword);
+		if (emailError || passwordError) return;
 
-			if (emailError || passwordError) {
-				return;
-			}
-		}
+		// Only treat as initial deploy with superuser if both fields are filled
+		const hasCreds = superuserEmail.trim() !== '' && superuserPassword.trim() !== '';
 
 		try {
 			await ondeploy(
 				deployment.id,
-				isInitial,
-				isInitial ? superuserEmail : undefined,
-				isInitial ? superuserPassword : undefined
+				isInitial && hasCreds,
+				hasCreds ? superuserEmail : undefined,
+				hasCreds ? superuserPassword : undefined
 			);
 		} catch (error) {
 			console.error('Deployment failed:', error);
@@ -135,12 +129,7 @@
 
 	let canDeploy = $derived(() => {
 		if (deploying || !deployment) return false;
-
-		if (isInitialDeployment()) {
-			return !emailError && !passwordError && superuserEmail && superuserPassword;
-		}
-
-		return true;
+		return !emailError && !passwordError;
 	});
 </script>
 
@@ -232,8 +221,9 @@
 								Initial Deployment Setup
 							</h3>
 							<p class="mt-1 text-sm text-blue-800 dark:text-blue-200">
-								This is the first deployment for this application. You need to provide admin
-								credentials to set up the initial PocketBase admin user.
+								This is the first deployment for this application. Optionally provide admin
+								credentials to create the initial PocketBase superuser. Leave blank if a superuser
+								already exists (e.g. migrating an existing app).
 							</p>
 						</div>
 					</div>
@@ -242,9 +232,9 @@
 				<!-- Superuser Credentials Form -->
 				<div class="space-y-4">
 					<div class="border-b border-gray-200 pb-2 dark:border-gray-700">
-						<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Admin User Setup</h3>
+						<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Admin User Setup <span class="text-sm font-normal text-gray-500">(optional)</span></h3>
 						<p class="text-sm text-gray-500 dark:text-gray-400">
-							Configure the initial admin user for your PocketBase instance
+							Create the initial superuser — skip if one already exists
 						</p>
 					</div>
 
@@ -256,10 +246,9 @@
 							value={superuserEmail}
 							placeholder="admin@example.com"
 							errorText={emailError}
-							required
 							disabled={deploying}
 							oninput={handleEmailInput}
-							helperText="Email for the PocketBase admin user"
+							helperText="Leave blank to skip superuser creation"
 						/>
 
 						<FormField
@@ -269,10 +258,9 @@
 							value={superuserPassword}
 							placeholder="••••••••"
 							errorText={passwordError}
-							required
 							disabled={deploying}
 							oninput={handlePasswordInput}
-							helperText="Password for the PocketBase admin user (min. 8 characters)"
+							helperText="Min. 8 characters if provided"
 						/>
 					</div>
 
@@ -326,7 +314,7 @@
 				{#snippet iconSnippet()}
 					<Icon name="rocket" />
 				{/snippet}
-				{deploying ? 'Deploying...' : isInitialDeployment() ? 'Deploy & Setup' : 'Deploy'}
+				{deploying ? 'Deploying...' : 'Deploy'}
 			</Button>
 		</div>
 	{/snippet}

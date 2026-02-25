@@ -44,6 +44,12 @@ func RegisterHandlers(pbApp core.App) {
 			return handleDeploy(c, pbApp)
 		})
 
+		// WebSocket terminal — GET request that upgrades to WS
+		// Query params: host, port (optional, default 22), user
+		v1Router.GET("/api/terminal", func(c *core.RequestEvent) error {
+			return handleTerminal(c)
+		})
+
 		return e.Next()
 	})
 
