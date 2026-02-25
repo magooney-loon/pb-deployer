@@ -59,6 +59,7 @@ type SSHConfig struct {
 	RootLogin           bool
 	PubkeyAuth          bool
 	MaxAuthTries        int
+	LoginGraceTime      int
 	ClientAliveInterval int
 	ClientAliveCountMax int
 	AllowUsers          []string

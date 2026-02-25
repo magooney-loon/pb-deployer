@@ -721,6 +721,18 @@ func (c *Client) copyWithProgress(src io.Reader, dst io.Writer, total int64, pro
 	return nil
 }
 
+// NewSession opens a new SSH session on the existing connection.
+// Used by the terminal handler to start an interactive shell.
+func (c *Client) NewSession() (*ssh.Session, error) {
+	if c.conn == nil {
+		return nil, &Error{
+			Type:    ErrorConnection,
+			Message: "not connected",
+		}
+	}
+	return c.conn.NewSession()
+}
+
 func (c *Client) Ping() error {
 	result, err := c.Execute("echo ping", WithTimeout(5*time.Second))
 	if err != nil {

@@ -21,6 +21,7 @@ export interface SSHConfig {
 	root_login: boolean;
 	pubkey_auth: boolean;
 	max_auth_tries: number;
+	login_grace_time?: number;
 	client_alive_interval: number;
 	client_alive_count_max: number;
 	allow_users?: string[];

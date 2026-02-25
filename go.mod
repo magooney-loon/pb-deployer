@@ -8,6 +8,7 @@ require (
 )
 
 require (
+	github.com/gorilla/websocket v1.5.3
 	github.com/magooney-loon/pb-ext v0.0.0-20251031090757-fbe61ec73440
 	github.com/pocketbase/pocketbase v0.30.1
 )

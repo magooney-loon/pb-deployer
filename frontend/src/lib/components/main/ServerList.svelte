@@ -5,6 +5,7 @@
 	import DeleteModal from '$lib/components/modals/DeleteModal.svelte';
 	import ServerCreateModal from '$lib/components/modals/ServerCreateModal.svelte';
 	import TroubleshootModal from '$lib/components/modals/TroubleshootModal.svelte';
+	import TerminalModal from '$lib/components/modals/TerminalModal.svelte';
 	import { Button, Toast, EmptyState, LoadingSpinner, StatusBadge } from '$lib/components/partials';
 	import Icon from '$lib/components/icons/Icon.svelte';
 
@@ -226,6 +227,25 @@
 									</Button>
 								{/if}
 
+								<!-- Terminal Button (only if setup is complete) -->
+								{#if !logic.canSetupServer(server)}
+									<Button
+										variant="ghost"
+										color="blue"
+										size="sm"
+										disabled={state.creating ||
+											state.deleting ||
+											logic.isServerSetupInProgress(server.id) ||
+											logic.isServerSecurityInProgress(server.id)}
+										onclick={() => logic.openTerminal(server.id)}
+									>
+										{#snippet iconSnippet()}
+											<Icon name="terminal" />
+										{/snippet}
+										Terminal
+									</Button>
+								{/if}
+
 								<!-- Delete Button -->
 								<Button
 									variant="ghost"
@@ -304,4 +324,13 @@
 		: false}
 	onclose={() => logic.closeTroubleshootModal()}
 	onsetup={(serverId) => logic.setupServer(serverId)}
+/>
+
+<!-- Terminal Modal -->
+<TerminalModal
+	open={state.showTerminalModal}
+	server={state.terminalServerId
+		? state.servers.find((s) => s.id === state.terminalServerId) || null
+		: null}
+	onclose={() => logic.closeTerminal()}
 />
