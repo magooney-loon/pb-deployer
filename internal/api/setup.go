@@ -99,28 +99,18 @@ func handleServerSetup(c *core.RequestEvent, app core.App) error {
 	}()
 
 	sendStep(2, "Connecting to server")
+	if addErr := addHostKeyManually(req.Host, req.Port); addErr != nil {
+		log.Warning("Failed to pre-fetch host key via ssh-keyscan: %v", addErr)
+	}
 	if err := client.Connect(); err != nil {
-		// Handle host key unknown errors
-		if strings.Contains(err.Error(), "key is unknown") {
-			if addErr := addHostKeyManually(req.Host, req.Port); addErr != nil {
-				return c.JSON(http.StatusInternalServerError, map[string]any{
-					"error": "Host key verification failed",
-				})
-			}
-			if retryErr := client.Connect(); retryErr != nil {
-				return c.JSON(http.StatusInternalServerError, map[string]any{
-					"error": "Connection failed after host key addition",
-				})
-			}
-		} else if strings.Contains(err.Error(), "known_hosts") {
+		if strings.Contains(err.Error(), "known_hosts") {
 			return c.JSON(http.StatusInternalServerError, map[string]any{
 				"error": "Corrupted known_hosts file",
 			})
-		} else {
-			return c.JSON(http.StatusInternalServerError, map[string]any{
-				"error": "Connection failed",
-			})
 		}
+		return c.JSON(http.StatusInternalServerError, map[string]any{
+			"error": "Connection failed",
+		})
 	}
 	sendStep(3, "Validating SSH connection")
 	if err := validateSSHConnection(client); err != nil {
