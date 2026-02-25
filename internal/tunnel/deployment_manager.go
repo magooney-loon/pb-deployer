@@ -359,6 +359,13 @@ func (d *DeploymentManager) swapDeployment(ctx context.Context, deployCtx *Deplo
 	// Remove deployment.zip from working directory
 	d.manager.client.ExecuteSudo(fmt.Sprintf("rm -f %s/deployment.zip", deployCtx.WorkingDir))
 
+	// Fix ownership so the app user can write to all files (including pb_data)
+	result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("chown -R %s:%s %s",
+		req.AppUsername, req.AppUsername, deployCtx.WorkingDir))
+	if err != nil || result.ExitCode != 0 {
+		return fmt.Errorf("failed to set deployment ownership: %s", result.Stderr)
+	}
+
 	// Debug: Check what files are in the working directory
 	d.logProgress(req, "Debugging: Checking working directory contents...")
 	debugResult, _ := d.manager.client.Execute(fmt.Sprintf("ls -la %s", deployCtx.WorkingDir))
