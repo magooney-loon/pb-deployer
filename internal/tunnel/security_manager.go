@@ -254,7 +254,7 @@ func (s *SecurityManager) HardenSSH(config SSHConfig) error {
 	configLines = append(configLines, "# SSH Hardening Configuration")
 	configLines = append(configLines, "Protocol 2")
 	configLines = append(configLines, fmt.Sprintf("PasswordAuthentication %s", boolToYesNo(config.PasswordAuth)))
-	configLines = append(configLines, fmt.Sprintf("PermitRootLogin %s", boolToYesNo(config.RootLogin)))
+	configLines = append(configLines, fmt.Sprintf("PermitRootLogin %s", config.RootLogin))
 	configLines = append(configLines, fmt.Sprintf("PubkeyAuthentication %s", boolToYesNo(config.PubkeyAuth)))
 	configLines = append(configLines, fmt.Sprintf("MaxAuthTries %d", config.MaxAuthTries))
 	configLines = append(configLines, fmt.Sprintf("LoginGraceTime %d", config.LoginGraceTime))
@@ -349,7 +349,7 @@ func (s *SecurityManager) GetDefaultPocketBaseRules() []FirewallRule {
 func (s *SecurityManager) GetDefaultSSHConfig() SSHConfig {
 	return SSHConfig{
 		PasswordAuth:        false,
-		RootLogin:           false,
+		RootLogin:           "prohibit-password",
 		PubkeyAuth:          true,
 		MaxAuthTries:        3,
 		LoginGraceTime:      20,

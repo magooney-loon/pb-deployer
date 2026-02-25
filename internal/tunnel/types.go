@@ -56,7 +56,7 @@ type FirewallRule struct {
 
 type SSHConfig struct {
 	PasswordAuth        bool
-	RootLogin           bool
+	RootLogin           string // "yes", "no", or "prohibit-password"
 	PubkeyAuth          bool
 	MaxAuthTries        int
 	LoginGraceTime      int
