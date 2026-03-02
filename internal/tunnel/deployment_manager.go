@@ -512,8 +512,8 @@ func (d *DeploymentManager) createSuperuser(ctx context.Context, deployCtx *Depl
 	// Wait a bit for PocketBase to fully initialize
 	time.Sleep(5 * time.Second)
 
-	cmd := fmt.Sprintf("bash -c \"cd %s && ./%s superuser create %s %s\"",
-		deployCtx.WorkingDir, req.AppName, req.SuperuserEmail, req.SuperuserPass)
+	cmd := fmt.Sprintf("su - %s -s /bin/bash -c \"cd %s && ./%s superuser create %s %s\"",
+		req.AppUsername, deployCtx.WorkingDir, req.AppName, req.SuperuserEmail, req.SuperuserPass)
 
 	result, err := d.manager.client.ExecuteSudo(cmd, WithTimeout(30*time.Second))
 	if err != nil || result.ExitCode != 0 {
@@ -521,6 +521,15 @@ func (d *DeploymentManager) createSuperuser(ctx context.Context, deployCtx *Depl
 	}
 
 	d.logProgress(req, "Initial superuser created successfully")
+
+	// Ensure pb_data has correct ownership in case it was created by a previous run
+	pbDataPath := fmt.Sprintf("%s/pb_data", deployCtx.WorkingDir)
+	chownResult, chownErr := d.manager.client.ExecuteSudo(fmt.Sprintf("if [ -d %s ]; then chown -R %s:%s %s; fi",
+		pbDataPath, req.AppUsername, req.AppUsername, pbDataPath))
+	if chownErr == nil && chownResult.ExitCode == 0 {
+		d.logProgress(req, "Fixed pb_data ownership for app user")
+	}
+
 	return nil
 }
 
