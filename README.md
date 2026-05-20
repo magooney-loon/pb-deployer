@@ -14,11 +14,35 @@
 
 ## 🚀 Quick Start
 
+Install the [pb-cli](https://github.com/magooney-loon/pb-ext) toolchain:
+
 ```bash
-git clone https://github.com/magooney-loon/pb-deployer
-cd pb-deployer
-go run cmd/scripts/main.go --install
+go install github.com/magooney-loon/pb-ext/cmd/pb-cli@latest
 ```
+
+Then in the pb-deployer directory:
+
+```bash
+pb-cli --install   # install dependencies
+pb-cli             # development mode (build + serve)
+pb-cli --production # production build
+```
+
+## pb-cli Toolchain
+
+pb-deployer uses the [pb-cli](https://github.com/magooney-loon/pb-ext) build toolchain for development and production workflows.
+
+| Command | Description |
+|---------|-------------|
+| `pb-cli` | Development mode — builds frontend + starts server |
+| `pb-cli --install` | Install all dependencies (Go modules + npm) |
+| `pb-cli --build-only` | Build frontend only |
+| `pb-cli --run-only` | Start server only (no rebuild) |
+| `pb-cli --production` | Production build → `dist/` directory |
+| `pb-cli --test-only` | Run test suite with coverage |
+| `pb-cli --help` | Show help |
+
+Full pb-cli documentation: [pb-ext README](https://github.com/magooney-loon/pb-ext)
 
 ## Core Workflow
 
