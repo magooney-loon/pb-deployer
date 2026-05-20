@@ -194,10 +194,7 @@ export class AppListLogic {
 			const appData: AppRequest = {
 				name: this.state.newApp.name,
 				server_id: this.state.newApp.server_id,
-				domain: this.state.newApp.domain,
-				remote_path:
-					this.state.newApp.remote_path || `/opt/pocketbase/apps/${this.state.newApp.name}`,
-				service_name: this.state.newApp.service_name || `pocketbase-${this.state.newApp.name}`
+				domain: this.state.newApp.domain
 			};
 
 			const app = await this.api.apps.createApp(appData);

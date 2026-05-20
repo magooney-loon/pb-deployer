@@ -8,6 +8,7 @@
 		port: number;
 		root_username: string;
 		app_username: string;
+		proxy_email: string;
 	}
 
 	interface Props {
@@ -24,7 +25,8 @@
 		host: '',
 		port: 22,
 		root_username: 'root',
-		app_username: 'pocketbase'
+		app_username: 'pocketbase',
+		proxy_email: ''
 	});
 
 	let hostError = $state<string | undefined>(undefined);
@@ -76,7 +78,8 @@
 			host: '',
 			port: 22,
 			root_username: 'root',
-			app_username: 'pocketbase'
+			app_username: 'pocketbase',
+			proxy_email: ''
 		};
 		hostError = undefined;
 	}
@@ -204,6 +207,19 @@
 						oninput={(e) => (formData.app_username = (e.target as HTMLInputElement).value)}
 						helperText="Non-privileged user for running applications (locked)"
 					/>
+
+					<div class="lg:col-span-2">
+						<FormField
+							id="proxy-email"
+							label="Proxy Email (ACME)"
+							type="email"
+							value={formData.proxy_email}
+							placeholder="admin@example.com"
+							disabled={creating}
+							oninput={(e) => (formData.proxy_email = (e.target as HTMLInputElement).value)}
+							helperText="Email Let's Encrypt uses for certificate renewal notices. Optional but recommended."
+						/>
+					</div>
 				</div>
 			</div>
 

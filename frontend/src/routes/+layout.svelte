@@ -4,35 +4,28 @@
 	import Navigation from '$lib/components/main/Navigation.svelte';
 	import { WarningBanner } from '$lib/components/partials';
 	import Icon from '$lib/components/icons/Icon.svelte';
-	import { onMount } from 'svelte';
-	import { lockscreenState } from '$lib/components/main/Settings';
+	import { onMount, onDestroy } from 'svelte';
+	import { splash, settings, startRealtime, stopRealtime } from '$lib/stores';
 	import Lockscreen from './settings/components/Lockscreen.svelte';
 	import SplashScreen from '$lib/components/main/SplashScreen.svelte';
-	import { splashScreen, splashScreenState } from '$lib/components/main/SplashScreen';
 	import Mouse from '$lib/utils/Mouse.svelte';
 
 	let { children } = $props();
 
-	let lockscreen = $state({ isLocked: false, isEnabled: false });
-	let splashState = $derived($splashScreenState);
-
 	onMount(() => {
-		const unsubscribe = lockscreenState.subscribe((state) => {
-			lockscreen = state;
-		});
+		settings.initialize();
+		splash.start();
+		startRealtime();
+	});
 
-		splashScreen.startLoading();
-
-		return () => {
-			unsubscribe();
-			splashScreen.stopLoading();
-		};
+	onDestroy(() => {
+		stopRealtime();
 	});
 </script>
 
-{#if splashState.isLoading}
+{#if splash.isLoading}
 	<SplashScreen />
-{:else if lockscreen.isEnabled && lockscreen.isLocked}
+{:else if settings.lockscreen.isEnabled && settings.lockscreen.isLocked}
 	<Lockscreen />
 {:else}
 	<div class="svg-grid relative">

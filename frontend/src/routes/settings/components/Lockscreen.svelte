@@ -1,25 +1,12 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { fade, fly, scale } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
-	import { unlockScreen, lockscreenState } from '$lib/components/main/Settings.js';
+	import { settings } from '$lib/stores';
 
 	let password = $state('');
 	let error = $state(false);
 	let isUnlocking = $state(false);
 	let showPassword = $state(false);
-
-	// Subscribe to lockscreen state - safe for SSR
-	let lockscreen = $state({ isLocked: false, isEnabled: false });
-
-	onMount(() => {
-		// Subscribe to lockscreen state changes in browser only
-		const unsubscribe = lockscreenState.subscribe((state) => {
-			lockscreen = state;
-		});
-
-		return unsubscribe;
-	});
 
 	async function handleUnlock() {
 		if (!password) {
@@ -32,7 +19,7 @@
 		// Add a small delay for better UX
 		await new Promise((resolve) => setTimeout(resolve, 300));
 
-		const success = unlockScreen(password);
+		const success = settings.unlock(password);
 
 		if (!success) {
 			shakeError();
@@ -66,7 +53,7 @@
 </script>
 
 <!-- Only show lockscreen if it's enabled and locked -->
-{#if lockscreen?.isEnabled && lockscreen?.isLocked}
+{#if settings.lockscreen.isEnabled && settings.lockscreen.isLocked}
 	<div
 		class="fixed inset-0 z-50"
 		in:fade={{ duration: 300, easing: cubicOut }}

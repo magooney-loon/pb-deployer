@@ -51,6 +51,11 @@ export function getAppStatusBadge(app: App, latestVersion?: string): StatusBadge
 				text: 'Offline',
 				variant: 'error'
 			};
+		case 'needs_migration':
+			return {
+				text: 'Needs Migration',
+				variant: 'warning'
+			};
 		default:
 			return {
 				text: 'Unknown',

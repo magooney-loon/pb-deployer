@@ -7,8 +7,6 @@
 		name: string;
 		server_id: string;
 		domain: string;
-		remote_path: string;
-		service_name: string;
 		version_number: string;
 		version_notes: string;
 		initialZip?: File;
@@ -28,8 +26,6 @@
 		name: '',
 		server_id: '',
 		domain: '',
-		remote_path: '',
-		service_name: '',
 		version_number: '1.0.0',
 		version_notes: 'Initial version'
 	});
@@ -42,46 +38,32 @@
 	let availableServers = $derived(servers.filter((s) => s.setup_complete));
 	let selectedServer = $derived(availableServers.find((s) => s.id === formData.server_id));
 
-	function validateVersion(version: string): string | undefined {
-		if (!version.trim()) {
-			return 'Version number is required';
-		}
+	// Derived preview values
+	let previewServiceName = $derived(
+		formData.name ? `pocketbase-${formData.name}` : 'pocketbase-<name>'
+	);
+	let previewRemotePath = $derived(
+		formData.name ? `/opt/pocketbase/apps/${formData.name}` : '/opt/pocketbase/apps/<name>'
+	);
 
-		// Check semantic versioning format (major.minor.patch)
+	function validateVersion(version: string): string | undefined {
+		if (!version.trim()) return 'Version number is required';
 		const semverRegex =
 			/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
-
-		if (!semverRegex.test(version.trim())) {
-			return 'Version must follow semantic versioning format (e.g., 1.0.0)';
-		}
-
+		if (!semverRegex.test(version.trim())) return 'Version must follow semantic versioning (e.g., 1.0.0)';
 		return undefined;
 	}
 
 	function validateDomain(domain: string): string | undefined {
-		if (!domain.trim()) {
-			return 'Domain is required';
-		}
-
+		if (!domain.trim()) return 'Domain is required';
 		const trimmedDomain = domain.trim();
-
-		// Check for invalid prefixes
-		if (trimmedDomain.startsWith('http://') || trimmedDomain.startsWith('https://')) {
+		if (trimmedDomain.startsWith('http://') || trimmedDomain.startsWith('https://'))
 			return 'Remove http:// or https:// prefix';
-		}
-
-		if (trimmedDomain.startsWith('www.')) {
-			return 'Remove www. prefix';
-		}
-
-		// Check if it's a valid domain (must have TLD)
+		if (trimmedDomain.startsWith('www.')) return 'Remove www. prefix';
 		const domainRegex =
 			/^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
-
-		if (!domainRegex.test(trimmedDomain)) {
+		if (!domainRegex.test(trimmedDomain))
 			return 'Enter a valid domain with TLD (e.g., myapp.example.com)';
-		}
-
 		return undefined;
 	}
 
@@ -97,8 +79,6 @@
 			name: '',
 			server_id: '',
 			domain: '',
-			remote_path: '',
-			service_name: '',
 			version_number: '1.0.0',
 			version_notes: 'Initial version'
 		};
@@ -139,37 +119,25 @@
 
 	async function handleSubmit(e: Event) {
 		e.preventDefault();
-		if (oncreate && !creating) {
-			await oncreate(formData);
-		}
+		if (oncreate && !creating) await oncreate(formData);
 	}
 
 	async function handleButtonClick() {
-		const fakeEvent = new Event('submit');
-		await handleSubmit(fakeEvent);
+		await handleSubmit(new Event('submit'));
 	}
 
 	$effect(() => {
 		if (!open) {
-			// Delay to allow modal animation to complete
-			setTimeout(() => {
-				resetForm();
-			}, 300);
+			setTimeout(() => resetForm(), 300);
 		}
 	});
 
-	// Validate version on initial load
 	$effect(() => {
-		if (formData.version_number) {
-			versionError = validateVersion(formData.version_number);
-		}
+		if (formData.version_number) versionError = validateVersion(formData.version_number);
 	});
 
-	// Validate domain on initial load
 	$effect(() => {
-		if (formData.domain) {
-			domainError = validateDomain(formData.domain);
-		}
+		if (formData.domain) domainError = validateDomain(formData.domain);
 	});
 </script>
 
@@ -242,11 +210,7 @@
 						class="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-700 dark:bg-green-900/20"
 					>
 						<div class="flex items-center space-x-2">
-							<svg
-								class="h-4 w-4 text-green-600 dark:text-green-400"
-								fill="currentColor"
-								viewBox="0 0 20 20"
-							>
+							<svg class="h-4 w-4 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20">
 								<path
 									fill-rule="evenodd"
 									d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
@@ -256,8 +220,31 @@
 							<span class="font-medium text-green-800 dark:text-green-200">Server Selected</span>
 						</div>
 						<p class="mt-1 text-sm text-green-700 dark:text-green-300">
-							<strong>{selectedServer.name}</strong> ({selectedServer.host}) - Ready for deployment
+							<strong>{selectedServer.name}</strong> ({selectedServer.host}) — Ready for deployment
 						</p>
+					</div>
+				{/if}
+
+				<!-- What will happen preview -->
+				{#if formData.name && formData.domain && formData.server_id}
+					<div class="rounded-lg bg-gray-50 p-4 dark:bg-gray-900">
+						<h4 class="mb-2 text-sm font-medium text-gray-900 dark:text-gray-100">
+							On deploy:
+						</h4>
+						<ul class="space-y-1 text-xs text-gray-600 dark:text-gray-400">
+							<li>
+								• PocketBase will run as <code class="font-mono">{selectedServer?.app_username || 'pocketbase'}</code>
+								on <code class="font-mono">127.0.0.1:&lt;auto-allocated&gt;</code>
+							</li>
+							<li>
+								• Caddy will route
+								<code class="font-mono">https://{formData.domain}</code> → loopback port
+							</li>
+							<li>• TLS certificate issued automatically via ACME</li>
+							<li>
+								• Service: <code class="font-mono">{previewServiceName}</code> · Path: <code class="font-mono">{previewRemotePath}</code>
+							</li>
+						</ul>
 					</div>
 				{/if}
 			</div>
@@ -295,7 +282,6 @@
 					/>
 				</div>
 
-				<!-- Initial ZIP Upload -->
 				<div class="space-y-4">
 					<FileUpload
 						id="initial-zip"
@@ -311,7 +297,6 @@
 						onError={handleFileError}
 					/>
 
-					<!-- ZIP Info -->
 					<div class="rounded-lg bg-gray-50 p-4 dark:bg-gray-900">
 						<h4 class="mb-2 text-sm font-medium text-gray-900 dark:text-gray-100">
 							ZIP Package Contents:
@@ -320,7 +305,7 @@
 							<div class="flex items-center space-x-2">
 								<span class="text-red-600 dark:text-red-400">✓</span>
 								<span class="text-gray-700 dark:text-gray-300">
-									<strong>PocketBase binary</strong> - The main executable
+									<strong>PocketBase binary</strong> — The main executable
 								</span>
 							</div>
 							<div class="flex items-center space-x-2">

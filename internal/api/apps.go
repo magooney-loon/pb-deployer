@@ -20,11 +20,9 @@ func handleCreateApp(c *core.RequestEvent) error {
 	log := logger.GetAPILogger()
 
 	type createAppRequest struct {
-		ServerID    string `json:"server_id"`
-		Name        string `json:"name"`
-		Domain      string `json:"domain"`
-		ServiceName string `json:"service_name"`
-		RemotePath  string `json:"remote_path"`
+		ServerID string `json:"server_id"`
+		Name     string `json:"name"`
+		Domain   string `json:"domain"`
 	}
 
 	var req createAppRequest
@@ -32,11 +30,14 @@ func handleCreateApp(c *core.RequestEvent) error {
 		return c.JSON(http.StatusBadRequest, map[string]any{"error": "Invalid request body"})
 	}
 
-	if req.ServerID == "" || req.Name == "" || req.Domain == "" || req.ServiceName == "" || req.RemotePath == "" {
+	if req.ServerID == "" || req.Name == "" || req.Domain == "" {
 		return c.JSON(http.StatusBadRequest, map[string]any{
-			"error": "server_id, name, domain, service_name, and remote_path are required",
+			"error": "server_id, name, and domain are required",
 		})
 	}
+
+	serviceName := "pocketbase-" + req.Name
+	remotePath := "/opt/pocketbase/apps/" + req.Name
 
 	if _, err := app.FindRecordById("servers", req.ServerID); err != nil {
 		return c.JSON(http.StatusNotFound, map[string]any{"error": "Server not found"})
@@ -57,8 +58,8 @@ func handleCreateApp(c *core.RequestEvent) error {
 	record.Set("server_id", req.ServerID)
 	record.Set("name", req.Name)
 	record.Set("domain", req.Domain)
-	record.Set("service_name", req.ServiceName)
-	record.Set("remote_path", req.RemotePath)
+	record.Set("service_name", serviceName)
+	record.Set("remote_path", remotePath)
 	record.Set("http_port", httpPort)
 	record.Set("status", "offline")
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { DashboardLogic, type DashboardState } from './Dashboard.js';
+	import { appsStore, serversStore, deploymentsStore } from '$lib/stores';
 	import type { Server, App } from '$lib/api/index.js';
 	import type { Deployment } from '$lib/api/deployment/types.js';
 	import {
@@ -12,19 +12,72 @@
 		RecentItemsCard
 	} from '$lib/components/partials/index.js';
 	import Icon from '$lib/components/icons/Icon.svelte';
-
-	const logic = new DashboardLogic();
-	let state = $state<DashboardState>(logic.getState());
-
-	logic.onStateUpdate((newState) => {
-		state = newState;
-	});
-
-	let metrics = $derived(logic.getMetrics());
+	import {
+		getServerStatusBadge,
+		getAppStatusBadge,
+		getDeploymentStatusBadge,
+		hasUpdateAvailable
+	} from '$lib/components/partials/index.js';
 
 	onMount(async () => {
-		await logic.loadData();
+		await Promise.all([
+			appsStore.initialized ? null : appsStore.load(),
+			serversStore.initialized ? null : serversStore.load(),
+			deploymentsStore.initialized ? null : deploymentsStore.load()
+		]);
 	});
+
+	let loading = $derived(appsStore.loading || serversStore.loading || deploymentsStore.loading);
+	let error = $derived(appsStore.error || serversStore.error || deploymentsStore.error);
+
+	let readyServers = $derived(serversStore.servers.filter((s) => s.setup_complete));
+	let onlineApps = $derived(appsStore.apps.filter((a) => a.status === 'online'));
+	let needsMigrationApps = $derived(appsStore.apps.filter((a) => a.status === 'needs_migration'));
+
+	let appsWithUpdates = $derived(
+		appsStore.apps.filter(
+			(a) =>
+				a.latest_version &&
+				a.deployed_version &&
+				hasUpdateAvailable(a.deployed_version, a.latest_version)
+		)
+	);
+
+	let recentServers = $derived(serversStore.servers.slice(0, 3));
+	let recentApps = $derived(appsStore.apps.slice(0, 5));
+	let recentDeployments = $derived(deploymentsStore.deployments.slice(0, 3));
+
+	let serverStatusCounts = $derived({
+		ready: readyServers.length,
+		setupRequired: serversStore.servers.filter((s) => !s.setup_complete).length,
+		securityOptional: serversStore.servers.filter((s) => s.setup_complete && !s.security_locked)
+			.length
+	});
+
+	let appStatusCounts = $derived({
+		online: onlineApps.length,
+		offline: appsStore.apps.filter((a) => a.status === 'offline').length,
+		unknown: appsStore.apps.filter((a) => a.status !== 'online' && a.status !== 'offline' && a.status !== 'needs_migration').length,
+		needsMigration: needsMigrationApps.length
+	});
+
+	let failedDeployments = $derived(
+		deploymentsStore.deployments.filter((d) => d.status === 'failed').length
+	);
+	let successfulDeployments = $derived(
+		deploymentsStore.deployments.filter((d) => d.status === 'success').length
+	);
+	let pendingDeployments = $derived(
+		deploymentsStore.deployments.filter((d) => ['pending', 'running'].includes(d.status)).length
+	);
+
+	let hasData = $derived(serversStore.servers.length > 0 || appsStore.apps.length > 0);
+
+	function dismissError() {
+		appsStore.clearError();
+		serversStore.clearError();
+		deploymentsStore.clearError();
+	}
 </script>
 
 <header class="mb-8">
@@ -38,47 +91,83 @@
 	</div>
 </header>
 
-{#if state.error}
-	<Toast message={state.error} onDismiss={() => logic.dismissError()} />
+{#if error}
+	<Toast message={error} onDismiss={dismissError} />
 {/if}
 
-{#if state.loading}
+{#if loading}
 	<LoadingSpinner text="Loading dashboard..." />
 {:else}
 	<!-- Metrics Cards -->
-	<div class="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-5">
-		<MetricCard title="Total Servers" value={metrics.totalServers}>
+	<div class="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-6">
+		<MetricCard title="Total Servers" value={serversStore.servers.length}>
 			{#snippet iconSnippet()}
 				<Icon name="servers" size="h-6 w-6" />
 			{/snippet}
 		</MetricCard>
-		<MetricCard title="Ready Servers" value={metrics.readyServers.length} color="green">
+		<MetricCard title="Ready Servers" value={readyServers.length} color="green">
 			{#snippet iconSnippet()}
 				<Icon name="checkmark" size="h-6 w-6" />
 			{/snippet}
 		</MetricCard>
-		<MetricCard title="Total Apps" value={metrics.totalApps}>
+		<MetricCard title="Total Apps" value={appsStore.apps.length}>
 			{#snippet iconSnippet()}
 				<Icon name="apps" size="h-6 w-6" />
 			{/snippet}
 		</MetricCard>
-		<MetricCard title="Online Apps" value={metrics.onlineApps.length} color="green">
+		<MetricCard title="Online Apps" value={onlineApps.length} color="green">
 			{#snippet iconSnippet()}
 				<Icon name="green-circle" size="h-6 w-6" />
 			{/snippet}
 		</MetricCard>
-		<MetricCard title="Updates Available" value={metrics.updateInfo.appsWithUpdates} color="purple">
+		<MetricCard title="Updates Available" value={appsWithUpdates.length} color="purple">
 			{#snippet iconSnippet()}
 				<Icon name="upload" size="h-6 w-6" />
 			{/snippet}
 		</MetricCard>
+		<MetricCard
+			title="Needs Migration"
+			value={needsMigrationApps.length}
+			color={needsMigrationApps.length > 0 ? 'yellow' : 'green'}
+		>
+			{#snippet iconSnippet()}
+				<Icon name="setup" size="h-6 w-6" />
+			{/snippet}
+		</MetricCard>
 	</div>
+
+	{#if needsMigrationApps.length > 0}
+		<div
+			class="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-900/20"
+		>
+			<div class="flex items-center justify-between">
+				<div class="flex items-center space-x-3">
+					<Icon name="warning" class="text-amber-600 dark:text-amber-400" />
+					<div>
+						<h3 class="text-sm font-semibold text-amber-900 dark:text-amber-100">
+							Apps needing proxy migration
+						</h3>
+						<p class="text-xs text-amber-800 dark:text-amber-200">
+							{needsMigrationApps.length} app{needsMigrationApps.length !== 1 ? 's' : ''} must be migrated
+							to the Caddy reverse proxy before deployment.
+						</p>
+					</div>
+				</div>
+				<a
+					href="/apps"
+					class="text-xs font-medium text-amber-800 hover:text-amber-900 dark:text-amber-200 dark:hover:text-amber-100"
+				>
+					View list →
+				</a>
+			</div>
+		</div>
+	{/if}
 
 	<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
 		<!-- Recent Servers -->
 		<RecentItemsCard
 			title="Recent Servers"
-			items={metrics.recentServers}
+			items={recentServers}
 			viewAllHref="/servers"
 			emptyState={{
 				message: 'No servers configured yet',
@@ -87,7 +176,7 @@
 			}}
 		>
 			{#snippet children(server: Server)}
-				{@const serverBadge = logic.getServerStatusBadge(server)}
+				{@const serverBadge = getServerStatusBadge(server)}
 				<div class="flex-1">
 					<div class="flex items-center">
 						<span class="text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -110,33 +199,24 @@
 		<!-- Recent Apps -->
 		<RecentItemsCard
 			title="Recent Applications"
-			items={metrics.recentApps}
+			items={recentApps}
 			viewAllHref="/apps"
 			emptyState={{
 				message: 'No apps created yet',
-				ctaText: metrics.readyServers.length > 0 ? 'Create your first app →' : undefined,
-				ctaHref: metrics.readyServers.length > 0 ? '/apps' : undefined,
-				secondaryText: metrics.readyServers.length === 0 ? 'Set up a server first' : undefined
+				ctaText: readyServers.length > 0 ? 'Create your first app →' : undefined,
+				ctaHref: readyServers.length > 0 ? '/apps' : undefined,
+				secondaryText: readyServers.length === 0 ? 'Set up a server first' : undefined
 			}}
 		>
 			{#snippet children(app: App)}
-				{@const enhancedApp = app as App & {
-					deployed_version?: string | null;
-					has_pending_deployment?: boolean;
-				}}
-				{@const appBadge = logic.getAppStatusBadge(app)}
+				{@const appBadge = getAppStatusBadge(app, app.latest_version)}
 				<div class="flex-1">
 					<div class="flex items-center">
 						<span class="text-sm font-medium text-gray-900 dark:text-gray-100">
 							{app.name}
 						</span>
-						<StatusBadge
-							status="{logic.getStatusIcon(app.status)} {appBadge.text}"
-							variant={appBadge.variant}
-							class="ml-2"
-							dot
-						/>
-						{#if app.latest_version && enhancedApp.deployed_version && logic.hasUpdateAvailable(enhancedApp.deployed_version, app.latest_version)}
+						<StatusBadge status={appBadge.text} variant={appBadge.variant} class="ml-2" dot />
+						{#if app.latest_version && app.deployed_version && hasUpdateAvailable(app.deployed_version, app.latest_version)}
 							<StatusBadge status="Update" variant="update" size="xs" class="ml-1" dot />
 						{/if}
 					</div>
@@ -152,34 +232,21 @@
 					</div>
 				</div>
 				<div class="text-right">
-					{#if enhancedApp.deployed_version}
+					{#if app.deployed_version}
 						<div class="text-xs text-gray-500 dark:text-gray-400">
-							v{enhancedApp.deployed_version}
-							{#if app.latest_version && enhancedApp.deployed_version !== app.latest_version}
+							v{app.deployed_version}
+							{#if app.latest_version && app.deployed_version !== app.latest_version}
 								<span class="text-purple-500">→ v{app.latest_version}</span>
 							{/if}
-							{#if enhancedApp.has_pending_deployment}
-								<span class="text-amber-500"> • pending</span>
-							{/if}
-						</div>
-						<div class="text-xs text-gray-400 dark:text-gray-500">
-							{new Date(app.created).toLocaleDateString()}
 						</div>
 					{:else if app.latest_version}
-						<div class="text-xs text-gray-500 dark:text-gray-400">
-							v{app.latest_version} ready
-							{#if enhancedApp.has_pending_deployment}
-								<span class="text-amber-500"> • deploying</span>
-							{/if}
-						</div>
-						<div class="text-xs text-gray-400 dark:text-gray-500">
-							{new Date(app.created).toLocaleDateString()}
-						</div>
+						<div class="text-xs text-gray-500 dark:text-gray-400">v{app.latest_version} ready</div>
 					{:else}
-						<div class="text-xs text-gray-400 dark:text-gray-500">
-							No versions • {new Date(app.created).toLocaleDateString()}
-						</div>
+						<div class="text-xs text-gray-400 dark:text-gray-500">No versions</div>
 					{/if}
+					<div class="text-xs text-gray-400 dark:text-gray-500">
+						{new Date(app.created).toLocaleDateString()}
+					</div>
 				</div>
 			{/snippet}
 		</RecentItemsCard>
@@ -187,17 +254,17 @@
 		<!-- Recent Deployments -->
 		<RecentItemsCard
 			title="Recent Deployments"
-			items={metrics.recentDeployments}
+			items={recentDeployments}
 			viewAllHref="/deployments"
 			emptyState={{
 				message: 'No deployments yet',
-				ctaText: metrics.totalApps > 0 ? 'Deploy an app →' : undefined,
-				ctaHref: metrics.totalApps > 0 ? '/deployments' : undefined,
-				secondaryText: metrics.totalApps === 0 ? 'Create an app first' : undefined
+				ctaText: appsStore.apps.length > 0 ? 'Deploy an app →' : undefined,
+				ctaHref: appsStore.apps.length > 0 ? '/deployments' : undefined,
+				secondaryText: appsStore.apps.length === 0 ? 'Create an app first' : undefined
 			}}
 		>
 			{#snippet children(deployment: Deployment)}
-				{@const deploymentBadge = logic.getDeploymentStatusBadge(deployment)}
+				{@const deploymentBadge = getDeploymentStatusBadge(deployment)}
 				<div class="flex-1">
 					<div class="flex items-center">
 						<span class="text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -232,19 +299,7 @@
 						</div>
 					{/if}
 					<div class="text-xs text-gray-400 dark:text-gray-500">
-						{#if deployment.started_at}
-							{new Date(deployment.started_at).toLocaleDateString()}
-							{new Date(deployment.started_at).toLocaleTimeString([], {
-								hour: '2-digit',
-								minute: '2-digit'
-							})}
-						{:else}
-							{new Date(deployment.created).toLocaleDateString()}
-							{new Date(deployment.created).toLocaleTimeString([], {
-								hour: '2-digit',
-								minute: '2-digit'
-							})}
-						{/if}
+						{new Date(deployment.started_at || deployment.created).toLocaleDateString()}
 					</div>
 				</div>
 			{/snippet}
@@ -252,7 +307,7 @@
 	</div>
 
 	<!-- Status Summary -->
-	{#if logic.hasData()}
+	{#if hasData}
 		<Card title="System Status" class="mt-8">
 			<div class="grid grid-cols-1 gap-6 md:grid-cols-4">
 				<div>
@@ -261,19 +316,19 @@
 						<div class="flex justify-between text-sm">
 							<span class="text-gray-600 dark:text-gray-400">Ready for deployment:</span>
 							<span class="font-semibold text-emerald-600 dark:text-emerald-400">
-								{metrics.serverStatusCounts.ready}
+								{serverStatusCounts.ready}
 							</span>
 						</div>
 						<div class="flex justify-between text-sm">
 							<span class="text-gray-600 dark:text-gray-400">Setup required:</span>
 							<span class="font-semibold text-amber-600 dark:text-amber-400">
-								{metrics.serverStatusCounts.setupRequired}
+								{serverStatusCounts.setupRequired}
 							</span>
 						</div>
 						<div class="flex justify-between text-sm">
 							<span class="text-gray-600 dark:text-gray-400">Security available:</span>
 							<span class="font-semibold text-blue-600 dark:text-blue-400">
-								{metrics.serverStatusCounts.securityOptional}
+								{serverStatusCounts.securityOptional}
 							</span>
 						</div>
 					</div>
@@ -286,19 +341,19 @@
 						<div class="flex justify-between text-sm">
 							<span class="text-gray-600 dark:text-gray-400">Online:</span>
 							<span class="font-semibold text-emerald-600 dark:text-emerald-400">
-								{metrics.appStatusCounts.online}
+								{appStatusCounts.online}
 							</span>
 						</div>
 						<div class="flex justify-between text-sm">
 							<span class="text-gray-600 dark:text-gray-400">Offline:</span>
 							<span class="font-semibold text-red-600 dark:text-red-400">
-								{metrics.appStatusCounts.offline}
+								{appStatusCounts.offline}
 							</span>
 						</div>
 						<div class="flex justify-between text-sm">
-							<span class="text-gray-600 dark:text-gray-400">Unknown:</span>
-							<span class="font-semibold text-gray-600 dark:text-gray-400">
-								{metrics.appStatusCounts.unknown}
+							<span class="text-gray-600 dark:text-gray-400">Needs migration:</span>
+							<span class="font-semibold text-amber-600 dark:text-amber-400">
+								{appStatusCounts.needsMigration}
 							</span>
 						</div>
 					</div>
@@ -309,25 +364,13 @@
 						<div class="flex justify-between text-sm">
 							<span class="text-gray-600 dark:text-gray-400">Updates available:</span>
 							<span class="font-semibold text-purple-600 dark:text-purple-400">
-								{metrics.updateInfo.appsWithUpdates}
+								{appsWithUpdates.length}
 							</span>
 						</div>
 						<div class="flex justify-between text-sm">
 							<span class="text-gray-600 dark:text-gray-400">Up to date:</span>
 							<span class="font-semibold text-emerald-600 dark:text-emerald-400">
-								{metrics.totalApps - metrics.updateInfo.appsWithUpdates}
-							</span>
-						</div>
-						<div class="flex justify-between text-sm">
-							<span class="text-gray-600 dark:text-gray-400">Coverage:</span>
-							<span class="font-semibold text-gray-900 dark:text-gray-100">
-								{metrics.totalApps > 0
-									? Math.round(
-											((metrics.totalApps - metrics.updateInfo.appsWithUpdates) /
-												metrics.totalApps) *
-												100
-										)
-									: 100}%
+								{appsStore.apps.length - appsWithUpdates.length}
 							</span>
 						</div>
 					</div>
@@ -338,21 +381,21 @@
 					</h4>
 					<div class="space-y-2">
 						<div class="flex justify-between text-sm">
-							<span class="text-gray-600 dark:text-gray-400">Successful deployments:</span>
+							<span class="text-gray-600 dark:text-gray-400">Successful:</span>
 							<span class="font-semibold text-emerald-600 dark:text-emerald-400">
-								{metrics.deploymentInfo.totalDeployments}
+								{successfulDeployments}
 							</span>
 						</div>
 						<div class="flex justify-between text-sm">
-							<span class="text-gray-600 dark:text-gray-400">Pending deployments:</span>
+							<span class="text-gray-600 dark:text-gray-400">Pending:</span>
 							<span class="font-semibold text-amber-600 dark:text-amber-400">
-								{metrics.deploymentInfo.pendingDeployment}
+								{pendingDeployments}
 							</span>
 						</div>
 						<div class="flex justify-between text-sm">
-							<span class="text-gray-600 dark:text-gray-400">Failed deployments:</span>
+							<span class="text-gray-600 dark:text-gray-400">Failed:</span>
 							<span class="font-semibold text-red-600 dark:text-red-400">
-								{metrics.deploymentInfo.failedDeployments}
+								{failedDeployments}
 							</span>
 						</div>
 					</div>

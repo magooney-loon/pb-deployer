@@ -1,13 +1,16 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import { formatTimestamp } from '$lib/api/index.js';
-	import { ServerListLogic, type ServerListState } from './ServerList.js';
+	import { serversStore, appsStore } from '$lib/stores';
 	import DeleteModal from '$lib/components/modals/DeleteModal.svelte';
 	import ServerCreateModal from '$lib/components/modals/ServerCreateModal.svelte';
 	import TroubleshootModal from '$lib/components/modals/TroubleshootModal.svelte';
 	import TerminalModal from '$lib/components/modals/TerminalModal.svelte';
 	import { Button, Toast, EmptyState, LoadingSpinner, StatusBadge } from '$lib/components/partials';
 	import Icon from '$lib/components/icons/Icon.svelte';
+	import { getServerStatusBadge } from '$lib/components/partials/index.js';
+	import type { Server } from '$lib/api/index.js';
+	import type { ValidationResponse } from '$lib/api/index.js';
 
 	interface ServerFormData {
 		name: string;
@@ -15,32 +18,158 @@
 		port: number;
 		root_username: string;
 		app_username: string;
+		proxy_email: string;
 	}
-
-	const logic = new ServerListLogic();
-	let state = $state<ServerListState>(logic.getState());
-
-	logic.onStateUpdate((newState) => {
-		state = newState;
-	});
 
 	onMount(async () => {
-		await logic.loadServers();
+		await Promise.all([
+			serversStore.initialized ? null : serversStore.load(),
+			appsStore.initialized ? null : appsStore.load()
+		]);
 	});
 
-	onDestroy(async () => {
-		await logic.cleanup();
-	});
+	// Modal local state
+	let showCreateForm = $state(false);
+	let creating = $state(false);
+	let successMessage = $state<string | null>(null);
 
-	async function handleCreateServer(serverData: ServerFormData): Promise<void> {
-		logic.updateNewServer('name', serverData.name);
-		logic.updateNewServer('host', serverData.host);
-		logic.updateNewServer('port', serverData.port);
-		logic.updateNewServer('root_username', serverData.root_username);
-		logic.updateNewServer('app_username', serverData.app_username);
+	let showDeleteModal = $state(false);
+	let serverToDelete = $state<Server | null>(null);
+	let deleting = $state(false);
 
-		await logic.createServer();
+	let showTroubleshootModal = $state(false);
+	let troubleshootServerId = $state<string | null>(null);
+	let troubleshootResults = $state<ValidationResponse | null>(null);
+
+	let showTerminalModal = $state(false);
+	let terminalServerId = $state<string | null>(null);
+
+	let error = $state<string | null>(null);
+
+	// Per-server helpers
+	function isSetupInProgress(id: string) {
+		return !!serversStore.setupInProgress[id];
 	}
+	function isSecurityInProgress(id: string) {
+		return !!serversStore.securityInProgress[id];
+	}
+	function isTroubleshootInProgress(id: string) {
+		return !!serversStore.troubleshootInProgress[id];
+	}
+	function canSetup(server: Server) {
+		return !server.setup_complete && !isSetupInProgress(server.id);
+	}
+	function canSecure(server: Server) {
+		return server.setup_complete && !server.security_locked && !isSecurityInProgress(server.id);
+	}
+
+	async function handleCreateServer(serverData: ServerFormData) {
+		creating = true;
+		error = null;
+		successMessage = null;
+		try {
+			const server = await serversStore.create({
+				name: serverData.name,
+				host: serverData.host,
+				port: serverData.port,
+				root_username: serverData.root_username,
+				app_username: serverData.app_username,
+				use_ssh_agent: true,
+				manual_key_path: '',
+				proxy_email: serverData.proxy_email || undefined
+			});
+			showCreateForm = false;
+			successMessage = `Server "${server.name}" created successfully!`;
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to create server';
+		} finally {
+			creating = false;
+		}
+	}
+
+	function openDeleteModal(server: Server) {
+		serverToDelete = server;
+		showDeleteModal = true;
+	}
+
+	function closeDeleteModal() {
+		showDeleteModal = false;
+		setTimeout(() => {
+			serverToDelete = null;
+		}, 200);
+	}
+
+	async function confirmDelete(id: string) {
+		deleting = true;
+		const name = serverToDelete?.name || 'Server';
+		try {
+			await serversStore.remove(id);
+			showDeleteModal = false;
+			serverToDelete = null;
+			successMessage = `${name} deleted successfully!`;
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to delete server';
+		} finally {
+			deleting = false;
+		}
+	}
+
+	async function handleSetup(serverId: string) {
+		error = null;
+		successMessage = null;
+		try {
+			await serversStore.setup(serverId);
+			successMessage = 'Server setup completed successfully!';
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Server setup failed';
+		}
+	}
+
+	async function handleSecure(serverId: string) {
+		error = null;
+		successMessage = null;
+		try {
+			await serversStore.secure(serverId);
+			successMessage = 'Server security hardening completed!';
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Security hardening failed';
+		}
+	}
+
+	async function handleTroubleshoot(serverId: string) {
+		error = null;
+		troubleshootServerId = serverId;
+		showTroubleshootModal = true;
+		try {
+			const results = await serversStore.troubleshoot(serverId);
+			troubleshootResults = results;
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Troubleshoot failed';
+		}
+	}
+
+	function closeTroubleshootModal() {
+		showTroubleshootModal = false;
+		setTimeout(() => {
+			troubleshootResults = null;
+			troubleshootServerId = null;
+		}, 200);
+	}
+
+	function openTerminal(serverId: string) {
+		terminalServerId = serverId;
+		showTerminalModal = true;
+	}
+
+	function closeTerminal() {
+		showTerminalModal = false;
+		terminalServerId = null;
+	}
+
+	// Related apps for delete modal
+	let relatedApps = $derived(
+		serverToDelete ? appsStore.byServer(serverToDelete.id).map((a) => ({ id: a.id, name: a.name })) : []
+	);
 </script>
 
 <header class="mb-8 flex items-center justify-between">
@@ -52,59 +181,31 @@
 	</div>
 	<Button
 		variant="outline"
-		onclick={() => logic.toggleCreateForm()}
-		disabled={state.creating ||
-			state.deleting ||
-			state.servers.some(
-				(s) => logic.isServerSetupInProgress(s.id) || logic.isServerSecurityInProgress(s.id)
-			)}
+		onclick={() => (showCreateForm = true)}
+		disabled={creating || deleting}
 	>
 		{#snippet iconSnippet()}
-			<Icon name={state.showCreateForm ? 'close' : 'plus'} />
+			<Icon name="plus" />
 		{/snippet}
-		{state.showCreateForm ? 'Cancel' : 'Add Server'}
+		Add Server
 	</Button>
 </header>
 
-{#if state.error}
-	<Toast message={state.error} type="error" onDismiss={() => logic.dismissError()} />
+{#if error}
+	<Toast message={error} type="error" onDismiss={() => (error = null)} />
 {/if}
 
-{#if state.setupError}
-	<Toast message={state.setupError} type="error" onDismiss={() => logic.dismissSetupError()} />
+{#if serversStore.error}
+	<Toast message={serversStore.error} type="error" onDismiss={() => serversStore.clearError()} />
 {/if}
 
-{#if state.securityError}
-	<Toast
-		message={state.securityError}
-		type="error"
-		onDismiss={() => logic.dismissSecurityError()}
-	/>
+{#if successMessage}
+	<Toast message={successMessage} type="success" onDismiss={() => (successMessage = null)} />
 {/if}
 
-{#if state.validationError}
-	<Toast
-		message={state.validationError}
-		type="error"
-		onDismiss={() => logic.dismissValidationError()}
-	/>
-{/if}
-
-{#if state.troubleshootError}
-	<Toast
-		message={state.troubleshootError}
-		type="error"
-		onDismiss={() => logic.dismissTroubleshootError()}
-	/>
-{/if}
-
-{#if state.successMessage}
-	<Toast message={state.successMessage} type="success" onDismiss={() => logic.dismissSuccess()} />
-{/if}
-
-{#if state.loading}
+{#if serversStore.loading}
 	<LoadingSpinner text="Loading servers..." />
-{:else if state.servers.length === 0}
+{:else if serversStore.servers.length === 0}
 	<EmptyState
 		title="No servers configured yet"
 		description="Add your first server to start deploying applications"
@@ -144,18 +245,16 @@
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-800 dark:bg-gray-950">
-					{#each state.servers as server (server.id)}
-						{@const statusBadge = logic.getServerStatusBadge(server)}
+					{#each serversStore.servers as server (server.id)}
+						{@const statusBadge = getServerStatusBadge(server)}
 						<tr class="hover:bg-gray-50 dark:hover:bg-gray-900">
 							<td class="px-6 py-4 whitespace-nowrap">
-								<div class="flex items-center">
-									<div>
-										<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
-											{server.name}
-										</div>
-										<div class="text-sm text-gray-500 dark:text-gray-400">
-											{server.host}:{server.port}
-										</div>
+								<div>
+									<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
+										{server.name}
+									</div>
+									<div class="text-sm text-gray-500 dark:text-gray-400">
+										{server.host}:{server.port}
 									</div>
 								</div>
 							</td>
@@ -166,78 +265,70 @@
 								<div>Root: {server.root_username}</div>
 								<div>App: {server.app_username}</div>
 								<div class="text-xs text-blue-600 dark:text-blue-400">SSH Agent</div>
+								{#if server.proxy_email}
+									<div class="text-xs text-gray-400 dark:text-gray-500">
+										ACME: {server.proxy_email}
+									</div>
+								{/if}
 							</td>
 							<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
 								{formatTimestamp(server.created)}
 							</td>
 							<td class="space-x-2 px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
-								<!-- Setup Button (only if not setup) -->
-								{#if logic.canSetupServer(server) || logic.isServerSetupInProgress(server.id)}
+								{#if canSetup(server) || isSetupInProgress(server.id)}
 									<Button
 										variant="outline"
 										color="green"
 										size="sm"
-										disabled={logic.isServerSetupInProgress(server.id)}
-										onclick={() => logic.setupServer(server.id)}
+										disabled={isSetupInProgress(server.id)}
+										onclick={() => handleSetup(server.id)}
 									>
 										{#snippet iconSnippet()}
-											<Icon name={logic.isServerSetupInProgress(server.id) ? 'loading' : 'setup'} />
+											<Icon name={isSetupInProgress(server.id) ? 'loading' : 'setup'} />
 										{/snippet}
-										{logic.isServerSetupInProgress(server.id) ? 'Working' : 'Setup'}
+										{isSetupInProgress(server.id) ? 'Working' : 'Setup'}
 									</Button>
 								{/if}
 
-								<!-- Security Button (only if setup but not secured) -->
-								{#if logic.canSecureServer(server) || logic.isServerSecurityInProgress(server.id)}
+								{#if canSecure(server) || isSecurityInProgress(server.id)}
 									<Button
 										variant="outline"
 										color="yellow"
 										size="sm"
-										disabled={logic.isServerSecurityInProgress(server.id)}
-										onclick={() => logic.secureServer(server.id)}
+										disabled={isSecurityInProgress(server.id)}
+										onclick={() => handleSecure(server.id)}
 									>
 										{#snippet iconSnippet()}
-											<Icon
-												name={logic.isServerSecurityInProgress(server.id) ? 'loading' : 'shield'}
-											/>
+											<Icon name={isSecurityInProgress(server.id) ? 'loading' : 'shield'} />
 										{/snippet}
-										{logic.isServerSecurityInProgress(server.id) ? 'Working' : 'Secure'}
+										{isSecurityInProgress(server.id) ? 'Working' : 'Secure'}
 									</Button>
 								{/if}
 
-								<!-- Troubleshoot Button (only if setup is complete) -->
-								{#if !logic.canSetupServer(server)}
+								{#if !canSetup(server)}
 									<Button
 										variant="ghost"
 										color="blue"
 										size="sm"
-										disabled={state.creating ||
-											state.deleting ||
-											logic.isServerSetupInProgress(server.id) ||
-											logic.isServerSecurityInProgress(server.id) ||
-											logic.isTroubleshootInProgress(server.id)}
-										onclick={() => logic.troubleshootServer(server.id)}
+										disabled={isSetupInProgress(server.id) ||
+											isSecurityInProgress(server.id) ||
+											isTroubleshootInProgress(server.id)}
+										onclick={() => handleTroubleshoot(server.id)}
 									>
 										{#snippet iconSnippet()}
 											<Icon
-												name={logic.isTroubleshootInProgress(server.id) ? 'loading' : 'diagnostic'}
+												name={isTroubleshootInProgress(server.id) ? 'loading' : 'diagnostic'}
 											/>
 										{/snippet}
-										{logic.isTroubleshootInProgress(server.id) ? 'Checking' : 'Troubleshoot'}
+										{isTroubleshootInProgress(server.id) ? 'Checking' : 'Troubleshoot'}
 									</Button>
-								{/if}
 
-								<!-- Terminal Button (only if setup is complete) -->
-								{#if !logic.canSetupServer(server)}
 									<Button
 										variant="ghost"
 										color="blue"
 										size="sm"
-										disabled={state.creating ||
-											state.deleting ||
-											logic.isServerSetupInProgress(server.id) ||
-											logic.isServerSecurityInProgress(server.id)}
-										onclick={() => logic.openTerminal(server.id)}
+										disabled={isSetupInProgress(server.id) || isSecurityInProgress(server.id)}
+										onclick={() => openTerminal(server.id)}
 									>
 										{#snippet iconSnippet()}
 											<Icon name="terminal" />
@@ -246,16 +337,15 @@
 									</Button>
 								{/if}
 
-								<!-- Delete Button -->
 								<Button
 									variant="ghost"
 									color="red"
 									size="sm"
-									disabled={state.deleting ||
-										state.creating ||
-										logic.isServerSetupInProgress(server.id) ||
-										logic.isServerSecurityInProgress(server.id)}
-									onclick={() => logic.deleteServer(server.id)}
+									disabled={deleting ||
+										creating ||
+										isSetupInProgress(server.id) ||
+										isSecurityInProgress(server.id)}
+									onclick={() => openDeleteModal(server)}
 								>
 									{#snippet iconSnippet()}
 										<Icon name="delete" />
@@ -272,17 +362,13 @@
 
 	<div class="mt-6 flex items-center justify-between">
 		<p class="text-sm text-gray-600 dark:text-gray-400">
-			Showing {state.servers.length} server{state.servers.length !== 1 ? 's' : ''}
+			Showing {serversStore.servers.length} server{serversStore.servers.length !== 1 ? 's' : ''}
 		</p>
 		<Button
 			variant="outline"
 			size="sm"
-			onclick={() => logic.loadServers()}
-			disabled={state.creating ||
-				state.deleting ||
-				state.servers.some(
-					(s) => logic.isServerSetupInProgress(s.id) || logic.isServerSecurityInProgress(s.id)
-				)}
+			onclick={() => serversStore.load()}
+			disabled={creating || deleting}
 		>
 			{#snippet iconSnippet()}
 				<Icon name="refresh" />
@@ -294,43 +380,41 @@
 
 <!-- Server Create Modal -->
 <ServerCreateModal
-	open={state.showCreateForm}
-	creating={state.creating}
-	onclose={() => logic.toggleCreateForm()}
+	open={showCreateForm}
+	{creating}
+	onclose={() => (showCreateForm = false)}
 	oncreate={handleCreateServer}
 />
 
 <!-- Delete Server Modal -->
 <DeleteModal
-	open={state.showDeleteModal}
-	item={state.serverToDelete}
+	open={showDeleteModal}
+	item={serverToDelete}
 	itemType="server"
-	loading={state.deleting}
-	relatedItems={state.apps}
+	loading={deleting}
+	relatedItems={relatedApps}
 	relatedItemsType="apps"
-	onclose={() => logic.closeDeleteModal()}
-	onconfirm={(id) => logic.confirmDeleteServer(id)}
+	onclose={closeDeleteModal}
+	onconfirm={(id) => confirmDelete(id)}
 />
 
 <!-- Troubleshoot Modal -->
 <TroubleshootModal
-	open={state.showTroubleshootModal}
-	server={state.troubleshootServerId
-		? state.servers.find((s) => s.id === state.troubleshootServerId) || null
+	open={showTroubleshootModal}
+	server={troubleshootServerId
+		? serversStore.servers.find((s) => s.id === troubleshootServerId) || null
 		: null}
-	results={state.troubleshootResults}
-	setupInProgress={state.troubleshootServerId
-		? logic.isServerSetupInProgress(state.troubleshootServerId)
-		: false}
-	onclose={() => logic.closeTroubleshootModal()}
-	onsetup={(serverId) => logic.setupServer(serverId)}
+	results={troubleshootResults}
+	setupInProgress={troubleshootServerId ? isSetupInProgress(troubleshootServerId) : false}
+	onclose={closeTroubleshootModal}
+	onsetup={(serverId) => handleSetup(serverId)}
 />
 
 <!-- Terminal Modal -->
 <TerminalModal
-	open={state.showTerminalModal}
-	server={state.terminalServerId
-		? state.servers.find((s) => s.id === state.terminalServerId) || null
+	open={showTerminalModal}
+	server={terminalServerId
+		? serversStore.servers.find((s) => s.id === terminalServerId) || null
 		: null}
-	onclose={() => logic.closeTerminal()}
+	onclose={closeTerminal}
 />

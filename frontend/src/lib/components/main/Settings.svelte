@@ -1,30 +1,34 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import {
-		settingsService,
-		type SettingsData,
-		updateLockscreenSettings,
-		updateUISettings
-	} from './Settings.js';
+	import { settings as settingsStore, type SettingsData } from '$lib/stores/settings.svelte.js';
 	import { LoadingSpinner, Toast, SettingsForm } from '$lib/components/partials';
 
-	let settings: SettingsData | null = $state(null);
+	let settingsData: SettingsData | null = $state(null);
 	let loading = $state(true);
 	let saving = $state(false);
 	let error = $state('');
 	let successMessage = $state('');
 
-	onMount(async () => {
-		await loadSettings();
+	onMount(() => {
+		loadSettings();
 	});
 
-	async function loadSettings() {
+	function loadSettings() {
 		try {
 			loading = true;
 			error = '';
-
-			const data = await settingsService.getSettings();
-			settings = data;
+			settingsStore.initialize();
+			settingsData = {
+				security: {
+					lockscreenEnabled: settingsStore.lockscreen.isEnabled,
+					autoLockEnabled: settingsStore.lockscreen.autoLockEnabled,
+					autoLockMinutes: settingsStore.lockscreen.autoLockMinutes
+				},
+				ui: {
+					animationsEnabled: settingsStore.ui.animationsEnabled,
+					mouseEffectsEnabled: settingsStore.ui.mouseEffectsEnabled
+				}
+			};
 		} catch (err) {
 			error = 'Failed to load settings. Please try again.';
 			console.error('Error loading settings:', err);
@@ -33,7 +37,7 @@
 		}
 	}
 
-	async function saveSettings(data: {
+	function saveSettings(data: {
 		lockscreenEnabled: boolean;
 		autoLockEnabled: boolean;
 		autoLockMinutes: number;
@@ -53,7 +57,7 @@
 				mouseEffectsEnabled
 			} = data;
 
-			const updatedSettings: Partial<SettingsData> = {
+			const updatedSettings: SettingsData = {
 				security: {
 					lockscreenEnabled,
 					autoLockEnabled,
@@ -65,15 +69,19 @@
 				}
 			};
 
-			settings = await settingsService.updateSettings(updatedSettings);
-
-			updateLockscreenSettings({
-				lockscreenEnabled,
-				autoLockEnabled,
-				autoLockMinutes
-			});
-
-			updateUISettings(settings);
+			settingsStore.updateLockscreen(updatedSettings.security);
+			settingsStore.updateUI(updatedSettings.ui);
+			settingsData = {
+				security: {
+					lockscreenEnabled: settingsStore.lockscreen.isEnabled,
+					autoLockEnabled: settingsStore.lockscreen.autoLockEnabled,
+					autoLockMinutes: settingsStore.lockscreen.autoLockMinutes
+				},
+				ui: {
+					animationsEnabled: settingsStore.ui.animationsEnabled,
+					mouseEffectsEnabled: settingsStore.ui.mouseEffectsEnabled
+				}
+			};
 
 			successMessage = 'Settings saved successfully!';
 		} catch (err) {
@@ -105,11 +113,11 @@
 	<div class="flex justify-center py-12">
 		<LoadingSpinner text="Loading settings..." size="lg" />
 	</div>
-{:else if error && !settings}
+{:else if error && !settingsData}
 	<Toast message={error} onDismiss={clearError} />
 {:else}
 	<SettingsForm
-		{settings}
+		settings={settingsData}
 		{loading}
 		{saving}
 		{error}

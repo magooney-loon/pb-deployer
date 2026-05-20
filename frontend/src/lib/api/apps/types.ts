@@ -7,8 +7,9 @@ export interface App {
 	remote_path: string;
 	service_name: string;
 	domain: string;
+	http_port: number;
 	current_version: string;
-	status: string;
+	status: 'online' | 'offline' | 'unknown' | 'needs_migration';
 	latest_version?: string | undefined;
 	deployed_version?: string | null;
 	has_pending_deployment?: boolean;
@@ -17,9 +18,8 @@ export interface App {
 export interface AppRequest {
 	name: string;
 	server_id: string;
-	remote_path: string;
-	service_name: string;
 	domain: string;
+	http_port?: number;
 }
 
 export interface AppResponse extends App {

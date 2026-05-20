@@ -1,28 +1,219 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import { DeploymentsListLogic, type DeploymentsListState } from './DeploymentsList.js';
+	import { onMount } from 'svelte';
+	import { deploymentsStore, appsStore, versionsStore } from '$lib/stores';
 	import LogsModal from '$lib/components/modals/LogsModal.svelte';
 	import DeploymentCreateModal from '$lib/components/modals/DeploymentCreateModal.svelte';
 	import DeploymentModal from '$lib/components/modals/DeploymentModal.svelte';
 	import DeleteModal from '$lib/components/modals/DeleteModal.svelte';
 	import { Button, Toast, EmptyState, LoadingSpinner, StatusBadge } from '$lib/components/partials';
 	import Icon from '$lib/components/icons/Icon.svelte';
-
-	const logic = new DeploymentsListLogic();
-	let state = $state<DeploymentsListState>(logic.getState());
-
-	logic.onStateUpdate((newState) => {
-		state = newState;
-	});
+	import { getDeploymentStatusBadge, formatTimestamp } from '$lib/components/partials/index.js';
+	import type { Deployment } from '$lib/api/index.js';
 
 	onMount(async () => {
-		await logic.initialize();
+		await Promise.all([
+			deploymentsStore.initialized ? null : deploymentsStore.load(),
+			appsStore.initialized ? null : appsStore.load(),
+			versionsStore.initialized ? null : versionsStore.load()
+		]);
 	});
 
-	onDestroy(() => {
-		// Clean up logs polling when component is destroyed
-		logic.stopLogsPolling();
+	// Modal local state
+	let showCreateModal = $state(false);
+	let showDeleteModal = $state(false);
+	let deploymentToDelete = $state<{ id: string; name: string } | null>(null);
+	let deleting = $state(false);
+
+	let showDeployModal = $state(false);
+	let deploymentToDeploy = $state<Deployment | null>(null);
+	let deploying = $state(false);
+
+	let showLogsModal = $state(false);
+	let deploymentToShowLogs = $state<Deployment | null>(null);
+	let autoOpenedLogsModal = $state(false);
+
+	let error = $state<string | null>(null);
+
+	// Keep logs modal in sync with realtime updates
+	$effect(() => {
+		if (deploymentToShowLogs) {
+			const fresh = deploymentsStore.byId(deploymentToShowLogs.id);
+			if (fresh) deploymentToShowLogs = fresh;
+		}
 	});
+
+	let pendingDeployments = $derived(
+		deploymentsStore.deployments.filter((d) => ['pending', 'running'].includes(d.status))
+	);
+	let runningDeployments = $derived(
+		deploymentsStore.deployments.filter((d) => d.status === 'running')
+	);
+
+	function getAppName(deployment: Deployment) {
+		return deployment.expand?.app_id?.name || 'Unknown App';
+	}
+
+	function getAppDomain(deployment: Deployment) {
+		return deployment.expand?.app_id?.domain || '';
+	}
+
+	function getVersionNumber(deployment: Deployment) {
+		return deployment.expand?.version_id?.version_number || 'N/A';
+	}
+
+	function getVersionNotes(deployment: Deployment) {
+		return deployment.expand?.version_id?.notes || '';
+	}
+
+	function formatDuration(startedAt?: string, completedAt?: string): string | null {
+		if (!startedAt || !completedAt) return null;
+		const diff = new Date(completedAt).getTime() - new Date(startedAt).getTime();
+		if (diff < 1000) return '< 1s';
+		const seconds = Math.floor(diff / 1000);
+		const minutes = Math.floor(seconds / 60);
+		const hours = Math.floor(minutes / 60);
+		if (hours > 0) return `${hours}h ${minutes % 60}m`;
+		if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+		return `${seconds}s`;
+	}
+
+	function getRunningDuration(deployment: Deployment): string | null {
+		if (!deployment.started_at || deployment.status !== 'running') return null;
+		const diff = Date.now() - new Date(deployment.started_at).getTime();
+		const seconds = Math.floor(diff / 1000);
+		const minutes = Math.floor(seconds / 60);
+		const hours = Math.floor(minutes / 60);
+		if (hours > 0) return `${hours}h ${minutes % 60}m`;
+		if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+		return `${seconds}s`;
+	}
+
+	function getDeploymentDisplayName(deployment: Deployment) {
+		return `${getAppName(deployment)} - v${getVersionNumber(deployment)}`;
+	}
+
+	function isLogsModalClosable() {
+		if (!autoOpenedLogsModal || !deploymentToShowLogs) return true;
+		return !(
+			['pending', 'running'].includes(deploymentToShowLogs.status) ||
+			deploymentsStore.isDeploying(deploymentToShowLogs.id)
+		);
+	}
+
+	function openLogsModal(deployment: Deployment) {
+		deploymentToShowLogs = deployment;
+		autoOpenedLogsModal = false;
+		showLogsModal = true;
+	}
+
+	function closeLogsModal() {
+		if (!isLogsModalClosable()) return;
+		showLogsModal = false;
+		autoOpenedLogsModal = false;
+		setTimeout(() => {
+			deploymentToShowLogs = null;
+		}, 300);
+	}
+
+	function openCreateModal() {
+		showCreateModal = true;
+	}
+
+	function closeCreateModal() {
+		showCreateModal = false;
+	}
+
+	async function createDeployment(data: { app_id: string; version_id: string }) {
+		try {
+			await deploymentsStore.create(data);
+			showCreateModal = false;
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to create deployment';
+		}
+	}
+
+	function openDeleteModal(deployment: Deployment) {
+		deploymentToDelete = { id: deployment.id, name: getDeploymentDisplayName(deployment) };
+		showDeleteModal = true;
+	}
+
+	function closeDeleteModal() {
+		showDeleteModal = false;
+		setTimeout(() => {
+			deploymentToDelete = null;
+		}, 300);
+	}
+
+	async function confirmDelete(id: string) {
+		deleting = true;
+		try {
+			await deploymentsStore.remove(id);
+			showDeleteModal = false;
+			deploymentToDelete = null;
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to delete deployment';
+		} finally {
+			deleting = false;
+		}
+	}
+
+	function openDeployModal(deployment: Deployment) {
+		deploymentToDeploy = deployment;
+		showDeployModal = true;
+	}
+
+	function closeDeployModal() {
+		showDeployModal = false;
+		setTimeout(() => {
+			deploymentToDeploy = null;
+		}, 300);
+	}
+
+	async function deployFromModal(
+		deploymentId: string,
+		isInitialDeploy: boolean,
+		superuserEmail?: string,
+		superuserPass?: string
+	) {
+		deploying = true;
+		error = null;
+		try {
+			const deployment = deploymentsStore.byId(deploymentId);
+			await deploymentsStore.deploy(deploymentId, isInitialDeploy, superuserEmail, superuserPass);
+
+			if (deployment) {
+				deploymentToShowLogs = deployment;
+				autoOpenedLogsModal = true;
+				showLogsModal = true;
+				showDeployModal = false;
+				deploymentToDeploy = null;
+			}
+			await deploymentsStore.load();
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to start deployment';
+		} finally {
+			deploying = false;
+		}
+	}
+
+	function hasPendingDeployment(appId: string, versionId: string): boolean {
+		return deploymentsStore.deployments.some(
+			(d) =>
+				d.app_id === appId &&
+				d.version_id === versionId &&
+				['pending', 'running'].includes(d.status)
+		);
+	}
+
+	function getVersionsWithPendingStatus(appId: string) {
+		return versionsStore.byApp(appId).map((v) => {
+			const pending = deploymentsStore.deployments.find(
+				(d) =>
+					d.app_id === appId && d.version_id === v.id && ['pending', 'running'].includes(d.status)
+			);
+			return { ...v, hasPending: !!pending, pendingDeployment: pending };
+		});
+	}
 </script>
 
 <header class="mb-8 flex items-center justify-between">
@@ -34,8 +225,8 @@
 	</div>
 	<Button
 		variant="outline"
-		onclick={() => logic.openCreateModal()}
-		disabled={state.loading || state.creating || state.deleting || state.deploying}
+		onclick={openCreateModal}
+		disabled={deploymentsStore.loading || deploying || deleting}
 	>
 		{#snippet iconSnippet()}
 			<Icon name="rocket" />
@@ -44,12 +235,7 @@
 	</Button>
 </header>
 
-<!-- Pending Deployments Summary -->
-{#if !state.loading && state.deployments.some((d) => ['pending', 'running'].includes(d.status))}
-	{@const pendingDeployments = state.deployments.filter((d) =>
-		['pending', 'running'].includes(d.status)
-	)}
-	{@const runningDeployments = state.deployments.filter((d) => d.status === 'running')}
+{#if !deploymentsStore.loading && pendingDeployments.length > 0}
 	<div
 		class="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20"
 	>
@@ -70,9 +256,9 @@
 				{#each pendingDeployments.slice(0, 3) as deployment (deployment.id)}
 					<div class="flex items-center justify-between text-xs">
 						<span class="text-amber-800 dark:text-amber-200">
-							{logic.getAppName(deployment)} v{logic.getVersionNumber(deployment)}
+							{getAppName(deployment)} v{getVersionNumber(deployment)}
 						</span>
-						<span class="text-amber-600 capitalize dark:text-amber-400">
+						<span class="capitalize text-amber-600 dark:text-amber-400">
 							{deployment.status}
 						</span>
 					</div>
@@ -87,13 +273,21 @@
 	</div>
 {/if}
 
-{#if state.error}
-	<Toast message={state.error} type="error" onDismiss={() => logic.dismissError()} />
+{#if error}
+	<Toast message={error} type="error" onDismiss={() => (error = null)} />
 {/if}
 
-{#if state.loading}
+{#if deploymentsStore.error}
+	<Toast
+		message={deploymentsStore.error}
+		type="error"
+		onDismiss={() => deploymentsStore.clearError()}
+	/>
+{/if}
+
+{#if deploymentsStore.loading}
 	<LoadingSpinner text="Loading deployments..." />
-{:else if state.deployments.length === 0}
+{:else if deploymentsStore.deployments.length === 0}
 	<EmptyState
 		title="No deployments found"
 		description="Create your first deployment to see deployment history here"
@@ -137,34 +331,32 @@
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-800 dark:bg-gray-950">
-					{#each state.deployments as deployment (deployment.id)}
-						{@const statusBadge = logic.getDeploymentStatusBadge(deployment)}
-						{@const appName = logic.getAppName(deployment)}
-						{@const appDomain = logic.getAppDomain(deployment)}
-						{@const versionNumber = logic.getVersionNumber(deployment)}
-						{@const versionNotes = logic.getVersionNotes(deployment)}
-						{@const duration = logic.formatDuration(deployment.started_at, deployment.completed_at)}
-						{@const runningDuration = logic.getRunningDuration(deployment)}
+					{#each deploymentsStore.deployments as deployment (deployment.id)}
+						{@const statusBadge = getDeploymentStatusBadge(deployment)}
+						{@const appName = getAppName(deployment)}
+						{@const appDomain = getAppDomain(deployment)}
+						{@const versionNumber = getVersionNumber(deployment)}
+						{@const versionNotes = getVersionNotes(deployment)}
+						{@const duration = formatDuration(deployment.started_at, deployment.completed_at)}
+						{@const runningDuration = getRunningDuration(deployment)}
 						<tr class="hover:bg-gray-50 dark:hover:bg-gray-900">
 							<td class="px-6 py-4 whitespace-nowrap">
-								<div class="flex items-center">
-									<div>
-										<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
-											{appName}
-										</div>
-										{#if appDomain}
-											<div class="text-sm text-gray-500 dark:text-gray-400">
-												<a
-													href="https://{appDomain}"
-													target="_blank"
-													class="inline-flex items-center space-x-1 text-gray-600 underline-offset-4 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-100"
-												>
-													<span>{appDomain}</span>
-													<Icon name="link" size="h-3 w-3" />
-												</a>
-											</div>
-										{/if}
+								<div>
+									<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
+										{appName}
 									</div>
+									{#if appDomain}
+										<div class="text-sm text-gray-500 dark:text-gray-400">
+											<a
+												href="https://{appDomain}"
+												target="_blank"
+												class="inline-flex items-center space-x-1 text-gray-600 underline-offset-4 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-100"
+											>
+												<span>{appDomain}</span>
+												<Icon name="link" size="h-3 w-3" />
+											</a>
+										</div>
+									{/if}
 								</div>
 							</td>
 							<td class="px-6 py-4 whitespace-nowrap">
@@ -181,7 +373,7 @@
 								<StatusBadge status={statusBadge.text} variant={statusBadge.variant} dot />
 							</td>
 							<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
-								{#if logic.isDeploymentRunning(deployment) && runningDuration}
+								{#if deployment.status === 'running' && runningDuration}
 									<span class="text-blue-600 dark:text-blue-400">{runningDuration}</span>
 								{:else if duration}
 									<span>{duration}</span>
@@ -191,46 +383,37 @@
 							</td>
 							<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
 								<div class="flex flex-col">
-									<span
-										>{deployment.started_at
-											? logic.formatTimestamp(deployment.started_at)
-											: 'Not started'}</span
-									>
+									<span>
+										{deployment.started_at ? formatTimestamp(deployment.started_at) : 'Not started'}
+									</span>
 									{#if deployment.completed_at}
 										<span class="text-xs text-gray-400 dark:text-gray-500">
-											Completed {logic.formatTimestamp(deployment.completed_at)}
+											Completed {formatTimestamp(deployment.completed_at)}
 										</span>
 									{/if}
 								</div>
 							</td>
 							<td class="space-x-1 px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
-								{#if logic.isPendingDeployment(deployment)}
+								{#if deployment.status === 'pending'}
 									<Button
 										variant="ghost"
 										color="blue"
 										size="sm"
-										loading={logic.isDeploymentInProgress(deployment.id)}
-										disabled={state.deleting ||
-											state.creating ||
-											state.deploying ||
-											logic.isDeploymentInProgress(deployment.id)}
-										onclick={() => logic.openDeployModal(deployment)}
+										disabled={deleting || deploymentsStore.isDeploying(deployment.id)}
+										onclick={() => openDeployModal(deployment)}
 									>
 										{#snippet iconSnippet()}
 											<Icon name="rocket" />
 										{/snippet}
-										{logic.isDeploymentInProgress(deployment.id) ? 'Deploying...' : 'Deploy'}
+										{deploymentsStore.isDeploying(deployment.id) ? 'Deploying...' : 'Deploy'}
 									</Button>
 
 									<Button
 										variant="ghost"
 										color="red"
 										size="sm"
-										disabled={state.deleting ||
-											state.creating ||
-											state.deploying ||
-											logic.isDeploymentInProgress(deployment.id)}
-										onclick={() => logic.deleteDeployment(deployment)}
+										disabled={deleting || deploymentsStore.isDeploying(deployment.id)}
+										onclick={() => openDeleteModal(deployment)}
 									>
 										{#snippet iconSnippet()}
 											<Icon name="delete" />
@@ -243,7 +426,7 @@
 									variant="ghost"
 									color="blue"
 									size="sm"
-									onclick={() => logic.openLogsModal(deployment)}
+									onclick={() => openLogsModal(deployment)}
 									disabled={!deployment.logs}
 								>
 									{#snippet iconSnippet()}
@@ -261,13 +444,13 @@
 
 	<div class="mt-6 flex items-center justify-between">
 		<p class="text-sm text-gray-600 dark:text-gray-400">
-			Showing {state.deployments.length} deployment{state.deployments.length !== 1 ? 's' : ''}
+			Showing {deploymentsStore.deployments.length} deployment{deploymentsStore.deployments.length !== 1 ? 's' : ''}
 		</p>
 		<Button
 			variant="outline"
 			size="sm"
-			onclick={() => logic.loadDeployments()}
-			disabled={state.loading || state.creating || state.deleting || state.deploying}
+			onclick={() => deploymentsStore.load()}
+			disabled={deploymentsStore.loading || deploying || deleting}
 		>
 			{#snippet iconSnippet()}
 				<Icon name="refresh" />
@@ -279,45 +462,48 @@
 
 <!-- Delete Deployment Modal -->
 <DeleteModal
-	open={state.showDeleteModal}
-	item={state.deploymentToDelete}
+	open={showDeleteModal}
+	item={deploymentToDelete}
 	itemType="deployment"
-	loading={state.deleting}
-	onclose={() => logic.closeDeleteModal()}
-	onconfirm={(id) => logic.confirmDeleteDeployment(id)}
+	loading={deleting}
+	onclose={closeDeleteModal}
+	onconfirm={(id) => confirmDelete(id)}
 />
 
 <!-- Deployment Create Modal -->
 <DeploymentCreateModal
-	open={state.showCreateModal}
-	apps={state.apps}
-	versions={state.versions}
-	creating={state.creating}
-	{logic}
-	onclose={() => logic.closeCreateModal()}
-	oncreate={(data) => logic.createDeployment(data)}
+	open={showCreateModal}
+	apps={appsStore.apps}
+	versions={versionsStore.versions}
+	creating={false}
+	hasPendingDeployment={(appId, versionId) => hasPendingDeployment(appId, versionId)}
+	getVersionsWithPendingStatus={(appId) => getVersionsWithPendingStatus(appId)}
+	onclose={closeCreateModal}
+	oncreate={(data) => createDeployment(data)}
 />
 
 <!-- Deployment Modal -->
 <DeploymentModal
-	open={state.showDeployModal}
-	deployment={state.deploymentToDeploy}
-	app={state.deploymentToDeploy ? logic.getDeploymentApp(state.deploymentToDeploy) || null : null}
-	version={state.deploymentToDeploy
-		? logic.getDeploymentVersion(state.deploymentToDeploy) || null
+	open={showDeployModal}
+	deployment={deploymentToDeploy}
+	app={deploymentToDeploy
+		? appsStore.apps.find((a) => a.id === deploymentToDeploy?.app_id) || null
 		: null}
-	deployments={state.deployments}
-	deploying={state.deploying}
-	onclose={() => logic.closeDeployModal()}
+	version={deploymentToDeploy
+		? versionsStore.versions.find((v) => v.id === deploymentToDeploy?.version_id) || null
+		: null}
+	deployments={deploymentsStore.deployments}
+	{deploying}
+	onclose={closeDeployModal}
 	ondeploy={(deploymentId, isInitialDeploy, superuserEmail, superuserPass) =>
-		logic.deployFromModal(deploymentId, isInitialDeploy, superuserEmail, superuserPass)}
+		deployFromModal(deploymentId, isInitialDeploy, superuserEmail, superuserPass)}
 />
 
 <!-- Logs Modal -->
 <LogsModal
-	open={state.showLogsModal}
-	deployment={state.deploymentToShowLogs}
-	closable={logic.isLogsModalClosable()}
-	autoOpened={state.autoOpenedLogsModal}
-	onclose={() => logic.closeLogsModal()}
+	open={showLogsModal}
+	deployment={deploymentToShowLogs}
+	closable={isLogsModalClosable()}
+	autoOpened={autoOpenedLogsModal}
+	onclose={closeLogsModal}
 />

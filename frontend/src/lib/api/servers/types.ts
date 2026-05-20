@@ -11,6 +11,7 @@ export interface Server {
 	manual_key_path: string;
 	setup_complete: boolean;
 	security_locked: boolean;
+	proxy_email: string;
 }
 
 export interface ServerRequest {
@@ -21,6 +22,7 @@ export interface ServerRequest {
 	app_username: string;
 	use_ssh_agent: boolean;
 	manual_key_path: string;
+	proxy_email?: string;
 }
 
 export interface ServerResponse extends Server {

@@ -1,9 +1,6 @@
 <script lang="ts">
 	import ProgressBar from '../partials/ProgressBar.svelte';
-
-	import { splashScreenState } from './SplashScreen';
-
-	let state = $derived($splashScreenState);
+	import { splash } from '$lib/stores';
 </script>
 
 <div class="fixed inset-0 z-50">
@@ -30,7 +27,7 @@
 			<!-- Progress Bar -->
 			<div class="w-48 sm:w-64">
 				<ProgressBar
-					value={state.progress}
+					value={splash.progress}
 					max={100}
 					color="blue"
 					size="sm"

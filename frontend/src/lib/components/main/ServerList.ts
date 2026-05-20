@@ -356,6 +356,9 @@ export class ServerListLogic {
 							architecture: results.setup_info.architecture ?? 'Unknown',
 							hostname: results.setup_info.hostname ?? 'Unknown',
 							pocketbase_setup: results.setup_info.pocketbase_setup ?? false,
+							caddy_installed: results.setup_info.caddy_installed ?? false,
+							caddy_version: results.setup_info.caddy_version ?? '',
+							caddy_status: results.setup_info.caddy_status ?? 'unknown',
 							installed_apps: results.setup_info.installed_apps ?? []
 						}
 					: undefined,

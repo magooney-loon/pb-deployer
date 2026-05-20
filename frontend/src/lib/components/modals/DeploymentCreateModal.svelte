@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { App, Version } from '$lib/api/index.js';
-	import type { DeploymentsListLogic } from '$lib/components/main/DeploymentsList.js';
+	import type { Deployment } from '$lib/api/deployment/types.js';
 	import { Button } from '$lib/components/partials';
 	import Icon from '$lib/components/icons/Icon.svelte';
 	import Modal from '$lib/components/main/Modal.svelte';
@@ -10,37 +10,44 @@
 		apps: App[];
 		versions: Version[];
 		creating: boolean;
-		logic: DeploymentsListLogic;
+		hasPendingDeployment?: (appId: string, versionId: string) => boolean;
+		getVersionsWithPendingStatus?: (appId: string) => Array<Version & { hasPending: boolean; pendingDeployment?: Deployment }>;
 		onclose: () => void;
 		oncreate: (data: { app_id: string; version_id: string }) => Promise<void>;
 	}
 
-	let { open, apps, versions, creating, logic, onclose, oncreate }: Props = $props();
+	let {
+		open,
+		apps,
+		versions,
+		creating,
+		hasPendingDeployment = () => false,
+		getVersionsWithPendingStatus,
+		onclose,
+		oncreate
+	}: Props = $props();
 
 	let selectedAppId = $state('');
 	let selectedVersionId = $state('');
 
-	// Filter versions based on selected app (excluding those with pending deployments)
 	let availableVersions = $derived(
-		selectedAppId ? logic.getAvailableVersionsForApp(selectedAppId) : []
+		selectedAppId
+			? versions.filter((v) => v.app_id === selectedAppId && !hasPendingDeployment(selectedAppId, v.id))
+			: []
 	);
 
-	// Get all versions for the app (including pending ones) to show warning
 	let allVersionsForApp = $derived(
 		selectedAppId ? versions.filter((v) => v.app_id === selectedAppId) : []
 	);
 
-	// Check if any versions are filtered out due to pending deployments
 	let hasFilteredVersions = $derived(
 		selectedAppId && allVersionsForApp.length > availableVersions.length
 	);
 
-	// Get apps that have versions available
 	let availableApps = $derived(
 		apps.filter((app) => versions.some((version) => version.app_id === app.id))
 	);
 
-	// Reset form when modal closes
 	$effect(() => {
 		if (!open) {
 			selectedAppId = '';
@@ -48,21 +55,14 @@
 		}
 	});
 
-	// Reset version selection when app changes
 	$effect(() => {
-		if (selectedAppId) {
-			selectedVersionId = '';
-		}
+		if (selectedAppId) selectedVersionId = '';
 	});
 
 	async function handleSubmit() {
 		if (creating) return;
-
 		try {
-			await oncreate({
-				app_id: selectedAppId,
-				version_id: selectedVersionId
-			});
+			await oncreate({ app_id: selectedAppId, version_id: selectedVersionId });
 		} catch (error) {
 			console.error('Failed to create deployment:', error);
 		}
@@ -147,7 +147,6 @@
 			</div>
 		{/if}
 
-		<!-- Warning for no apps/versions -->
 		{#if availableApps.length === 0}
 			<div
 				class="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950"
@@ -168,8 +167,7 @@
 					<Icon name="warning" class="mr-2 text-amber-600 dark:text-amber-400" />
 					<p class="text-sm text-amber-700 dark:text-amber-300">
 						{#if hasFilteredVersions}
-							All versions for this application have pending or running deployments. Please wait for
-							them to complete.
+							All versions for this application have pending or running deployments.
 						{:else}
 							No versions available for this application. Upload a version first.
 						{/if}
@@ -196,10 +194,7 @@
 			<Button
 				variant="primary"
 				loading={creating}
-				disabled={creating ||
-					!selectedAppId ||
-					!selectedVersionId ||
-					availableVersions.length === 0}
+				disabled={creating || !selectedAppId || !selectedVersionId || availableVersions.length === 0}
 				onclick={handleSubmit}
 			>
 				{#snippet iconSnippet()}

@@ -2,7 +2,7 @@
 	import { Card, FormField, Button, Toast } from '$lib/components/partials';
 	import { slide } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
-	import type { SettingsData } from '$lib/components/main/Settings.js';
+	import type { SettingsData } from '$lib/stores/settings.svelte.js';
 
 	let {
 		settings,

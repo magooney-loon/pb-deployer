@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { mouseEffectsEnabled } from '$lib/components/main/Settings.js';
+	import { settings } from '$lib/stores';
 
 	interface Position {
 		x: number;
@@ -29,7 +29,7 @@
 	let ripples = $state<Ripple[]>([]);
 	let mounted = $state<boolean>(false);
 	let isTouchDevice = $state<boolean>(false);
-	let effectsEnabled = $state<boolean>(true);
+	let effectsEnabled = $derived(settings.ui.mouseEffectsEnabled);
 	let animationId = 0;
 
 	const TRAIL_LENGTH: number = 7;
@@ -134,8 +134,8 @@
 		}
 
 		// Trigger reactivity
-		trail = trail;
-		ripples = ripples;
+		trail = [...trail];
+		ripples = [...ripples];
 
 		animationId = requestAnimationFrame(updateTrail);
 	}
@@ -150,42 +150,6 @@
 		if (isTouchDevice) {
 			return;
 		}
-
-		// Subscribe to mouse effects setting
-		const unsubscribe = mouseEffectsEnabled.subscribe((enabled) => {
-			effectsEnabled = enabled;
-			if (!enabled) {
-				// Clear existing effects when disabled
-				trail = [];
-				ripples = [];
-				if (animationId) {
-					cancelAnimationFrame(animationId);
-					animationId = 0;
-				}
-			} else if (mounted) {
-				// Reinitialize trail when re-enabled
-				trail = [];
-				for (let i = 0; i < TRAIL_LENGTH; i++) {
-					trail.push({
-						id: Date.now() + i,
-						x: window.innerWidth / 2,
-						y: window.innerHeight / 2,
-						targetX: window.innerWidth / 2,
-						targetY: window.innerHeight / 2,
-						velocityX: 0,
-						velocityY: 0,
-						angle: (i / TRAIL_LENGTH) * Math.PI * 2,
-						orbitRadius: ORBIT_AMPLITUDE * (i / TRAIL_LENGTH)
-					});
-				}
-
-				// Restart animation loop
-				if (animationId) {
-					cancelAnimationFrame(animationId);
-				}
-				animationId = requestAnimationFrame(updateTrail);
-			}
-		});
 
 		mounted = true;
 
@@ -216,8 +180,42 @@
 			cancelAnimationFrame(animationId);
 			window.removeEventListener('mousemove', handleMousemove);
 			window.removeEventListener('mousedown', handleMousedown);
-			unsubscribe();
 		};
+	});
+
+	$effect(() => {
+		if (!mounted || isTouchDevice) return;
+
+		if (!effectsEnabled) {
+			trail = [];
+			ripples = [];
+			if (animationId) {
+				cancelAnimationFrame(animationId);
+				animationId = 0;
+			}
+			return;
+		}
+
+		if (trail.length === 0) {
+			for (let i = 0; i < TRAIL_LENGTH; i++) {
+				trail.push({
+					id: Date.now() + i,
+					x: window.innerWidth / 2,
+					y: window.innerHeight / 2,
+					targetX: window.innerWidth / 2,
+					targetY: window.innerHeight / 2,
+					velocityX: 0,
+					velocityY: 0,
+					angle: (i / TRAIL_LENGTH) * Math.PI * 2,
+					orbitRadius: ORBIT_AMPLITUDE * (i / TRAIL_LENGTH)
+				});
+			}
+			trail = [...trail];
+		}
+
+		if (!animationId) {
+			animationId = requestAnimationFrame(updateTrail);
+		}
 	});
 </script>
 

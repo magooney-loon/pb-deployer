@@ -5,6 +5,9 @@ export interface SetupInfo {
 	architecture: string;
 	hostname: string;
 	pocketbase_setup: boolean;
+	caddy_installed: boolean;
+	caddy_version: string;
+	caddy_status: 'running' | 'stopped' | 'failed' | 'unknown';
 	installed_apps: string[];
 }
 
@@ -34,6 +37,7 @@ export interface SetupRequest {
 	user: string;
 	username: string;
 	public_keys: string[];
+	proxy_email?: string;
 }
 
 export interface SecurityRequest {

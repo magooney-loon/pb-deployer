@@ -63,12 +63,22 @@ export class AppsCrudClient {
 		}
 	}
 
-	async createApp(data: AppRequest): Promise<App> {
+	async createApp(data: AppRequest): Promise<{ id: string; http_port: number }> {
 		try {
-			const app = await this.pb.collection('apps').create<App>(data);
-			return app;
+			const result = await this.pb.send('/api/apps', { method: 'POST', body: data });
+			return result as { id: string; http_port: number };
 		} catch (error) {
 			console.error('Failed to create app:', error);
+			throw error;
+		}
+	}
+
+	async migrateProxy(id: string): Promise<{ success: boolean; http_port: number }> {
+		try {
+			const result = await this.pb.send(`/api/apps/${id}/migrate-proxy`, { method: 'POST' });
+			return result as { success: boolean; http_port: number };
+		} catch (error) {
+			console.error('Failed to migrate proxy:', error);
 			throw error;
 		}
 	}
