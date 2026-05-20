@@ -32,7 +32,6 @@
 
 	let readyServers = $derived(serversStore.servers.filter((s) => s.setup_complete));
 	let onlineApps = $derived(appsStore.apps.filter((a) => a.status === 'online'));
-	let needsMigrationApps = $derived(appsStore.apps.filter((a) => a.status === 'needs_migration'));
 
 	let appsWithUpdates = $derived(
 		appsStore.apps.filter(
@@ -57,8 +56,7 @@
 	let appStatusCounts = $derived({
 		online: onlineApps.length,
 		offline: appsStore.apps.filter((a) => a.status === 'offline').length,
-		unknown: appsStore.apps.filter((a) => a.status !== 'online' && a.status !== 'offline' && a.status !== 'needs_migration').length,
-		needsMigration: needsMigrationApps.length
+		unknown: appsStore.apps.filter((a) => a.status !== 'online' && a.status !== 'offline').length,
 	});
 
 	let failedDeployments = $derived(
@@ -125,43 +123,7 @@
 				<Icon name="upload" size="h-6 w-6" />
 			{/snippet}
 		</MetricCard>
-		<MetricCard
-			title="Needs Migration"
-			value={needsMigrationApps.length}
-			color={needsMigrationApps.length > 0 ? 'yellow' : 'green'}
-		>
-			{#snippet iconSnippet()}
-				<Icon name="setup" size="h-6 w-6" />
-			{/snippet}
-		</MetricCard>
 	</div>
-
-	{#if needsMigrationApps.length > 0}
-		<div
-			class="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-900/20"
-		>
-			<div class="flex items-center justify-between">
-				<div class="flex items-center space-x-3">
-					<Icon name="warning" class="text-amber-600 dark:text-amber-400" />
-					<div>
-						<h3 class="text-sm font-semibold text-amber-900 dark:text-amber-100">
-							Apps needing proxy migration
-						</h3>
-						<p class="text-xs text-amber-800 dark:text-amber-200">
-							{needsMigrationApps.length} app{needsMigrationApps.length !== 1 ? 's' : ''} must be migrated
-							to the Caddy reverse proxy before deployment.
-						</p>
-					</div>
-				</div>
-				<a
-					href="/apps"
-					class="text-xs font-medium text-amber-800 hover:text-amber-900 dark:text-amber-200 dark:hover:text-amber-100"
-				>
-					View list →
-				</a>
-			</div>
-		</div>
-	{/if}
 
 	<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
 		<!-- Recent Servers -->
@@ -348,12 +310,6 @@
 							<span class="text-gray-600 dark:text-gray-400">Offline:</span>
 							<span class="font-semibold text-red-600 dark:text-red-400">
 								{appStatusCounts.offline}
-							</span>
-						</div>
-						<div class="flex justify-between text-sm">
-							<span class="text-gray-600 dark:text-gray-400">Needs migration:</span>
-							<span class="font-semibold text-amber-600 dark:text-amber-400">
-								{appStatusCounts.needsMigration}
 							</span>
 						</div>
 					</div>

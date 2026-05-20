@@ -4,7 +4,6 @@
 	import DeleteModal from '$lib/components/modals/DeleteModal.svelte';
 	import AppCreateModal from '$lib/components/modals/AppCreateModal.svelte';
 	import ManageAppModal from '$lib/components/modals/ManageAppModal.svelte';
-	import ProxyMigrateModal from '$lib/components/modals/ProxyMigrateModal.svelte';
 	import { Button, Toast, EmptyState, LoadingSpinner, StatusBadge } from '$lib/components/partials';
 	import Icon from '$lib/components/icons/Icon.svelte';
 	import { getAppStatusBadge, formatTimestamp, hasUpdateAvailable } from '$lib/components/partials/index.js';
@@ -36,9 +35,6 @@
 
 	let showManageModal = $state(false);
 	let appToManage = $state<App | null>(null);
-
-	let showMigrateModal = $state(false);
-	let appToMigrate = $state<App | null>(null);
 
 	let error = $state<string | null>(null);
 
@@ -96,18 +92,6 @@
 		showManageModal = false;
 		setTimeout(() => {
 			appToManage = null;
-		}, 200);
-	}
-
-	function openMigrateModal(app: App) {
-		appToMigrate = app;
-		showMigrateModal = true;
-	}
-
-	function closeMigrateModal() {
-		showMigrateModal = false;
-		setTimeout(() => {
-			appToMigrate = null;
 		}, 200);
 	}
 
@@ -273,33 +257,18 @@
 								{formatTimestamp(app.created)}
 							</td>
 							<td class="space-x-1 px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
-								{#if app.status === 'needs_migration'}
-									<Button
-										variant="outline"
-										color="yellow"
-										size="sm"
-										disabled={deleting || creating}
-										onclick={() => openMigrateModal(app)}
-									>
-										{#snippet iconSnippet()}
-											<Icon name="setup" />
-										{/snippet}
-										Migrate
-									</Button>
-								{:else}
-									<Button
-										variant="ghost"
-										color="blue"
-										size="sm"
-										disabled={deleting || creating}
-										onclick={() => openManageModal(app)}
-									>
-										{#snippet iconSnippet()}
-											<Icon name="apps" />
-										{/snippet}
-										Manage
-									</Button>
-								{/if}
+								<Button
+									variant="ghost"
+									color="blue"
+									size="sm"
+									disabled={deleting || creating}
+									onclick={() => openManageModal(app)}
+								>
+									{#snippet iconSnippet()}
+										<Icon name="apps" />
+									{/snippet}
+									Manage
+								</Button>
 
 								<Button
 									variant="ghost"
@@ -364,11 +333,4 @@
 	app={appToManage}
 	onclose={closeManageModal}
 	onrefresh={() => appsStore.load()}
-/>
-
-<!-- Proxy Migrate Modal -->
-<ProxyMigrateModal
-	open={showMigrateModal}
-	app={appToMigrate}
-	onclose={closeMigrateModal}
 />

@@ -99,7 +99,7 @@ func handleDeploy(c *core.RequestEvent) error {
 	httpPort := appRecord.GetInt("http_port")
 	if httpPort == 0 {
 		return c.JSON(http.StatusBadRequest, map[string]any{
-			"error": "App has no http_port assigned. Use POST /api/apps/{id}/migrate-proxy to migrate this app to Caddy before deploying.",
+			"error": "App has no http_port assigned. Delete and recreate the app.",
 		})
 	}
 

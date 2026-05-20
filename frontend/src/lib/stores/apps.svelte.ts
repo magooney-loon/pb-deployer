@@ -68,14 +68,6 @@ function createAppsStore() {
 		}
 	}
 
-	async function migrateProxy(id: string) {
-		const result = await api.apps.migrateProxy(id);
-		apps = apps.map((a) =>
-			a.id === id ? { ...a, http_port: result.http_port, status: 'online' as const } : a
-		);
-		return result;
-	}
-
 	function _onRealtime(action: string, record: App) {
 		if (action === 'delete') {
 			apps = apps.filter((a) => a.id !== record.id);
@@ -111,7 +103,6 @@ function createAppsStore() {
 		load,
 		create,
 		remove,
-		migrateProxy,
 		_onRealtime,
 		clearError() {
 			error = null;

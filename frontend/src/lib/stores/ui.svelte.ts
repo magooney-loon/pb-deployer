@@ -9,7 +9,6 @@ export type ModalName =
 	| 'deployment-create'
 	| 'deployment-view'
 	| 'logs-view'
-	| 'proxy-migrate'
 	| 'deploy-confirm';
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';

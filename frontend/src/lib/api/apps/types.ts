@@ -9,7 +9,7 @@ export interface App {
 	domain: string;
 	http_port: number;
 	current_version: string;
-	status: 'online' | 'offline' | 'unknown' | 'needs_migration';
+	status: 'online' | 'offline' | 'unknown';
 	latest_version?: string | undefined;
 	deployed_version?: string | null;
 	has_pending_deployment?: boolean;

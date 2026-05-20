@@ -106,7 +106,7 @@ func (a *App) CreateCollection(app core.App) error {
 
 	collection.Fields.Add(&core.SelectField{
 		Name:   "status",
-		Values: []string{"online", "offline", "unknown", "needs_migration"},
+		Values: []string{"online", "offline", "unknown"},
 	})
 
 	collection.Fields.Add(&core.AutodateField{
@@ -154,7 +154,7 @@ func syncAppsCollection(app core.App, collection *core.Collection) error {
 	}
 
 	if field, ok := collection.Fields.GetByName("status").(*core.SelectField); ok {
-		field.Values = []string{"online", "offline", "unknown", "needs_migration"}
+		field.Values = []string{"online", "offline", "unknown"}
 	}
 
 	collection.AddIndex("idx_apps_name", false, "name", "")

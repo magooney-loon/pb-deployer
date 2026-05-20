@@ -73,16 +73,6 @@ export class AppsCrudClient {
 		}
 	}
 
-	async migrateProxy(id: string): Promise<{ success: boolean; http_port: number }> {
-		try {
-			const result = await this.pb.send(`/api/apps/${id}/migrate-proxy`, { method: 'POST' });
-			return result as { success: boolean; http_port: number };
-		} catch (error) {
-			console.error('Failed to migrate proxy:', error);
-			throw error;
-		}
-	}
-
 	async updateApp(id: string, data: Partial<AppRequest>): Promise<App> {
 		try {
 			const app = await this.pb.collection('apps').update<App>(id, data);

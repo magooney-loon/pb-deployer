@@ -32,7 +32,7 @@ func TestAppHealthURL(t *testing.T) {
 	}
 }
 
-func TestCheckAppHealthStatusesUpdatesOnlineOfflineAndSkipsMigration(t *testing.T) {
+func TestCheckAppHealthStatusesUpdatesOnlineOffline(t *testing.T) {
 	app, err := tests.NewTestApp(t.TempDir())
 	if err != nil {
 		t.Fatalf("NewTestApp failed: %v", err)
@@ -47,11 +47,6 @@ func TestCheckAppHealthStatusesUpdatesOnlineOfflineAndSkipsMigration(t *testing.
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer healthyServer.Close()
-
-	healthySkippedServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer healthySkippedServer.Close()
 
 	unhealthyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
@@ -79,8 +74,7 @@ func TestCheckAppHealthStatusesUpdatesOnlineOfflineAndSkipsMigration(t *testing.
 
 	online := appRecord(apps, server.Id, "online-app", healthyServer.URL, 8090, "offline")
 	offline := appRecord(apps, server.Id, "offline-app", unhealthyServer.URL, 8091, "online")
-	migrating := appRecord(apps, server.Id, "migrating-app", healthySkippedServer.URL, 8092, "needs_migration")
-	for _, record := range []*core.Record{online, offline, migrating} {
+	for _, record := range []*core.Record{online, offline} {
 		if err := app.SaveNoValidate(record); err != nil {
 			t.Fatalf("save app %s: %v", record.GetString("name"), err)
 		}
@@ -91,22 +85,18 @@ func TestCheckAppHealthStatusesUpdatesOnlineOfflineAndSkipsMigration(t *testing.
 		t.Fatalf("CheckAppHealthStatuses failed: %v", err)
 	}
 
-	if summary.Checked != 2 || summary.Online != 1 || summary.Offline != 1 || summary.Skipped != 1 || summary.Failed != 0 {
-		t.Fatalf("summary = %+v, want checked=2 online=1 offline=1 skipped=1 failed=0", summary)
+	if summary.Checked != 2 || summary.Online != 1 || summary.Offline != 1 || summary.Skipped != 0 || summary.Failed != 0 {
+		t.Fatalf("summary = %+v, want checked=2 online=1 offline=1 skipped=0 failed=0", summary)
 	}
 
 	freshOnline, _ := app.FindRecordById("apps", online.Id)
 	freshOffline, _ := app.FindRecordById("apps", offline.Id)
-	freshMigrating, _ := app.FindRecordById("apps", migrating.Id)
 
 	if got := freshOnline.GetString("status"); got != "online" {
 		t.Fatalf("online app status = %q, want online", got)
 	}
 	if got := freshOffline.GetString("status"); got != "offline" {
 		t.Fatalf("offline app status = %q, want offline", got)
-	}
-	if got := freshMigrating.GetString("status"); got != "needs_migration" {
-		t.Fatalf("migrating app status = %q, want needs_migration", got)
 	}
 }
 

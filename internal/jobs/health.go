@@ -79,7 +79,7 @@ func CheckAppHealthStatuses(app core.App, client *http.Client) (HealthCheckSumma
 	for _, record := range records {
 		domain := strings.TrimSpace(record.GetString("domain"))
 		status := record.GetString("status")
-		if domain == "" || status == "needs_migration" {
+		if domain == "" {
 			summary.Skipped++
 			continue
 		}

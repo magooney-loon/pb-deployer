@@ -48,6 +48,5 @@ func registerV1Routes(router *api.VersionedAPIRouter) {
 	router.POST("/api/setup/validate", handleServerValidation)
 	router.POST("/api/deploy", handleDeploy)
 	router.POST("/api/apps", handleCreateApp)
-	router.POST("/api/apps/{id}/migrate-proxy", handleMigrateProxy)
 	router.GET("/api/terminal", handleTerminal)
 }
