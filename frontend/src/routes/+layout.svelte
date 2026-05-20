@@ -15,7 +15,9 @@
 	onMount(() => {
 		settings.initialize();
 		splash.start();
-		startRealtime();
+		startRealtime().catch((error) => {
+			console.error('Failed to start realtime subscriptions:', error);
+		});
 	});
 
 	onDestroy(() => {

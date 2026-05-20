@@ -9,6 +9,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 
 	"pb-deployer/internal/api"
+	appjobs "pb-deployer/internal/jobs"
 	_ "pb-deployer/migrations"
 )
 
@@ -56,6 +57,7 @@ func initApp(devMode bool) {
 	app.SetupLogging(srv)
 
 	registerHandlers(srv.App())
+	appjobs.Register(srv.App())
 
 	srv.App().OnServe().BindFunc(func(e *core.ServeEvent) error {
 		e.Router.Bind(apis.BodyLimit(209715200))

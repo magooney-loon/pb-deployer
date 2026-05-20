@@ -11,25 +11,35 @@ let realtimeStarted = false;
 
 export async function startRealtime() {
 	if (realtimeStarted) return;
-	realtimeStarted = true;
 
-	await pb
-		.collection('apps')
-		.subscribe('*', (e) => appsStore._onRealtime(e.action, e.record as never));
-	await pb
-		.collection('servers')
-		.subscribe('*', (e) => serversStore._onRealtime(e.action, e.record as never));
-	await pb
-		.collection('deployments')
-		.subscribe('*', (e) => deploymentsStore._onRealtime(e.action, e.record as never));
-	await pb
-		.collection('versions')
-		.subscribe('*', (e) => versionsStore._onRealtime(e.action, e.record as never));
+	try {
+		await pb
+			.collection('apps')
+			.subscribe('*', (e) => appsStore._onRealtime(e.action, e.record as never));
+		await pb
+			.collection('servers')
+			.subscribe('*', (e) => serversStore._onRealtime(e.action, e.record as never));
+		await pb
+			.collection('deployments')
+			.subscribe('*', (e) => deploymentsStore._onRealtime(e.action, e.record as never));
+		await pb
+			.collection('versions')
+			.subscribe('*', (e) => versionsStore._onRealtime(e.action, e.record as never));
+		realtimeStarted = true;
+	} catch (e) {
+		realtimeStarted = false;
+		await unsubscribeRealtime();
+		throw e;
+	}
 }
 
 export async function stopRealtime() {
 	if (!realtimeStarted) return;
 	realtimeStarted = false;
+	await unsubscribeRealtime();
+}
+
+async function unsubscribeRealtime() {
 	await pb.collection('apps').unsubscribe();
 	await pb.collection('servers').unsubscribe();
 	await pb.collection('deployments').unsubscribe();
