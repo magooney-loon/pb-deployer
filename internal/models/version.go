@@ -45,8 +45,15 @@ func (v *Version) CreateCollection(app core.App) error {
 
 	existingCollection, err := app.FindCollectionByNameOrId("versions")
 	if err == nil && existingCollection != nil {
-		app.Logger().Info("createVersionsCollection: Versions collection already exists")
-		return nil
+		app.Logger().Info("createVersionsCollection: Versions collection already exists, syncing schema")
+		existingCollection.ListRule = types.Pointer("")
+		existingCollection.ViewRule = types.Pointer("")
+		existingCollection.CreateRule = types.Pointer("")
+		existingCollection.UpdateRule = types.Pointer("")
+		existingCollection.DeleteRule = types.Pointer("")
+		existingCollection.AddIndex("idx_versions_app", false, "app_id", "")
+		existingCollection.AddIndex("idx_versions_version", false, "version_number", "")
+		return app.Save(existingCollection)
 	}
 
 	appsCollection, err := app.FindCollectionByNameOrId("apps")

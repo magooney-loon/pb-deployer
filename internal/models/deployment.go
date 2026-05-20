@@ -88,8 +88,18 @@ func (d *Deployment) CreateCollection(app core.App) error {
 
 	existingCollection, err := app.FindCollectionByNameOrId("deployments")
 	if err == nil && existingCollection != nil {
-		app.Logger().Info("createDeploymentsCollection: Deployments collection already exists")
-		return nil
+		app.Logger().Info("createDeploymentsCollection: Deployments collection already exists, syncing schema")
+		existingCollection.ListRule = types.Pointer("")
+		existingCollection.ViewRule = types.Pointer("")
+		existingCollection.CreateRule = types.Pointer("")
+		existingCollection.UpdateRule = types.Pointer("")
+		existingCollection.DeleteRule = types.Pointer("")
+		existingCollection.AddIndex("idx_deployments_app", false, "app_id", "")
+		existingCollection.AddIndex("idx_deployments_version", false, "version_id", "")
+		existingCollection.AddIndex("idx_deployments_status", false, "status", "")
+		existingCollection.AddIndex("idx_deployments_app_status", false, "app_id", "status")
+		existingCollection.AddIndex("idx_deployments_created", false, "created", "")
+		return app.Save(existingCollection)
 	}
 
 	appsCollection, err := app.FindCollectionByNameOrId("apps")

@@ -68,39 +68,37 @@ func TestGetPublicKeysForSetup(t *testing.T) {
 
 func TestCreateSSHClient_InvalidInputs(t *testing.T) {
 	tests := []struct {
-		name    string
-		host    string
-		port    int
-		user    string
-		wantErr bool
+		name                string
+		host                string
+		port                int
+		user                string
+		wantValidationError bool
 	}{
 		{
-			name:    "Empty host",
-			host:    "",
-			port:    22,
-			user:    "root",
-			wantErr: true,
+			name:                "Empty host",
+			host:                "",
+			port:                22,
+			user:                "root",
+			wantValidationError: true,
 		},
 		{
-			name:    "Empty user",
-			host:    "example.com",
-			port:    22,
-			user:    "",
-			wantErr: true,
+			name:                "Empty user",
+			host:                "example.com",
+			port:                22,
+			user:                "",
+			wantValidationError: true,
 		},
 		{
-			name:    "Valid inputs",
-			host:    "example.com",
-			port:    22,
-			user:    "root",
-			wantErr: false, // Should succeed when SSH agent is available
+			name: "Valid inputs",
+			host: "example.com",
+			port: 22,
+			user: "root",
 		},
 		{
-			name:    "Zero port defaults to 22",
-			host:    "example.com",
-			port:    0,
-			user:    "root",
-			wantErr: false, // Should succeed when SSH agent is available
+			name: "Zero port defaults to 22",
+			host: "example.com",
+			port: 0,
+			user: "root",
 		},
 	}
 
@@ -108,12 +106,21 @@ func TestCreateSSHClient_InvalidInputs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client, err := createSSHClient(tt.host, tt.port, tt.user)
 
-			if tt.wantErr && err == nil {
+			if tt.wantValidationError && err == nil {
 				t.Error("Expected error but got none")
 			}
 
-			if !tt.wantErr && err != nil {
-				t.Errorf("Expected no error but got: %v", err)
+			if tt.wantValidationError && err != nil {
+				if tt.host == "" && !strings.Contains(err.Error(), "host is required") {
+					t.Errorf("Expected host validation error, got: %v", err)
+				}
+				if tt.user == "" && !strings.Contains(err.Error(), "user is required") {
+					t.Errorf("Expected user validation error, got: %v", err)
+				}
+			}
+
+			if !tt.wantValidationError && err != nil && !strings.Contains(err.Error(), "SSH agent") {
+				t.Errorf("Expected success or environment SSH-agent error, got: %v", err)
 			}
 
 			if err != nil && client != nil {

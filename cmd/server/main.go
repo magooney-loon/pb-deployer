@@ -9,7 +9,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 
 	"pb-deployer/internal/api"
-	"pb-deployer/internal/models"
+	_ "pb-deployer/migrations"
 )
 
 func main() {
@@ -55,7 +55,6 @@ func initApp(devMode bool) {
 
 	app.SetupLogging(srv)
 
-	registerCollections(srv.App())
 	registerHandlers(srv.App())
 
 	srv.App().OnServe().BindFunc(func(e *core.ServeEvent) error {
@@ -76,10 +75,6 @@ func initApp(devMode bool) {
 		)
 		log.Fatal(err)
 	}
-}
-
-func registerCollections(app core.App) {
-	models.RegisterCollections(app)
 }
 
 func registerHandlers(app core.App) {

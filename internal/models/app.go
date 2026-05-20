@@ -44,8 +44,8 @@ func (a *App) CreateCollection(app core.App) error {
 
 	existingCollection, err := app.FindCollectionByNameOrId("apps")
 	if err == nil && existingCollection != nil {
-		app.Logger().Info("createAppsCollection: Apps collection already exists")
-		return nil
+		app.Logger().Info("createAppsCollection: Apps collection already exists, syncing schema")
+		return syncAppsCollection(app, existingCollection)
 	}
 
 	serversCollection, err := app.FindCollectionByNameOrId("servers")
@@ -135,4 +135,34 @@ func (a *App) CreateCollection(app core.App) error {
 
 	app.Logger().Info("createAppsCollection: Successfully created apps collection")
 	return nil
+}
+
+func syncAppsCollection(app core.App, collection *core.Collection) error {
+	collection.ListRule = types.Pointer("")
+	collection.ViewRule = types.Pointer("")
+	collection.CreateRule = nil
+	collection.UpdateRule = types.Pointer("")
+	collection.DeleteRule = types.Pointer("")
+
+	if collection.Fields.GetByName("http_port") == nil {
+		collection.Fields.Add(&core.NumberField{
+			Name:     "http_port",
+			Required: true,
+			Min:      types.Pointer(8090.0),
+			Max:      types.Pointer(8999.0),
+		})
+	}
+
+	if field, ok := collection.Fields.GetByName("status").(*core.SelectField); ok {
+		field.Values = []string{"online", "offline", "unknown", "needs_migration"}
+	}
+
+	collection.AddIndex("idx_apps_name", false, "name", "")
+	collection.AddIndex("idx_apps_server", false, "server_id", "")
+	collection.AddIndex("idx_apps_status", false, "status", "")
+	collection.AddIndex("idx_apps_name_per_server", true, "server_id, name", "")
+	collection.AddIndex("idx_apps_domain_per_server", true, "server_id, domain", "")
+	collection.AddIndex("idx_apps_service_per_server", true, "server_id, service_name", "")
+
+	return app.Save(collection)
 }

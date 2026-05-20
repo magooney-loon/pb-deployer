@@ -71,8 +71,8 @@ func (s *Server) CreateCollection(app core.App) error {
 
 	existingCollection, err := app.FindCollectionByNameOrId("servers")
 	if err == nil && existingCollection != nil {
-		app.Logger().Info("createServersCollection: Servers collection already exists")
-		return nil
+		app.Logger().Info("createServersCollection: Servers collection already exists, syncing schema")
+		return syncServersCollection(app, existingCollection)
 	}
 
 	collection := core.NewBaseCollection("servers")
@@ -159,4 +159,25 @@ func (s *Server) CreateCollection(app core.App) error {
 
 	app.Logger().Info("createServersCollection: Successfully created servers collection")
 	return nil
+}
+
+func syncServersCollection(app core.App, collection *core.Collection) error {
+	collection.ListRule = types.Pointer("")
+	collection.ViewRule = types.Pointer("")
+	collection.CreateRule = types.Pointer("")
+	collection.UpdateRule = types.Pointer("")
+	collection.DeleteRule = types.Pointer("")
+
+	if collection.Fields.GetByName("proxy_email") == nil {
+		collection.Fields.Add(&core.TextField{
+			Name: "proxy_email",
+			Max:  255,
+		})
+	}
+
+	collection.AddIndex("idx_servers_name", true, "name", "")
+	collection.AddIndex("idx_servers_host", false, "host", "")
+	collection.AddIndex("idx_servers_status", false, "setup_complete", "security_locked")
+
+	return app.Save(collection)
 }
