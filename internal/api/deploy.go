@@ -16,7 +16,10 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 )
 
-func handleDeploy(c *core.RequestEvent, app core.App) error {
+// API_DESC Deploy a PocketBase app version to a server
+// API_TAGS Deployment
+func handleDeploy(c *core.RequestEvent) error {
+	app := c.App
 	log := logger.GetAPILogger()
 	log.Info("Starting deployment process")
 
@@ -89,6 +92,14 @@ func handleDeploy(c *core.RequestEvent, app core.App) error {
 			serverRecord.GetBool("setup_complete"))
 		return c.JSON(http.StatusBadRequest, map[string]any{
 			"error": "Server is not ready for deployment. Please complete server setup first.",
+		})
+	}
+
+	// Reject apps that need proxy migration
+	httpPort := appRecord.GetInt("http_port")
+	if httpPort == 0 {
+		return c.JSON(http.StatusBadRequest, map[string]any{
+			"error": "App has no http_port assigned. Use POST /api/apps/{id}/migrate-proxy to migrate this app to Caddy before deploying.",
 		})
 	}
 
@@ -204,6 +215,7 @@ func performDeployment(app core.App, ctx *deploymentDeploymentContext) error {
 		ServiceName:          ctx.AppRecord.GetString("service_name"),
 		RemotePath:           ctx.AppRecord.GetString("remote_path"),
 		ZipDownloadURL:       ctx.ZipURL,
+		HTTPPort:             ctx.AppRecord.GetInt("http_port"),
 		IsInitialDeploy:      ctx.IsInitialDeploy,
 		SuperuserEmail:       ctx.SuperuserEmail,
 		SuperuserPass:        ctx.SuperuserPass,

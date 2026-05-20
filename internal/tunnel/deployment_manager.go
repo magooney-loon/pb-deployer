@@ -34,6 +34,7 @@ type DeploymentRequest struct {
 	ServiceName          string
 	RemotePath           string
 	ZipDownloadURL       string
+	HTTPPort             int
 	IsInitialDeploy      bool
 	SuperuserEmail       string
 	SuperuserPass        string
@@ -44,16 +45,17 @@ type DeploymentRequest struct {
 }
 
 type DeploymentContext struct {
-	Request           *DeploymentRequest
-	StagingPath       string
-	BackupPath        string
-	ServicePath       string
-	BinaryPath        string
-	WorkingDir        string
-	SystemdService    string
-	RollbackNeeded    bool
-	ServiceWasRunning bool
-	useRootFallback   bool
+	Request              *DeploymentRequest
+	StagingPath          string
+	BackupPath           string
+	ServicePath          string
+	BinaryPath           string
+	WorkingDir           string
+	SystemdService       string
+	CaddyFragmentPath    string
+	CaddyFragmentBackup  string
+	RollbackNeeded       bool
+	ServiceWasRunning    bool
 }
 
 func NewDeploymentManager(manager *Manager, app core.App) *DeploymentManager {
@@ -68,13 +70,14 @@ func (d *DeploymentManager) Deploy(ctx context.Context, req *DeploymentRequest) 
 	d.logger.SystemOperation(fmt.Sprintf("Starting deployment: %s (version: %s)", req.AppName, req.VersionID))
 
 	deployCtx := &DeploymentContext{
-		Request:        req,
-		StagingPath:    fmt.Sprintf("/opt/pocketbase/staging/%s-%d", req.AppName, time.Now().Unix()),
-		BackupPath:     fmt.Sprintf("/opt/pocketbase/backups/%s-%d", req.AppName, time.Now().Unix()),
-		ServicePath:    fmt.Sprintf("/etc/systemd/system/%s.service", req.ServiceName),
-		BinaryPath:     fmt.Sprintf("/opt/pocketbase/apps/%s/%s", req.AppName, req.AppName),
-		WorkingDir:     fmt.Sprintf("/opt/pocketbase/apps/%s", req.AppName),
-		SystemdService: req.ServiceName,
+		Request:           req,
+		StagingPath:       fmt.Sprintf("/opt/pocketbase/staging/%s-%d", req.AppName, time.Now().Unix()),
+		BackupPath:        fmt.Sprintf("/opt/pocketbase/backups/%s-%d", req.AppName, time.Now().Unix()),
+		ServicePath:       fmt.Sprintf("/etc/systemd/system/%s.service", req.ServiceName),
+		BinaryPath:        fmt.Sprintf("/opt/pocketbase/apps/%s/%s", req.AppName, req.AppName),
+		WorkingDir:        fmt.Sprintf("/opt/pocketbase/apps/%s", req.AppName),
+		SystemdService:    req.ServiceName,
+		CaddyFragmentPath: fmt.Sprintf("/etc/caddy/conf.d/%s.caddy", req.AppName),
 	}
 
 	// Clean up old staging directories before starting
@@ -106,17 +109,18 @@ func (d *DeploymentManager) Deploy(ctx context.Context, req *DeploymentRequest) 
 		message string
 		fn      func(context.Context, *DeploymentContext) error
 	}{
-		{1, 11, "Downloading and staging deployment package", d.downloadAndStageVersion},
-		{2, 11, "Checking service status", d.checkServiceStatus},
-		{3, 11, "Stopping existing service", d.stopService},
-		{4, 11, "Creating backup of current deployment", d.backupCurrentDeployment},
-		{5, 11, "Preparing deployment directory", d.prepareDeploymentDir},
-		{6, 11, "Installing new version", d.swapDeployment},
-		{7, 11, "Creating/updating systemd service", d.createSystemdService},
-		{8, 11, "Creating superuser (if initial deployment)", d.createSuperuser},
-		{9, 11, "Starting service", d.startService},
-		{10, 11, "Verifying deployment health", d.verifyDeployment},
-		{11, 11, "Finalizing deployment", d.finalizeDeployment},
+		{1, 12, "Downloading and staging deployment package", d.downloadAndStageVersion},
+		{2, 12, "Checking service status", d.checkServiceStatus},
+		{3, 12, "Stopping existing service", d.stopService},
+		{4, 12, "Creating backup of current deployment", d.backupCurrentDeployment},
+		{5, 12, "Preparing deployment directory", d.prepareDeploymentDir},
+		{6, 12, "Installing new version", d.swapDeployment},
+		{7, 12, "Creating/updating systemd service", d.createSystemdService},
+		{8, 12, "Configuring reverse proxy", d.configureReverseProxy},
+		{9, 12, "Creating superuser (if initial deployment)", d.createSuperuser},
+		{10, 12, "Starting service", d.startService},
+		{11, 12, "Verifying deployment health", d.verifyDeployment},
+		{12, 12, "Finalizing deployment", d.finalizeDeployment},
 	}
 
 	for _, step := range steps {
@@ -393,31 +397,6 @@ func (d *DeploymentManager) swapDeployment(ctx context.Context, deployCtx *Deplo
 		d.logProgress(req, fmt.Sprintf("Binary executable check: %s", strings.TrimSpace(execCheckResult.Stdout)))
 	}
 
-	// Grant capability to bind to privileged ports (80, 443) for non-root user
-	d.logProgress(req, "Granting port binding capabilities...")
-
-	// First check if setcap is available
-	setcapResult, setcapErr := d.manager.client.Execute("which setcap")
-	if setcapErr != nil || setcapResult.ExitCode != 0 {
-		d.logProgress(req, "setcap not available, installing libcap2-bin...")
-		installResult, installErr := d.manager.client.ExecuteSudo("apt update && apt install -y libcap2-bin")
-		if installErr != nil || installResult.ExitCode != 0 {
-			d.logProgress(req, "Warning: Could not install libcap2-bin, will use root fallback")
-		}
-	}
-
-	// Try to set capabilities
-	result, err = d.manager.client.ExecuteSudo(fmt.Sprintf("setcap 'cap_net_bind_service=+ep' %s", deployCtx.BinaryPath))
-	if err != nil || result.ExitCode != 0 {
-		d.logProgress(req, "Warning: Failed to set port capabilities, falling back to root user")
-		d.logProgress(req, fmt.Sprintf("setcap error: %s", result.Stderr))
-
-		// Fallback: Update systemd service to run as root
-		deployCtx.useRootFallback = true
-	} else {
-		d.logProgress(req, "Port binding capabilities granted successfully")
-	}
-
 	return nil
 }
 
@@ -426,21 +405,9 @@ func (d *DeploymentManager) createSystemdService(ctx context.Context, deployCtx 
 
 	d.logProgress(req, "Creating/updating systemd service...")
 
-	// Determine user/group based on capability fallback
-	var serviceUser, serviceGroup string
-	if deployCtx.useRootFallback {
-		serviceUser = "root"
-		serviceGroup = "root"
-		d.logProgress(req, "Creating systemd service with root user (capability fallback)")
-	} else {
-		serviceUser = req.AppUsername
-		serviceGroup = req.AppUsername
-		d.logProgress(req, "Creating systemd service with app user")
-	}
-
 	serviceContent := fmt.Sprintf(`[Unit]
 Description=%s PocketBase Server
-After=network.target
+After=network.target caddy.service
 
 [Service]
 Type=simple
@@ -452,11 +419,11 @@ RestartSec=5s
 StandardOutput=append:/opt/pocketbase/logs/%s.log
 StandardError=append:/opt/pocketbase/logs/%s.log
 WorkingDirectory=%s
-ExecStart=%s serve %s
+ExecStart=%s serve %s --http=127.0.0.1:%d
 
 [Install]
 WantedBy=multi-user.target
-`, req.AppName, serviceUser, serviceGroup, req.AppName, req.AppName, deployCtx.WorkingDir, deployCtx.BinaryPath, req.Domain)
+`, req.AppName, req.AppUsername, req.AppUsername, req.AppName, req.AppName, deployCtx.WorkingDir, deployCtx.BinaryPath, req.Domain, req.HTTPPort)
 
 	// Write service file
 	result, err := d.manager.client.ExecuteSudo(fmt.Sprintf("cat > %s << 'EOF'\n%sEOF", deployCtx.ServicePath, serviceContent))
@@ -475,6 +442,77 @@ WantedBy=multi-user.target
 		return fmt.Errorf("failed to enable service: %s", result.Stderr)
 	}
 
+	return nil
+}
+
+func (d *DeploymentManager) configureReverseProxy(ctx context.Context, deployCtx *DeploymentContext) error {
+	req := deployCtx.Request
+
+	d.logProgress(req, fmt.Sprintf("Writing Caddy fragment: %s", deployCtx.CaddyFragmentPath))
+
+	// Backup existing fragment for rollback
+	backupPath := fmt.Sprintf("%s/caddy.fragment.bak", deployCtx.BackupPath)
+	result, _ := d.manager.client.Execute(fmt.Sprintf("test -f %s", deployCtx.CaddyFragmentPath))
+	if result != nil && result.ExitCode == 0 {
+		d.manager.client.ExecuteSudo(fmt.Sprintf("mkdir -p %s && cp %s %s",
+			deployCtx.BackupPath, deployCtx.CaddyFragmentPath, backupPath))
+		deployCtx.CaddyFragmentBackup = backupPath
+	}
+
+	fragmentContent := fmt.Sprintf(`%s {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:%d {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	log {
+		output file /opt/pocketbase/logs/%s.access.log {
+			roll_size 10mb
+			roll_keep 5
+		}
+	}
+}
+`, req.Domain, req.HTTPPort, req.AppName)
+
+	writeCmd := fmt.Sprintf("cat > %s << 'FRAGMENTEOF'\n%sFRAGMENTEOF", deployCtx.CaddyFragmentPath, fragmentContent)
+	result, err := d.manager.client.ExecuteSudo(writeCmd, WithTimeout(15*time.Second))
+	if err != nil || result.ExitCode != 0 {
+		return fmt.Errorf("failed to write Caddy fragment: %s", result.Stderr)
+	}
+
+	// Validate config
+	result, err = d.manager.client.ExecuteSudo("caddy validate --config /etc/caddy/Caddyfile", WithTimeout(30*time.Second))
+	if err != nil || result.ExitCode != 0 {
+		// Move broken fragment aside, restore backup
+		d.manager.client.ExecuteSudo(fmt.Sprintf("mv %s %s.broken", deployCtx.CaddyFragmentPath, deployCtx.CaddyFragmentPath))
+		if deployCtx.CaddyFragmentBackup != "" {
+			d.manager.client.ExecuteSudo(fmt.Sprintf("cp %s %s", deployCtx.CaddyFragmentBackup, deployCtx.CaddyFragmentPath))
+		}
+		return fmt.Errorf("caddy config validation failed: %s", result.Stderr)
+	}
+
+	// Reload (or start if not yet running)
+	result, err = d.manager.client.ExecuteSudo("systemctl is-active caddy", WithTimeout(5*time.Second))
+	if err == nil && result.ExitCode == 0 && strings.TrimSpace(result.Stdout) == "active" {
+		result, err = d.manager.client.ExecuteSudo("systemctl reload caddy", WithTimeout(30*time.Second))
+		if err != nil || result.ExitCode != 0 {
+			// Fallback to restart
+			result, err = d.manager.client.ExecuteSudo("systemctl restart caddy", WithTimeout(30*time.Second))
+			if err != nil || result.ExitCode != 0 {
+				return fmt.Errorf("failed to reload/restart caddy: %s", result.Stderr)
+			}
+		}
+	} else {
+		result, err = d.manager.client.ExecuteSudo("systemctl start caddy", WithTimeout(30*time.Second))
+		if err != nil || result.ExitCode != 0 {
+			return fmt.Errorf("failed to start caddy: %s", result.Stderr)
+		}
+	}
+
+	d.logProgress(req, "Caddy reverse proxy configured successfully")
 	return nil
 }
 
@@ -550,41 +588,40 @@ func (d *DeploymentManager) verifyDeployment(ctx context.Context, deployCtx *Dep
 		d.logProgress(req, fmt.Sprintf("Service logs: %s", strings.TrimSpace(logResult.Stdout)))
 	}
 
-	// Debug: Check if any process is listening on port 80 or 8080
-	portResult, portErr := d.manager.client.Execute("netstat -tulpn | grep ':80\\|:8080'")
+	// Debug: Check if process is listening on the loopback port
+	portResult, portErr := d.manager.client.Execute(fmt.Sprintf("ss -lnt 'sport = :%d'", req.HTTPPort))
 	if portErr == nil && strings.TrimSpace(portResult.Stdout) != "" {
-		d.logProgress(req, fmt.Sprintf("Listening ports: %s", strings.TrimSpace(portResult.Stdout)))
+		d.logProgress(req, fmt.Sprintf("Loopback port %d: %s", req.HTTPPort, strings.TrimSpace(portResult.Stdout)))
 	}
 
-	// Health check URLs to try in order
-	healthUrls := []struct {
-		url         string
-		description string
-	}{
-		{"http://localhost:8080/api/health", "localhost:8080"},
-		{"http://localhost:80/api/health", "localhost:80"},
-		{"https://localhost:443/api/health", "localhost:443"},
-		{fmt.Sprintf("http://%s/api/health", req.Domain), fmt.Sprintf("HTTP %s", req.Domain)},
-		{fmt.Sprintf("https://%s/api/health", req.Domain), fmt.Sprintf("HTTPS %s", req.Domain)},
-	}
+	loopbackURL := fmt.Sprintf("http://127.0.0.1:%d/api/health", req.HTTPPort)
+	publicURL := fmt.Sprintf("https://%s/api/health", req.Domain)
 
 	for i := 0; i < 15; i++ {
 		time.Sleep(2 * time.Second)
 
-		// Try each URL in order
-		for _, healthCheck := range healthUrls {
-			result, err := d.manager.client.Execute(fmt.Sprintf("curl -s -f -m 10 -k %s", healthCheck.url), WithTimeout(15*time.Second))
-			if err == nil && result.ExitCode == 0 {
-				d.logProgress(req, fmt.Sprintf("Health check passed (%s)", healthCheck.description))
-				return nil
-			}
-			// Debug: Log curl error details for first attempt
+		// Loopback probe — confirms PocketBase started
+		result, err := d.manager.client.Execute(fmt.Sprintf("curl -s -f -m 10 %s", loopbackURL), WithTimeout(15*time.Second))
+		if err != nil || result.ExitCode != 0 {
 			if i == 0 {
-				d.logProgress(req, fmt.Sprintf("Health check failed for %s: exit=%d, stderr=%s", healthCheck.description, result.ExitCode, strings.TrimSpace(result.Stderr)))
+				d.logProgress(req, fmt.Sprintf("Loopback health check failed: exit=%d stderr=%s", result.ExitCode, strings.TrimSpace(result.Stderr)))
 			}
+			d.logProgress(req, fmt.Sprintf("Health check attempt %d/15 failed (loopback), retrying...", i+1))
+			continue
+		}
+		d.logProgress(req, "Loopback health check passed")
+
+		// Public HTTPS probe — confirms Caddy is forwarding
+		result, err = d.manager.client.Execute(fmt.Sprintf("curl -s -f -m 15 -k %s", publicURL), WithTimeout(20*time.Second))
+		if err != nil || result.ExitCode != 0 {
+			d.logProgress(req, fmt.Sprintf("Public HTTPS health check failed (attempt %d/15) — service started but public unreachable, check DNS", i+1))
+			// Public failure after loopback passes → set status unknown rather than failed
+			d.updateAppStatus(req.AppID, "unknown", req.VersionID)
+			return nil
 		}
 
-		d.logProgress(req, fmt.Sprintf("Health check attempt %d/15 failed, retrying...", i+1))
+		d.logProgress(req, "Public HTTPS health check passed")
+		return nil
 	}
 
 	return fmt.Errorf("deployment health verification failed after 15 attempts")
@@ -630,6 +667,14 @@ func (d *DeploymentManager) rollback(deployCtx *DeploymentContext) error {
 		d.logger.Error("Failed to restore from backup: %s", result.Stderr)
 		return fmt.Errorf("rollback failed: %s", result.Stderr)
 	}
+
+	// Restore Caddy fragment
+	if deployCtx.CaddyFragmentBackup != "" {
+		d.manager.client.ExecuteSudo(fmt.Sprintf("cp %s %s", deployCtx.CaddyFragmentBackup, deployCtx.CaddyFragmentPath))
+	} else {
+		d.manager.client.ExecuteSudo(fmt.Sprintf("rm -f %s", deployCtx.CaddyFragmentPath))
+	}
+	d.manager.client.ExecuteSudo("systemctl reload caddy 2>/dev/null || systemctl restart caddy 2>/dev/null || true")
 
 	// Restart service if it was running
 	if deployCtx.ServiceWasRunning {

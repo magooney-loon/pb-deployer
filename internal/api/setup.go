@@ -18,7 +18,10 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 )
 
-func handleServerSetup(c *core.RequestEvent, app core.App) error {
+// API_DESC Set up a new PocketBase server — creates app user, installs dependencies and Caddy
+// API_TAGS Setup
+func handleServerSetup(c *core.RequestEvent) error {
+	app := c.App
 	log := logger.GetAPILogger()
 	log.Info("Starting server setup process")
 
@@ -28,6 +31,7 @@ func handleServerSetup(c *core.RequestEvent, app core.App) error {
 		User       string   `json:"user"`
 		Username   string   `json:"username"`
 		PublicKeys []string `json:"public_keys"`
+		ProxyEmail string   `json:"proxy_email"`
 	}
 
 	sendStep := func(step int, message string) {
@@ -125,7 +129,7 @@ func handleServerSetup(c *core.RequestEvent, app core.App) error {
 
 	setupManager := tunnel.NewSetupManager(manager)
 	cleanup.AddCloser(setupManager)
-	err = setupManager.SetupPocketBaseServer(req.Username, req.PublicKeys)
+	err = setupManager.SetupPocketBaseServer(req.Username, req.PublicKeys, req.ProxyEmail)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]any{
 			"error": "Server setup failed",
@@ -158,12 +162,16 @@ func handleServerSetup(c *core.RequestEvent, app core.App) error {
 			"architecture":     setupInfo.Architecture,
 			"hostname":         setupInfo.Hostname,
 			"pocketbase_setup": setupInfo.PocketBaseSetup,
+			"caddy_installed":  setupInfo.CaddyInstalled,
 			"installed_apps":   setupInfo.InstalledApps,
 		},
 	})
 }
 
-func handleServerSecurity(c *core.RequestEvent, app core.App) error {
+// API_DESC Apply firewall rules, SSH hardening, and fail2ban to a server
+// API_TAGS Setup
+func handleServerSecurity(c *core.RequestEvent) error {
+	app := c.App
 	log := logger.GetAPILogger()
 	log.Info("Starting server security hardening process")
 
@@ -289,6 +297,8 @@ func handleServerSecurity(c *core.RequestEvent, app core.App) error {
 	})
 }
 
+// API_DESC Validate SSH connection and verify server environment setup
+// API_TAGS Setup
 func handleServerValidation(c *core.RequestEvent) error {
 	log := logger.GetAPILogger()
 	log.Info("Starting server validation process")
@@ -421,6 +431,7 @@ func handleServerValidation(c *core.RequestEvent) error {
 			"architecture":     setupInfo.Architecture,
 			"hostname":         setupInfo.Hostname,
 			"pocketbase_setup": setupInfo.PocketBaseSetup,
+			"caddy_installed":  setupInfo.CaddyInstalled,
 			"installed_apps":   setupInfo.InstalledApps,
 		},
 	})

@@ -21,6 +21,8 @@ var wsUpgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
+// API_DESC Open a WebSocket terminal session to a remote server (query: host, port, user)
+// API_TAGS Terminal
 func handleTerminal(c *core.RequestEvent) error {
 	log := logger.GetAPILogger()
 

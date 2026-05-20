@@ -346,6 +346,27 @@ func (s *SecurityManager) GetDefaultPocketBaseRules() []FirewallRule {
 	}
 }
 
+// EnsureCaddyAllowed verifies that ports 80 and 443 are allowed in the given rule set,
+// appending them if absent. Call this before applying any custom firewall config.
+func (s *SecurityManager) EnsureCaddyAllowed(rules []FirewallRule) []FirewallRule {
+	has80, has443 := false, false
+	for _, r := range rules {
+		if r.Port == 80 && r.Protocol == "tcp" {
+			has80 = true
+		}
+		if r.Port == 443 && r.Protocol == "tcp" {
+			has443 = true
+		}
+	}
+	if !has80 {
+		rules = append(rules, FirewallRule{Port: 80, Protocol: "tcp", Action: "allow", Description: "HTTP (Caddy)"})
+	}
+	if !has443 {
+		rules = append(rules, FirewallRule{Port: 443, Protocol: "tcp", Action: "allow", Description: "HTTPS (Caddy)"})
+	}
+	return rules
+}
+
 func (s *SecurityManager) GetDefaultSSHConfig() SSHConfig {
 	return SSHConfig{
 		PasswordAuth:        false,

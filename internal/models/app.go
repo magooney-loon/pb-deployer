@@ -16,6 +16,7 @@ type App struct {
 	RemotePath     string    `json:"remote_path" db:"remote_path"`
 	ServiceName    string    `json:"service_name" db:"service_name"`
 	Domain         string    `json:"domain" db:"domain"`
+	HTTPPort       int       `json:"http_port" db:"http_port"`
 	CurrentVersion string    `json:"current_version" db:"current_version"`
 	Status         string    `json:"status" db:"status"`
 }
@@ -64,7 +65,7 @@ func (a *App) CreateCollection(app core.App) error {
 
 	collection.ListRule = types.Pointer("")
 	collection.ViewRule = types.Pointer("")
-	collection.CreateRule = types.Pointer("")
+	collection.CreateRule = nil // force creation through /api/apps for port auto-allocation
 	collection.UpdateRule = types.Pointer("")
 	collection.DeleteRule = types.Pointer("")
 
@@ -96,9 +97,16 @@ func (a *App) CreateCollection(app core.App) error {
 		Max:  100,
 	})
 
+	collection.Fields.Add(&core.NumberField{
+		Name:     "http_port",
+		Required: true,
+		Min:      types.Pointer(8090.0),
+		Max:      types.Pointer(8999.0),
+	})
+
 	collection.Fields.Add(&core.SelectField{
 		Name:   "status",
-		Values: []string{"online", "offline", "unknown"},
+		Values: []string{"online", "offline", "unknown", "needs_migration"},
 	})
 
 	collection.Fields.Add(&core.AutodateField{
@@ -112,10 +120,13 @@ func (a *App) CreateCollection(app core.App) error {
 		OnUpdate: true,
 	})
 
-	collection.AddIndex("idx_apps_name", true, "name", "")
+	collection.AddIndex("idx_apps_name", false, "name", "")
 	collection.AddIndex("idx_apps_server", false, "server_id", "")
-	collection.AddIndex("idx_apps_domain", false, "domain", "")
 	collection.AddIndex("idx_apps_status", false, "status", "")
+	collection.AddIndex("idx_apps_name_per_server", true, "server_id, name", "")
+	collection.AddIndex("idx_apps_domain_per_server", true, "server_id, domain", "")
+	collection.AddIndex("idx_apps_port_per_server", true, "server_id, http_port", "")
+	collection.AddIndex("idx_apps_service_per_server", true, "server_id, service_name", "")
 
 	if err := app.Save(collection); err != nil {
 		app.Logger().Error("createAppsCollection: Failed to save apps collection", "error", err)

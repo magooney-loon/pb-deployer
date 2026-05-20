@@ -8,50 +8,46 @@ import (
 )
 
 func RegisterHandlers(pbApp core.App) {
-	v1Config := &api.APIDocsConfig{
-		Title:       "pb-deployer legacy",
-		Version:     "1.0.0",
-		Description: "legacy devops routes",
-		Status:      "stable",
-		Enabled:     true,
-	}
+	RegisterAppDeleteHook(pbApp)
 
-	versions := map[string]*api.APIDocsConfig{
-		"v1": v1Config,
-	}
-	versionManager := api.InitializeVersionedSystem(versions, "v1") // v1 is default/stable
+	versionManager := InitVersionedSystem()
 
 	pbApp.OnServe().BindFunc(func(e *core.ServeEvent) error {
-		// Get version-specific routers
-		v1Router, err := versionManager.GetVersionRouter("v1", e)
-		if err != nil {
+		if err := versionManager.RegisterAllVersionRoutes(e); err != nil {
 			return err
 		}
-
-		v1Router.POST("/api/setup/server", func(c *core.RequestEvent) error {
-			return handleServerSetup(c, pbApp)
-		})
-
-		v1Router.POST("/api/setup/security", func(c *core.RequestEvent) error {
-			return handleServerSecurity(c, pbApp)
-		})
-
-		v1Router.POST("/api/setup/validate", func(c *core.RequestEvent) error {
-			return handleServerValidation(c)
-		})
-
-		v1Router.POST("/api/deploy", func(c *core.RequestEvent) error {
-			return handleDeploy(c, pbApp)
-		})
-
-		// WebSocket terminal — GET request that upgrades to WS
-		// Query params: host, port (optional, default 22), user
-		v1Router.GET("/api/terminal", func(c *core.RequestEvent) error {
-			return handleTerminal(c)
-		})
-
 		return e.Next()
 	})
 
 	versionManager.RegisterWithServer(pbApp)
+}
+
+// InitVersionedSystem builds the API version manager.
+// Exported so main.go can reuse it for spec generation (pass nil app — handlers won't be called).
+func InitVersionedSystem() *api.APIVersionManager {
+	v1Config := &api.APIDocsConfig{
+		Title:         "pb-deployer",
+		Version:       "1.0.0",
+		Description:   "PocketBase deployment management API",
+		Status:        "stable",
+		Enabled:       true,
+		PublicSwagger: true,
+	}
+
+	return api.InitializeVersionedSystemWithRoutes(map[string]*api.VersionSetup{
+		"v1": {
+			Config: v1Config,
+			Routes: registerV1Routes,
+		},
+	}, "v1")
+}
+
+func registerV1Routes(router *api.VersionedAPIRouter) {
+	router.POST("/api/setup/server", handleServerSetup)
+	router.POST("/api/setup/security", handleServerSecurity)
+	router.POST("/api/setup/validate", handleServerValidation)
+	router.POST("/api/deploy", handleDeploy)
+	router.POST("/api/apps", handleCreateApp)
+	router.POST("/api/apps/{id}/migrate-proxy", handleMigrateProxy)
+	router.GET("/api/terminal", handleTerminal)
 }

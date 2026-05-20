@@ -21,6 +21,7 @@ type Server struct {
 	ManualKeyPath  string    `json:"manual_key_path" db:"manual_key_path"`
 	SetupComplete  bool      `json:"setup_complete" db:"setup_complete"`
 	SecurityLocked bool      `json:"security_locked" db:"security_locked"`
+	ProxyEmail     string    `json:"proxy_email" db:"proxy_email"`
 }
 
 func (s *Server) TableName() string {
@@ -129,6 +130,11 @@ func (s *Server) CreateCollection(app core.App) error {
 
 	collection.Fields.Add(&core.BoolField{
 		Name: "security_locked",
+	})
+
+	collection.Fields.Add(&core.TextField{
+		Name: "proxy_email",
+		Max:  255,
 	})
 
 	collection.Fields.Add(&core.AutodateField{

@@ -14,7 +14,30 @@ import (
 
 func main() {
 	devMode := flag.Bool("dev", false, "Run in developer mode")
+	generateSpecsDir := flag.String("generate-specs-dir", "", "Generate OpenAPI specs into the provided directory and exit")
+	generateSpecVersion := flag.String("generate-spec-version", "", "Optional API version to generate (requires --generate-specs-dir)")
+	validateSpecsDir := flag.String("validate-specs-dir", "", "Validate OpenAPI specs from the provided directory and exit")
 	flag.Parse()
+
+	if *generateSpecsDir != "" {
+		gen := app.NewSpecGeneratorWithInitializer(func() (*app.APIVersionManager, error) {
+			return api.InitVersionedSystem(), nil
+		})
+		if err := gen.Generate(*generateSpecsDir, *generateSpecVersion); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
+	if *validateSpecsDir != "" {
+		gen := app.NewSpecGeneratorWithInitializer(func() (*app.APIVersionManager, error) {
+			return api.InitVersionedSystem(), nil
+		})
+		if err := gen.Validate(*validateSpecsDir); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 
 	initApp(*devMode)
 }
