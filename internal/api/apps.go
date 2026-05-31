@@ -6,12 +6,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 
 	"pb-deployer/internal/logger"
 	"pb-deployer/internal/tunnel"
 
 	"github.com/pocketbase/pocketbase/core"
 )
+
+// appNameRe enforces a safe DNS-label-style name. The name flows unquoted into
+// remote shell commands (systemd unit, remote path, Caddy fragment), so it must
+// not contain whitespace, slashes, or shell metacharacters.
+var appNameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
+
+// domainRe is a conservative hostname check (one or more labels + TLD).
+var domainRe = regexp.MustCompile(`^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`)
 
 // API_DESC Create a new app with auto-allocated loopback port (must use this instead of direct PocketBase collection API)
 // API_TAGS Apps
@@ -33,6 +42,18 @@ func handleCreateApp(c *core.RequestEvent) error {
 	if req.ServerID == "" || req.Name == "" || req.Domain == "" {
 		return c.JSON(http.StatusBadRequest, map[string]any{
 			"error": "server_id, name, and domain are required",
+		})
+	}
+
+	if !appNameRe.MatchString(req.Name) {
+		return c.JSON(http.StatusBadRequest, map[string]any{
+			"error": "name must be 1-63 chars, lowercase alphanumeric or hyphen, and start with an alphanumeric character",
+		})
+	}
+
+	if !domainRe.MatchString(req.Domain) {
+		return c.JSON(http.StatusBadRequest, map[string]any{
+			"error": "domain must be a valid hostname (e.g. app.example.com)",
 		})
 	}
 

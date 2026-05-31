@@ -10,7 +10,7 @@ import (
 
 	"pb-deployer/internal/api"
 	appjobs "pb-deployer/internal/jobs"
-	_ "pb-deployer/migrations"
+	_ "pb-deployer/internal/migrations"
 )
 
 func main() {

@@ -5,6 +5,7 @@ package api
 import (
 	"net/http"
 	"strconv"
+	"sync"
 	"sync/atomic"
 
 	"pb-deployer/internal/logger"
@@ -111,11 +112,30 @@ func handleTerminal(c *core.RequestEvent) error {
 
 	log.Info("Terminal session started for %s@%s", user, host)
 
+	// Coordinate shutdown: whichever goroutine finishes first closes the ws
+	// (which unblocks the others) and signals done exactly once. Without this,
+	// when the SSH session ends the stdin reader would block forever on
+	// ws.ReadMessage, holding the single-session slot until process restart.
 	done := make(chan struct{})
+	var closeOnce sync.Once
+	finish := func() {
+		closeOnce.Do(func() {
+			ws.Close()
+			close(done)
+		})
+	}
+
+	// gorilla/websocket forbids concurrent writers; serialize stdout+stderr.
+	var writeMu sync.Mutex
+	writeWS := func(data []byte) error {
+		writeMu.Lock()
+		defer writeMu.Unlock()
+		return ws.WriteMessage(websocket.BinaryMessage, data)
+	}
 
 	// Browser -> SSH stdin
 	go func() {
-		defer close(done)
+		defer finish()
 		for {
 			_, msg, err := ws.ReadMessage()
 			if err != nil {
@@ -129,11 +149,14 @@ func handleTerminal(c *core.RequestEvent) error {
 
 	// SSH stdout -> browser
 	go func() {
+		defer finish()
 		buf := make([]byte, 32*1024)
 		for {
 			n, err := stdout.Read(buf)
 			if n > 0 {
-				ws.WriteMessage(websocket.BinaryMessage, buf[:n])
+				if werr := writeWS(buf[:n]); werr != nil {
+					return
+				}
 			}
 			if err != nil {
 				return
@@ -143,11 +166,14 @@ func handleTerminal(c *core.RequestEvent) error {
 
 	// SSH stderr -> browser (merge into same stream)
 	go func() {
+		defer finish()
 		buf := make([]byte, 4*1024)
 		for {
 			n, err := stderr.Read(buf)
 			if n > 0 {
-				ws.WriteMessage(websocket.BinaryMessage, buf[:n])
+				if werr := writeWS(buf[:n]); werr != nil {
+					return
+				}
 			}
 			if err != nil {
 				return

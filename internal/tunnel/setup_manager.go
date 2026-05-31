@@ -255,7 +255,7 @@ import /etc/caddy/conf.d/*.caddy
 `, emailLine)
 
 	// Write idempotently — only if content differs
-	writeCmd := fmt.Sprintf("cat > /etc/caddy/Caddyfile << 'CADDYEOF'\n%sCaddyEOF", caddyfileContent)
+	writeCmd := fmt.Sprintf("cat > /etc/caddy/Caddyfile << 'CADDYEOF'\n%sCADDYEOF", caddyfileContent)
 	result, err = s.manager.client.ExecuteSudo(writeCmd, WithTimeout(10*time.Second))
 	if err != nil || result.ExitCode != 0 {
 		return fmt.Errorf("failed to write Caddyfile: %s", result.Stderr)

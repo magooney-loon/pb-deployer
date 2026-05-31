@@ -9,7 +9,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tests"
 
-	_ "pb-deployer/migrations"
+	_ "pb-deployer/internal/migrations"
 )
 
 func TestAppHealthURL(t *testing.T) {

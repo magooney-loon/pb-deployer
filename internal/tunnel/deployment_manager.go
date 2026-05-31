@@ -2,6 +2,7 @@ package tunnel
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -550,8 +551,15 @@ func (d *DeploymentManager) createSuperuser(ctx context.Context, deployCtx *Depl
 	// Wait a bit for PocketBase to fully initialize
 	time.Sleep(5 * time.Second)
 
-	cmd := fmt.Sprintf("su - %s -s /bin/bash -c \"cd %s && ./%s superuser create %s %s\"",
-		req.AppUsername, deployCtx.WorkingDir, req.AppName, req.SuperuserEmail, req.SuperuserPass)
+	// The superuser email/password are user-supplied and unvalidated, so they
+	// may contain spaces or shell metacharacters. Pass them base64-encoded and
+	// decode them inside the inner shell (single-quoted outer -c arg prevents
+	// the outer shell from expanding the substitution) so the values reach the
+	// binary as exact single arguments without breaking or injecting.
+	emailB64 := base64.StdEncoding.EncodeToString([]byte(req.SuperuserEmail))
+	passB64 := base64.StdEncoding.EncodeToString([]byte(req.SuperuserPass))
+	cmd := fmt.Sprintf("su - %s -s /bin/bash -c 'cd %s && ./%s superuser create \"$(echo %s | base64 -d)\" \"$(echo %s | base64 -d)\"'",
+		req.AppUsername, deployCtx.WorkingDir, req.AppName, emailB64, passB64)
 
 	result, err := d.manager.client.ExecuteSudo(cmd, WithTimeout(30*time.Second))
 	if err != nil || result.ExitCode != 0 {

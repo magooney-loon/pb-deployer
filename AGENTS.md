@@ -260,9 +260,25 @@ Range `8090–8999`. Auto-assigned smallest free port per server on app creation
 - Firewall: ufw/firewalld/iptables with 22/80/443 rules
 - SSH hardening + fail2ban during security lockdown
 
+## Input Validation
+
+App creation (`/api/apps`) validates `name` and `domain` before they flow into
+remote shell commands (systemd unit, remote path, Caddy fragment):
+
+- `name` must match `^[a-z0-9][a-z0-9-]{0,62}$` (DNS-label style)
+- `domain` must be a valid hostname
+
+The superuser email/password are passed to `superuser create` base64-encoded and
+decoded inside the remote shell, so credentials with spaces or shell
+metacharacters cannot break or inject into the command.
+
 ## Known Issues
 
-1. `idx_apps_port_per_server` index is created in `CreateCollection` but **missing from `syncAppsCollection`** — the sync path does not add this index. Fix: add `collection.AddIndex("idx_apps_port_per_server", true, "server_id, http_port", "")` to `syncAppsCollection` in `app.go`.
+_None currently tracked._
+
+Resolved:
+- `idx_apps_port_per_server` is now added in both `CreateCollection` and `syncAppsCollection` (`app.go`), so the per-server unique port constraint exists on freshly-created and synced databases alike.
+- Base Caddyfile heredoc terminator typo (`CaddyEOF` vs `CADDYEOF`) in `setup_manager.go` fixed — the stray terminator no longer leaks into `/etc/caddy/Caddyfile`.
 
 ## Quick Commands
 

@@ -162,6 +162,7 @@ func syncAppsCollection(app core.App, collection *core.Collection) error {
 	collection.AddIndex("idx_apps_status", false, "status", "")
 	collection.AddIndex("idx_apps_name_per_server", true, "server_id, name", "")
 	collection.AddIndex("idx_apps_domain_per_server", true, "server_id, domain", "")
+	collection.AddIndex("idx_apps_port_per_server", true, "server_id, http_port", "")
 	collection.AddIndex("idx_apps_service_per_server", true, "server_id, service_name", "")
 
 	return app.Save(collection)
