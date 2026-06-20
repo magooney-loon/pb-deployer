@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -17,6 +18,12 @@ import (
 
 	"github.com/pocketbase/pocketbase/core"
 )
+
+// usernameRe enforces a safe Linux username. The username is used to create the
+// app user and flows (sometimes unquoted) into root-level shell commands —
+// sudoers files, systemd unit User=, su/chown — so it must not contain
+// whitespace or shell metacharacters. Matches useradd's conventional range.
+var usernameRe = regexp.MustCompile(`^[a-z_][a-z0-9_-]{0,31}$`)
 
 // API_DESC Set up a new PocketBase server — creates app user, installs dependencies and Caddy
 // API_TAGS Setup
@@ -64,6 +71,12 @@ func handleServerSetup(c *core.RequestEvent) error {
 		log.Error("Validation failed: Username is required")
 		return c.JSON(http.StatusBadRequest, map[string]any{
 			"error": "Username is required",
+		})
+	}
+	if !usernameRe.MatchString(req.Username) {
+		log.Error("Validation failed: invalid username %q", req.Username)
+		return c.JSON(http.StatusBadRequest, map[string]any{
+			"error": "username must be 1-32 chars, start with a lowercase letter or underscore, and contain only lowercase letters, digits, hyphen, or underscore",
 		})
 	}
 
@@ -129,7 +142,8 @@ func handleServerSetup(c *core.RequestEvent) error {
 
 	setupManager := tunnel.NewSetupManager(manager)
 	cleanup.AddCloser(setupManager)
-	err = setupManager.SetupPocketBaseServer(req.Username, req.PublicKeys, req.ProxyEmail)
+	validKeys := getPublicKeysForSetup(req.PublicKeys)
+	err = setupManager.SetupPocketBaseServer(req.Username, validKeys, req.ProxyEmail)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]any{
 			"error": "Server setup failed",
@@ -150,7 +164,7 @@ func handleServerSetup(c *core.RequestEvent) error {
 	}
 
 	sendStep(6, "Updating database and finalizing")
-	err = updateServerSetupStatus(app, req.Host, true, false)
+	err = updateServerSetupStatus(app, req.Host, true, false, req.Username)
 	if err != nil {
 		log.Warning("Failed to update server setup status: %v", err)
 	}
@@ -282,7 +296,7 @@ func handleServerSecurity(c *core.RequestEvent) error {
 	}
 
 	sendStep(4, "Updating database")
-	err = updateServerSetupStatus(app, req.Host, false, true)
+	err = updateServerSetupStatus(app, req.Host, false, true, "")
 	if err != nil {
 		log.Warning("Failed to update server security status: %v", err)
 	}
@@ -473,7 +487,7 @@ func addHostKeyManually(host string, port int) error {
 	return nil
 }
 
-func updateServerSetupStatus(app core.App, host string, setupComplete, securityLocked bool) error {
+func updateServerSetupStatus(app core.App, host string, setupComplete, securityLocked bool, appUsername string) error {
 
 	serverRecord, err := app.FindFirstRecordByFilter(
 		"servers",
@@ -492,6 +506,12 @@ func updateServerSetupStatus(app core.App, host string, setupComplete, securityL
 	if securityLocked {
 		serverRecord.Set("security_locked", true)
 		log.Success("Marking server %s as security locked", host)
+	}
+	// Record the user that setup actually created so deployment targets the same
+	// account (deploy reads server.app_username, not the setup request).
+	if appUsername != "" {
+		serverRecord.Set("app_username", appUsername)
+		log.Success("Setting app_username=%s on server %s", appUsername, host)
 	}
 
 	if err := app.Save(serverRecord); err != nil {

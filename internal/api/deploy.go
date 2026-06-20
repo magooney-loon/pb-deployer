@@ -141,6 +141,15 @@ func handleDeploy(c *core.RequestEvent) error {
 
 	// Start deployment in goroutine
 	go func() {
+		// A panic here (e.g. an unexpected nil deref in the deploy steps) must not
+		// crash the whole process — contain it and mark the deployment failed.
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error("Deployment panicked: %v", r)
+				updateDeploymentStatus(app, deploymentRecord, "failed", fmt.Sprintf("Deployment panicked: %v", r))
+			}
+		}()
+
 		err := performDeployment(app, &deploymentDeploymentContext{
 			AppRecord:        appRecord,
 			VersionRecord:    versionRecord,

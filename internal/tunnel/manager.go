@@ -1,6 +1,7 @@
 package tunnel
 
 import (
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"sync"
@@ -142,9 +143,13 @@ func (m *Manager) SetupSSHKeys(username string, keys []string) error {
 		return err
 	}
 
-	keysContent := strings.Join(keys, "\n")
-	cmd = fmt.Sprintf("echo '%s' > '%s' && chmod 600 '%s' && chown '%s:%s' '%s'",
-		keysContent, authKeysFile, authKeysFile, username, username, authKeysFile)
+	// Authorized-keys content is user-supplied (key comments can contain quotes),
+	// so base64-encode it and decode on the remote — the encoded payload is in the
+	// safe [A-Za-z0-9+/=] set and cannot break out of the shell command.
+	keysContent := strings.Join(keys, "\n") + "\n"
+	keysB64 := base64.StdEncoding.EncodeToString([]byte(keysContent))
+	cmd = fmt.Sprintf("echo %s | base64 -d > '%s' && chmod 600 '%s' && chown '%s:%s' '%s'",
+		keysB64, authKeysFile, authKeysFile, username, username, authKeysFile)
 	result, err = m.client.ExecuteSudo(cmd)
 	if err != nil {
 		return err

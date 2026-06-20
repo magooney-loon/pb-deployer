@@ -234,7 +234,7 @@ func (c *Client) IsConnected() bool {
 
 func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
 	if c.conn == nil {
-		return nil, &Error{
+		return &Result{ExitCode: -1}, &Error{
 			Type:    ErrorConnection,
 			Message: "not connected",
 		}
@@ -254,7 +254,7 @@ func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
 	session, err := c.conn.NewSession()
 	if err != nil {
 		c.tracer.OnError("create_session", err)
-		return nil, &Error{
+		return &Result{ExitCode: -1}, &Error{
 			Type:    ErrorExecution,
 			Message: "failed to create session",
 			Cause:   err,
@@ -267,7 +267,7 @@ func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
 	if cfg.stream != nil {
 		stdoutPipe, err := session.StdoutPipe()
 		if err != nil {
-			return nil, &Error{
+			return &Result{ExitCode: -1}, &Error{
 				Type:    ErrorExecution,
 				Message: "failed to create stdout pipe",
 				Cause:   err,
@@ -276,7 +276,7 @@ func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
 
 		stderrPipe, err := session.StderrPipe()
 		if err != nil {
-			return nil, &Error{
+			return &Result{ExitCode: -1}, &Error{
 				Type:    ErrorExecution,
 				Message: "failed to create stderr pipe",
 				Cause:   err,
@@ -285,7 +285,7 @@ func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
 
 		if err := session.Start(fullCmd); err != nil {
 			c.tracer.OnError("start_command", err)
-			return nil, &Error{
+			return &Result{ExitCode: -1}, &Error{
 				Type:    ErrorExecution,
 				Message: "failed to start command",
 				Cause:   err,
@@ -313,7 +313,7 @@ func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
 				}
 				c.logger.SSHCommandResult(fullCmd, -1, 0)
 				c.tracer.OnExecuteResult(fullCmd, nil, err)
-				return nil, &Error{
+				return &Result{ExitCode: -1}, &Error{
 					Type:    ErrorExecution,
 					Message: "command failed",
 					Cause:   err,
@@ -324,7 +324,7 @@ func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
 			time.Sleep(2 * time.Second)
 			session.Signal(ssh.SIGKILL)
 			c.tracer.OnExecuteResult(fullCmd, nil, fmt.Errorf("timeout"))
-			return nil, &Error{
+			return &Result{ExitCode: -1}, &Error{
 				Type:    ErrorTimeout,
 				Message: fmt.Sprintf("command timed out after %v", cfg.timeout),
 			}
@@ -365,7 +365,7 @@ func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
 				}
 				c.logger.SSHCommandResult(fullCmd, -1, duration)
 				c.tracer.OnExecuteResult(fullCmd, nil, err)
-				return nil, &Error{
+				return &Result{ExitCode: -1}, &Error{
 					Type:    ErrorExecution,
 					Message: "command failed",
 					Cause:   err,
@@ -387,7 +387,7 @@ func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
 			time.Sleep(2 * time.Second)
 			session.Signal(ssh.SIGKILL)
 			c.tracer.OnExecuteResult(fullCmd, nil, fmt.Errorf("timeout"))
-			return nil, &Error{
+			return &Result{ExitCode: -1}, &Error{
 				Type:    ErrorTimeout,
 				Message: fmt.Sprintf("command timed out after %v", cfg.timeout),
 			}
