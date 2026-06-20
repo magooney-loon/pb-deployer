@@ -66,6 +66,39 @@ func TestGetPublicKeysForSetup(t *testing.T) {
 	}
 }
 
+func TestUsernameRe(t *testing.T) {
+	tests := []struct {
+		username string
+		valid    bool
+	}{
+		{"pocketbase", true},
+		{"deploy", true},
+		{"app_user", true},
+		{"app-user", true},
+		{"_svc", true},
+		{"a", true},
+		{"", false},
+		{"Pocketbase", false},    // uppercase
+		{"1user", false},         // must start with letter/underscore
+		{"-user", false},         // can't start with hyphen
+		{"user name", false},     // space
+		{"user;rm -rf /", false}, // shell metacharacters
+		{"user$(whoami)", false}, // command substitution
+		{"user'", false},         // quote
+		{"../../etc/passwd", false},
+		{strings.Repeat("a", 33), false}, // too long (>32)
+		{strings.Repeat("a", 32), true},  // exactly 32
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.username, func(t *testing.T) {
+			if got := usernameRe.MatchString(tt.username); got != tt.valid {
+				t.Errorf("usernameRe.MatchString(%q) = %v, want %v", tt.username, got, tt.valid)
+			}
+		})
+	}
+}
+
 func TestCreateSSHClient_InvalidInputs(t *testing.T) {
 	tests := []struct {
 		name                string

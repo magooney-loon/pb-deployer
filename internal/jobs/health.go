@@ -76,10 +76,17 @@ func CheckAppHealthStatuses(app core.App, client *http.Client) (HealthCheckSumma
 		return summary, fmt.Errorf("failed to load apps: %w", err)
 	}
 
+	// Apps with an in-flight deployment are skipped: their service is mid-restart,
+	// so a probe would race the deploy and flip status spuriously.
+	active, err := activeDeploymentAppIDs(app)
+	if err != nil {
+		app.Logger().Warn("health check: failed to load active deployments", "error", err)
+	}
+
 	for _, record := range records {
 		domain := strings.TrimSpace(record.GetString("domain"))
 		status := record.GetString("status")
-		if domain == "" {
+		if domain == "" || active[record.Id] {
 			summary.Skipped++
 			continue
 		}
@@ -110,6 +117,25 @@ func CheckAppHealthStatuses(app core.App, client *http.Client) (HealthCheckSumma
 	}
 
 	return summary, nil
+}
+
+// activeDeploymentAppIDs returns the set of app IDs that currently have a
+// pending or running deployment.
+func activeDeploymentAppIDs(app core.App) (map[string]bool, error) {
+	deployments, err := app.FindRecordsByFilter(
+		"deployments",
+		"status = 'running' || status = 'pending'",
+		"", 0, 0,
+	)
+	if err != nil {
+		return map[string]bool{}, err
+	}
+
+	active := make(map[string]bool, len(deployments))
+	for _, d := range deployments {
+		active[d.GetString("app_id")] = true
+	}
+	return active, nil
 }
 
 func isHealthy(client *http.Client, url string) bool {

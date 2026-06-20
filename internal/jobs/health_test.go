@@ -100,6 +100,71 @@ func TestCheckAppHealthStatusesUpdatesOnlineOffline(t *testing.T) {
 	}
 }
 
+func TestCheckAppHealthStatusesSkipsActiveDeployments(t *testing.T) {
+	app, err := tests.NewTestApp(t.TempDir())
+	if err != nil {
+		t.Fatalf("NewTestApp failed: %v", err)
+	}
+	defer app.Cleanup()
+
+	// A server that is up, so a probe would normally mark the app online.
+	healthyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer healthyServer.Close()
+
+	apps, err := app.FindCollectionByNameOrId("apps")
+	if err != nil {
+		t.Fatalf("apps collection missing: %v", err)
+	}
+	servers, err := app.FindCollectionByNameOrId("servers")
+	if err != nil {
+		t.Fatalf("servers collection missing: %v", err)
+	}
+	deployments, err := app.FindCollectionByNameOrId("deployments")
+	if err != nil {
+		t.Fatalf("deployments collection missing: %v", err)
+	}
+
+	server := core.NewRecord(servers)
+	server.Set("name", "server-a")
+	server.Set("host", "10.0.0.1")
+	server.Set("port", 22)
+	server.Set("root_username", "root")
+	server.Set("app_username", "pocketbase")
+	if err := app.SaveNoValidate(server); err != nil {
+		t.Fatalf("save server: %v", err)
+	}
+
+	// App is "offline"; without a deployment the healthy probe would flip it to
+	// "online". The in-flight deployment must make the job skip it instead.
+	deploying := appRecord(apps, server.Id, "deploying-app", healthyServer.URL, 8090, "offline")
+	if err := app.SaveNoValidate(deploying); err != nil {
+		t.Fatalf("save app: %v", err)
+	}
+
+	dep := core.NewRecord(deployments)
+	dep.Set("app_id", deploying.Id)
+	dep.Set("status", "running")
+	if err := app.SaveNoValidate(dep); err != nil {
+		t.Fatalf("save deployment: %v", err)
+	}
+
+	summary, err := CheckAppHealthStatuses(app, &http.Client{Timeout: 2 * time.Second})
+	if err != nil {
+		t.Fatalf("CheckAppHealthStatuses failed: %v", err)
+	}
+
+	if summary.Checked != 0 || summary.Skipped != 1 {
+		t.Fatalf("summary = %+v, want checked=0 skipped=1", summary)
+	}
+
+	fresh, _ := app.FindRecordById("apps", deploying.Id)
+	if got := fresh.GetString("status"); got != "offline" {
+		t.Fatalf("app status = %q, want offline (untouched while deploying)", got)
+	}
+}
+
 func appRecord(collection *core.Collection, serverID string, name string, domain string, port int, status string) *core.Record {
 	record := core.NewRecord(collection)
 	record.Set("server_id", serverID)

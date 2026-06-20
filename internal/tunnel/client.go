@@ -104,7 +104,14 @@ func (c *Client) Connect() error {
 	hostKeyCallback, err := GetHostKeyCallback(authConfig)
 	if err != nil {
 		c.tracer.OnError("get_host_key_callback", err)
-		// Fallback to insecure mode for this connection attempt
+		if !insecureSSHEnabled() {
+			return &Error{
+				Type:    ErrorAuth,
+				Message: "failed to set up host key verification (set PB_DEPLOYER_INSECURE_SSH=1 to bypass)",
+				Cause:   err,
+			}
+		}
+		// Operator explicitly opted into insecure mode for this connection.
 		c.logger.Warning("Using insecure host key verification due to error: %v", err)
 		hostKeyCallback = ssh.InsecureIgnoreHostKey()
 		usingInsecureMode = true
@@ -152,9 +159,11 @@ func (c *Client) Connect() error {
 			return nil
 		}
 
-		// Retry with insecure mode for unknown host key errors
-		if strings.Contains(err.Error(), "key is unknown") && !usingInsecureMode {
-			c.logger.Warning("Host key unknown, retrying with insecure verification")
+		// Retry with insecure verification only if the operator explicitly opted in.
+		// With AutoAddHostKeys the callback already pins unknown keys (TOFU), so this
+		// downgrade is a last resort and is unsafe against *changed* keys (MITM).
+		if insecureSSHEnabled() && strings.Contains(err.Error(), "key is unknown") && !usingInsecureMode {
+			c.logger.Warning("Host key unknown, retrying with insecure verification (PB_DEPLOYER_INSECURE_SSH)")
 			sshConfig.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 			usingInsecureMode = true
 			// Don't count insecure retry against retry limit
@@ -215,6 +224,18 @@ func (c *Client) Close() error {
 	return err
 }
 
+// getConn returns the live SSH connection under lock, or nil if the client is
+// closed/not connected. Callers snapshot it so an in-flight Execute can't race
+// with Close() niling out c.conn.
+func (c *Client) getConn() *ssh.Client {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closed {
+		return nil
+	}
+	return c.conn
+}
+
 func (c *Client) IsConnected() bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -233,7 +254,8 @@ func (c *Client) IsConnected() bool {
 }
 
 func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
-	if c.conn == nil {
+	conn := c.getConn()
+	if conn == nil {
 		return &Result{ExitCode: -1}, &Error{
 			Type:    ErrorConnection,
 			Message: "not connected",
@@ -251,7 +273,7 @@ func (c *Client) Execute(cmd string, opts ...ExecOption) (*Result, error) {
 	c.tracer.OnExecute(fullCmd)
 	c.logger.SSHCommand(fullCmd)
 
-	session, err := c.conn.NewSession()
+	session, err := conn.NewSession()
 	if err != nil {
 		c.tracer.OnError("create_session", err)
 		return &Result{ExitCode: -1}, &Error{
@@ -500,11 +522,12 @@ func (c *Client) Upload(localPath, remotePath string, opts ...FileOption) error 
 
 // addHostKeyAfterConnection attempts to add host key after insecure connection
 func (c *Client) addHostKeyAfterConnection() {
-	if c.conn == nil {
+	conn := c.getConn()
+	if conn == nil {
 		return
 	}
 
-	session, err := c.conn.NewSession()
+	session, err := conn.NewSession()
 	if err != nil {
 		return
 	}
@@ -644,7 +667,7 @@ func (c *Client) buildCommand(cmd string, cfg *execConfig) string {
 	var parts []string
 
 	for k, v := range cfg.env {
-		parts = append(parts, fmt.Sprintf("export %s='%s';", k, v))
+		parts = append(parts, fmt.Sprintf("export %s=%s;", k, shellescape(v)))
 	}
 
 	if cfg.workDir != "" {
@@ -661,14 +684,15 @@ func (c *Client) ensureSFTP() error {
 		return nil
 	}
 
-	if c.conn == nil {
+	conn := c.getConn()
+	if conn == nil {
 		return &Error{
 			Type:    ErrorConnection,
 			Message: "not connected",
 		}
 	}
 
-	sftp, err := sftp.NewClient(c.conn)
+	sftp, err := sftp.NewClient(conn)
 	if err != nil {
 		return &Error{
 			Type:    ErrorFileTransfer,
@@ -724,13 +748,14 @@ func (c *Client) copyWithProgress(src io.Reader, dst io.Writer, total int64, pro
 // NewSession opens a new SSH session on the existing connection.
 // Used by the terminal handler to start an interactive shell.
 func (c *Client) NewSession() (*ssh.Session, error) {
-	if c.conn == nil {
+	conn := c.getConn()
+	if conn == nil {
 		return nil, &Error{
 			Type:    ErrorConnection,
 			Message: "not connected",
 		}
 	}
-	return c.conn.NewSession()
+	return conn.NewSession()
 }
 
 func (c *Client) Ping() error {

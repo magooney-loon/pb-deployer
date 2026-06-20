@@ -30,6 +30,7 @@ type DeploymentRequest struct {
 	AppName              string
 	AppID                string
 	VersionID            string
+	VersionNum           string
 	DeploymentID         string
 	Domain               string
 	ServiceName          string
@@ -624,7 +625,7 @@ func (d *DeploymentManager) verifyDeployment(ctx context.Context, deployCtx *Dep
 		if err != nil || result.ExitCode != 0 {
 			d.logProgress(req, fmt.Sprintf("Public HTTPS health check failed (attempt %d/15) — service started but public unreachable, check DNS", i+1))
 			// Public failure after loopback passes → set status unknown rather than failed
-			d.updateAppStatus(req.AppID, "unknown", req.VersionID)
+			d.updateAppStatus(req.AppID, "unknown", req.VersionNum)
 			return nil
 		}
 
@@ -648,8 +649,8 @@ func (d *DeploymentManager) finalizeDeployment(ctx context.Context, deployCtx *D
 	// Clean up current staging directory on successful deployment
 	d.manager.client.ExecuteSudo(fmt.Sprintf("rm -rf %s", deployCtx.StagingPath))
 
-	// Update app status to online and set current version
-	d.updateAppStatus(deployCtx.Request.AppID, "online", deployCtx.Request.VersionID)
+	// Update app status to online and set current version (human-readable number)
+	d.updateAppStatus(deployCtx.Request.AppID, "online", deployCtx.Request.VersionNum)
 
 	d.logProgress(deployCtx.Request, "Deployment finalized successfully")
 	return nil

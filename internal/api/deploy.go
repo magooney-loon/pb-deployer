@@ -162,8 +162,9 @@ func handleDeploy(c *core.RequestEvent) error {
 		})
 
 		if err != nil {
+			// Status was already marked failed by performDeployment (pre-Deploy
+			// errors) or the deployment manager (in-Deploy errors); just log here.
 			log.Error("Deployment failed: %v", err)
-			updateDeploymentStatus(app, deploymentRecord, "failed", fmt.Sprintf("Deployment failed: %v", err))
 		}
 	}()
 
@@ -189,13 +190,15 @@ type deploymentDeploymentContext struct {
 func performDeployment(app core.App, ctx *deploymentDeploymentContext) error {
 	log := logger.GetAPILogger()
 
-	// Create SSH client
+	// Create SSH client. Failures here happen *before* the deployment manager
+	// runs, so the manager won't mark the deployment failed — the API must.
 	client, err := createSSHClient(
 		ctx.ServerRecord.GetString("host"),
 		ctx.ServerRecord.GetInt("port"),
 		ctx.ServerRecord.GetString("root_username"),
 	)
 	if err != nil {
+		updateDeploymentStatus(app, ctx.DeploymentRecord, "failed", fmt.Sprintf("Failed to create SSH client: %v", err))
 		return fmt.Errorf("failed to create SSH client: %w", err)
 	}
 
@@ -204,6 +207,7 @@ func performDeployment(app core.App, ctx *deploymentDeploymentContext) error {
 	cleanup.AddCloser(client)
 
 	if err := client.Connect(); err != nil {
+		updateDeploymentStatus(app, ctx.DeploymentRecord, "failed", fmt.Sprintf("Failed to connect to server: %v", err))
 		return fmt.Errorf("failed to connect to server: %w", err)
 	}
 
@@ -214,11 +218,15 @@ func performDeployment(app core.App, ctx *deploymentDeploymentContext) error {
 	deploymentManager := tunnel.NewDeploymentManager(manager, app)
 	cleanup.AddCloser(deploymentManager)
 
-	// Build deployment request
+	// Build deployment request. From here on the deployment manager is the sole
+	// owner of the deployment record (status + logs) and the app record (status +
+	// current_version); the API must not write those concurrently or it will
+	// clobber the manager's saves with a stale in-memory copy.
 	deployReq := &tunnel.DeploymentRequest{
 		AppName:              ctx.AppRecord.GetString("name"),
 		AppID:                ctx.AppRecord.Id,
 		VersionID:            ctx.VersionRecord.Id,
+		VersionNum:           ctx.VersionRecord.GetString("version_num"),
 		DeploymentID:         ctx.DeploymentRecord.Id,
 		Domain:               ctx.AppRecord.GetString("domain"),
 		ServiceName:          ctx.AppRecord.GetString("service_name"),
@@ -233,29 +241,13 @@ func performDeployment(app core.App, ctx *deploymentDeploymentContext) error {
 		ProgressCallback: func(step int, total int, message string) {
 			log.Step(step, total, message)
 		},
-		LogCallback: func(message string) {
-			appendDeploymentLog(app, ctx.DeploymentRecord, message)
-		},
 	}
 
-	// Perform deployment
-	deployCtx := context.Background()
-	err = deploymentManager.Deploy(deployCtx, deployReq)
-
-	if err != nil {
-		updateDeploymentStatus(app, ctx.DeploymentRecord, "failed", fmt.Sprintf("Deployment failed: %v", err))
+	// Perform deployment. Deploy() sets the terminal deployment status and the
+	// app record itself, so we just propagate the error for the caller to log.
+	if err := deploymentManager.Deploy(context.Background(), deployReq); err != nil {
 		return err
 	}
-
-	// Update app current version and status
-	ctx.AppRecord.Set("current_version", ctx.VersionRecord.GetString("version_num"))
-	ctx.AppRecord.Set("status", "online")
-	if err := app.Save(ctx.AppRecord); err != nil {
-		log.Warning("Failed to update app record: %v", err)
-	}
-
-	// Mark deployment as successful
-	updateDeploymentStatus(app, ctx.DeploymentRecord, "success", "Deployment completed successfully")
 
 	log.Success("Deployment completed successfully")
 	return nil
@@ -263,6 +255,12 @@ func performDeployment(app core.App, ctx *deploymentDeploymentContext) error {
 
 func updateDeploymentStatus(app core.App, deploymentRecord *core.Record, status string, message string) {
 	log := logger.GetAPILogger()
+
+	// Reload to avoid clobbering logs the deployment manager may have written to
+	// this record on the server side with our stale in-memory copy.
+	if fresh, err := app.FindRecordById("deployments", deploymentRecord.Id); err == nil {
+		deploymentRecord = fresh
+	}
 
 	deploymentRecord.Set("status", status)
 

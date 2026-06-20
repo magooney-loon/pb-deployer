@@ -352,8 +352,9 @@ func TestAuthConfigs(t *testing.T) {
 	if !devConfig.AutoAddHostKeys {
 		t.Error("DevelopmentAuthConfig should have AutoAddHostKeys enabled")
 	}
-	if !devConfig.DebugAuth {
-		t.Error("DevelopmentAuthConfig should have DebugAuth enabled")
+	// DebugAuth is now env-gated (PB_DEPLOYER_SSH_DEBUG); off unless explicitly set.
+	if devConfig.DebugAuth {
+		t.Error("DevelopmentAuthConfig should have DebugAuth disabled by default")
 	}
 
 	// Test specific values for insecure config

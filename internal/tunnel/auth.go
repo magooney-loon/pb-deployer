@@ -568,11 +568,29 @@ func DevelopmentAuthConfig() AuthConfig {
 		KnownHostsFile:          "",
 		SkipHostKeyVerification: false,
 		AutoAddHostKeys:         true,
-		DebugAuth:               true,
+		DebugAuth:               sshDebugEnabled(),
 		MaxAuthAttempts:         3,
 		AuthTimeout:             30 * time.Second,
 	}
 }
+
+// envEnabled reports whether an env var is set to a truthy value.
+func envEnabled(name string) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(name))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+// sshDebugEnabled turns on verbose [AUTH] host-key debug logging.
+func sshDebugEnabled() bool { return envEnabled("PB_DEPLOYER_SSH_DEBUG") }
+
+// insecureSSHEnabled lets the operator explicitly opt into downgrading to
+// insecure host-key verification. Off by default — leaving it off preserves
+// MITM protection (unknown keys are still pinned via AutoAddHostKeys/TOFU).
+func insecureSSHEnabled() bool { return envEnabled("PB_DEPLOYER_INSECURE_SSH") }
 
 func InsecureAuthConfig() AuthConfig {
 	return AuthConfig{
